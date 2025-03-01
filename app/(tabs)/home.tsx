@@ -1,7 +1,19 @@
-import { StyleSheet, View, Text, Image, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function HomeScreen() {
+  // State to track which silhouette view is currently displayed
+  const [showFrontView, setShowFrontView] = useState(true);
+
+  // Function to toggle between front and back views
+  const toggleSilhouetteView = () => {
+    setShowFrontView(!showFrontView);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.statsBox}>
@@ -10,15 +22,21 @@ export default function HomeScreen() {
         <Text style={styles.stat}>0m Time</Text>
       </View>
       <Image
-        source={require('../../assets/images/muscle-silhouette-front.png')}
+        source={showFrontView 
+          ? require('../../assets/images/muscle-silhouette-front.png')
+          : require('../../assets/images/muscle-silhouette-back.png')
+        }
         style={styles.silhouette}
       />
       <View style={styles.buttonsContainer}>
         <TouchableOpacity style={styles.treinoButton}>
           <Text style={styles.buttonText}>Treino +</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.rotateButton}>
-          <Ionicons name="refresh-circle" size={24} color="#fff" />
+        <TouchableOpacity 
+          style={styles.rotateButton}
+          onPress={toggleSilhouetteView}
+        >
+          <MaterialCommunityIcons name="rotate-360" size={36} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
@@ -62,9 +80,9 @@ const styles = StyleSheet.create({
   },
   treinoButton: {
     backgroundColor: '#4a90e2',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 5,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
     alignItems: 'center',
   },
   rotateButton: {
@@ -73,6 +91,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 }); 

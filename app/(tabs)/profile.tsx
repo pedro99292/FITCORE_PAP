@@ -4,14 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 const { width: screenWidth } = Dimensions.get('window');
-const AVATAR_SIZE = screenWidth * 0.22; // Increased from 0.2 to 0.22
+const AVATAR_SIZE = screenWidth * 0.22; 
 
 export default function ProfileScreen() {
   // Sample user data - you would replace this with actual user data
   const user = {
     username: 'USERNAME_123',
     name: 'Nome',
-    avatar: require('../../assets/images/default-avatar.png'), // Using default avatar image
+    avatar: require('../../assets/images/default-avatar.png'),
   };
 
   // Generate an array of days for the calendar (example)
@@ -29,9 +29,7 @@ export default function ProfileScreen() {
   const calendarDays = generateCalendarDays();
 
   const handleLogout = () => {
-    // Add your logout logic here
     console.log('Logging out...');
-    // router.replace('/login'); // Uncomment this to navigate to login page
   };
 
   return (
@@ -67,7 +65,10 @@ export default function ProfileScreen() {
               <FontAwesome name="graduation-cap" size={42} color="#fff" />
               <Text style={styles.actionText}>Aprender</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionItem}>
+            <TouchableOpacity 
+              style={styles.actionItem}
+              onPress={() => router.push('/settings')}
+            >
               <FontAwesome name="cog" size={42} color="#fff" />
               <Text style={styles.actionText}>Definições</Text>
             </TouchableOpacity>
@@ -88,7 +89,6 @@ export default function ProfileScreen() {
             </View>
           </View>
           
-          {/* Add spacing at the bottom to ensure logout button doesn't overlap */}
           <View style={{ height: 80 }} />
         </View>
       </ScrollView>
@@ -117,12 +117,12 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: screenWidth * 0.06,
-    paddingTop: screenWidth * 0.15, // Increased from 0.12 for more top spacing
+    paddingTop: screenWidth * 0.15, 
   },
   profileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: screenWidth * 0.08, // Increased from 0.06 to 0.08
+    marginBottom: screenWidth * 0.08, 
   },
   avatarContainer: {
     width: AVATAR_SIZE,
