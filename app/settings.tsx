@@ -12,6 +12,10 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [soundEffects, setSoundEffects] = useState(true);
 
+  const handleBackToProfile = () => {
+    router.replace('/(tabs)/profile');
+  };
+
   const SettingItem = ({ 
     icon, 
     title, 
@@ -59,6 +63,7 @@ export default function SettingsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen 
         options={{
+          headerShown: true,
           title: 'Definições',
           headerStyle: {
             backgroundColor: colors.background,
@@ -69,16 +74,16 @@ export default function SettingsScreen() {
           },
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={() => router.push('/(tabs)/profile')}
+              onPress={handleBackToProfile}
               style={{ marginLeft: 16 }}
             >
               <FontAwesome name="arrow-left" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
           headerTitle: () => (
-            <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>Definições</Text>
-            </TouchableOpacity>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>
+              Definições
+            </Text>
           ),
         }} 
       />

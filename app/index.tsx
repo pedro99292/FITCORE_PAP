@@ -1,5 +1,7 @@
 import { Redirect } from 'expo-router';
 
 export default function Index() {
-  return <Redirect href="/(tabs)/home" />;
+  // For now, we'll redirect to the auth flow
+  // Later, this can check for authentication and redirect appropriately
+  return <Redirect href="/(auth)/login" />;
 } 

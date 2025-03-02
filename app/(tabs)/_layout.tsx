@@ -1,23 +1,45 @@
+import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform, Dimensions } from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { router } from 'expo-router';
+import { ActivityIndicator, View, Platform, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import HeaderStats from '@/components/HeaderStats';
 
-const { width: screenWidth } = Dimensions.get('window');
-
-// Calculate responsive icon size with minimum and maximum constraints
-const getIconSize = () => {
-  const calculatedSize = screenWidth * 0.11; // Increased from 9% to 12% of screen width
-  return Math.max(38, Math.min(calculatedSize, 46)); // Increased min from 32 to 38, max from 42 to 48
-};
+// Helper function to calculate icon size based on screen width
+function getIconSize() {
+  const { width } = Dimensions.get('window');
+  return Math.min(24, width * 0.06);
+}
 
 export default function TabLayout() {
+  const { session, loading } = useAuth();
   const colorScheme = useColorScheme();
   const iconSize = getIconSize();
+
+  useEffect(() => {
+    // If not loading and no session, redirect to login
+    if (!loading && !session) {
+      router.replace('/(auth)/login');
+    }
+  }, [session, loading]);
+
+  // While checking authentication state, show a loading indicator
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#FF4757" />
+      </View>
+    );
+  }
+
+  // If user is not authenticated, don't render tabs
+  if (!session) {
+    return null;
+  }
 
   return (
     <Tabs
@@ -47,6 +69,13 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <FontAwesome name="home" size={iconSize} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="exercises"
+        options={{
+          title: 'Exercises',
+          tabBarIcon: ({ color }) => <FontAwesome name="list" size={iconSize} color={color} />,
         }}
       />
       <Tabs.Screen
