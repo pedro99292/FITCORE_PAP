@@ -1,22 +1,66 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, ScrollView, SafeAreaView, StatusBar, ActivityIndicator } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/hooks/useTheme';
+import { supabase } from '@/utils/supabase';
 
-const { width: screenWidth } = Dimensions.get('window');
-const AVATAR_SIZE = screenWidth * 0.25; 
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const AVATAR_SIZE = screenWidth * 0.26; 
 
 export default function ProfileScreen() {
-  const { user, signOut, loading } = useAuth();
-  
-  // Fallback data if user isn't loaded yet
-  const userData = {
+  const { user, loading } = useAuth();
+  const { colors, isDarkMode } = useTheme();
+  const [userData, setUserData] = useState({
     username: user?.email?.split('@')[0] || 'USERNAME_123',
-    name: user?.user_metadata?.full_name || 'User',
+    name: user?.user_metadata?.full_name || 'Utilizador',
+    bio: '',
     avatar: require('../../assets/images/default-avatar.png'),
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch user data from database when component mounts
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  // Fetch existing user data from the database
+  const fetchUserProfile = async () => {
+    try {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('username, full_name, bio')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Erro ao buscar perfil:', error);
+      } else if (data) {
+        // Update user data with database values
+        setUserData({
+          username: data.username || user?.email?.split('@')[0] || 'USERNAME_123',
+          name: data.full_name || user?.user_metadata?.full_name || 'Utilizador',
+          bio: data.bio || 'Sem biografia disponível.',
+          avatar: require('../../assets/images/default-avatar.png'),
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar perfil do utilizador:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Generate an array of days for the calendar (example)
@@ -30,81 +74,101 @@ export default function ProfileScreen() {
 
   const calendarDays = generateCalendarDays();
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      router.replace("/(auth)/login");
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
+  const handleEditProfile = () => {
+    router.push("/edit-profile");
   };
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4a90e2" />
+          <Text style={[styles.loadingText, { color: colors.text }]}>A carregar perfil...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.scrollView}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           {/* Profile Info Section */}
-          <View style={styles.profileCard}>
-            <View style={styles.profileHeader}>
-              <View style={styles.avatarContainer}>
-                <Image source={userData.avatar} style={styles.avatar} />
+          <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
+            <LinearGradient
+              colors={['rgba(74, 144, 226, 0.3)', 'rgba(74, 144, 226, 0.1)']}
+              style={styles.profileHeaderGradient}
+            >
+              <View style={styles.profileHeader}>
+                <View style={styles.avatarContainer}>
+                  <Image source={userData.avatar} style={styles.avatar} />
+                  <TouchableOpacity 
+                    style={styles.editAvatarButton}
+                    onPress={handleEditProfile}
+                  >
+                    <FontAwesome name="camera" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.userInfo}>
+                  <Text style={[styles.username, { color: colors.text }]}>{userData.username}</Text>
+                  <Text style={[styles.name, { color: colors.text }]}>{userData.name}</Text>
+                  <TouchableOpacity 
+                    style={[styles.editProfileButton, { borderColor: 'rgba(74, 144, 226, 0.4)' }]}
+                    onPress={handleEditProfile}
+                  >
+                    <FontAwesome name="pencil" size={14} color="#4a90e2" style={styles.editIcon} />
+                    <Text style={styles.editProfileText}>Editar Perfil</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.userInfo}>
-                <Text style={styles.username}>{userData.username}</Text>
-                <Text style={styles.name}>{userData.name}</Text>
-              </View>
-              <TouchableOpacity style={styles.helpButton}>
-                <FontAwesome name="question" size={22} color="#666" />
-              </TouchableOpacity>
-            </View>
+            </LinearGradient>
 
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>28</Text>
-                <Text style={styles.statLabel}>Workouts</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>154</Text>
-                <Text style={styles.statLabel}>Hours</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>8.6k</Text>
-                <Text style={styles.statLabel}>Points</Text>
-              </View>
+            <View style={styles.bioContainer}>
+              <Text style={[styles.bioLabel, { color: colors.text }]}>Bio</Text>
+              <Text style={[styles.bioText, { color: colors.text }]}>{userData.bio}</Text>
             </View>
           </View>
 
           {/* Quick Actions Section */}
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Ações Rápidas</Text>
           <View style={styles.quickActions}>
             <TouchableOpacity style={styles.actionItem}>
               <LinearGradient
                 colors={['#FF4757', '#FF6B81']}
+                start={[0, 0]}
+                end={[1, 1]}
                 style={styles.actionIcon}>
                 <FontAwesome name="shopping-cart" size={26} color="#fff" />
               </LinearGradient>
-              <Text style={styles.actionText}>STORE</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>LOJA</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.actionItem}>
               <LinearGradient
                 colors={['#3E64FF', '#5A7BFF']}
+                start={[0, 0]}
+                end={[1, 1]}
                 style={styles.actionIcon}>
                 <Ionicons name="fitness" size={26} color="#fff" />
               </LinearGradient>
-              <Text style={styles.actionText}>WORKOUT</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>TREINO</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.actionItem}>
               <LinearGradient
                 colors={['#11998E', '#38EF7D']}
+                start={[0, 0]}
+                end={[1, 1]}
                 style={styles.actionIcon}>
                 <FontAwesome name="graduation-cap" size={26} color="#fff" />
               </LinearGradient>
-              <Text style={styles.actionText}>LEARN</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>APRENDER</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -113,21 +177,23 @@ export default function ProfileScreen() {
             >
               <LinearGradient
                 colors={['#F7971E', '#FFD200']}
+                start={[0, 0]}
+                end={[1, 1]}
                 style={styles.actionIcon}>
                 <FontAwesome name="cog" size={26} color="#fff" />
               </LinearGradient>
-              <Text style={styles.actionText}>SETTINGS</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>DEFINIÇÕES</Text>
             </TouchableOpacity>
           </View>
 
           {/* Calendar Section */}
-          <Text style={styles.sectionTitle}>Activity Calendar</Text>
-          <View style={styles.calendarSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Calendário</Text>
+          <View style={[styles.calendarSection, { backgroundColor: colors.surface }]}>
             <View style={styles.calendarHeader}>
-              <FontAwesome name="calendar" size={20} color="#666" />
-              <Text style={styles.calendarTitle}>January 2024</Text>
+              <FontAwesome name="calendar" size={20} color="#4a90e2" />
+              <Text style={[styles.calendarTitle, { color: colors.text }]}>Janeiro 2024</Text>
               <TouchableOpacity style={styles.calendarAction}>
-                <Text style={styles.calendarActionText}>View All</Text>
+                <Text style={styles.calendarActionText}>Ver Tudo</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.calendarGrid}>
@@ -136,11 +202,13 @@ export default function ProfileScreen() {
                   key={index} 
                   style={[
                     styles.calendarDay,
+                    { backgroundColor: colors.background },
                     day === 8 && styles.calendarDayActive
                   ]}
                 >
                   <Text style={[
                     styles.calendarDayText,
+                    { color: colors.text },
                     day === 8 && styles.calendarDayTextActive
                   ]}>{day}</Text>
                   {day === 8 && <View style={styles.calendarDayDot} />}
@@ -150,52 +218,38 @@ export default function ProfileScreen() {
           </View>
           
           {/* Achievements Section */}
-          <Text style={styles.sectionTitle}>Recent Achievements</Text>
-          <View style={styles.achievementsSection}>
-            <View style={styles.achievement}>
-              <View style={styles.achievementIconContainer}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Conquistas Recentes</Text>
+          <View style={[styles.achievementsSection, { backgroundColor: colors.surface }]}>
+            <View style={[styles.achievement, { borderBottomColor: 'rgba(200, 200, 200, 0.2)' }]}>
+              <View style={[styles.achievementIconContainer, { backgroundColor: 'rgba(247, 151, 30, 0.15)' }]}>
                 <FontAwesome name="trophy" size={22} color="#F7971E" />
               </View>
               <View style={styles.achievementInfo}>
-                <Text style={styles.achievementTitle}>10 Day Streak</Text>
-                <Text style={styles.achievementDate}>Completed Jan 15, 2024</Text>
+                <Text style={[styles.achievementTitle, { color: colors.text }]}>10 Dias Seguidos</Text>
+                <Text style={styles.achievementDate}>Concluído a 15 de Jan, 2024</Text>
               </View>
-              <Text style={styles.achievementPoints}>+250</Text>
+              <View style={styles.pointsContainer}>
+                <Text style={styles.achievementPoints}>+250</Text>
+              </View>
             </View>
             
             <View style={styles.achievement}>
-              <View style={styles.achievementIconContainer}>
+              <View style={[styles.achievementIconContainer, { backgroundColor: 'rgba(255, 71, 87, 0.15)' }]}>
                 <FontAwesome name="fire" size={22} color="#FF4757" />
               </View>
               <View style={styles.achievementInfo}>
-                <Text style={styles.achievementTitle}>Burnt 5000 Calories</Text>
-                <Text style={styles.achievementDate}>Completed Jan 10, 2024</Text>
+                <Text style={[styles.achievementTitle, { color: colors.text }]}>5000 Calorias Queimadas</Text>
+                <Text style={styles.achievementDate}>Concluído a 10 de Jan, 2024</Text>
               </View>
-              <Text style={styles.achievementPoints}>+500</Text>
+              <View style={styles.pointsContainer}>
+                <Text style={styles.achievementPoints}>+500</Text>
+              </View>
             </View>
           </View>
           
-          <View style={{ height: 100 }} />
+          <View style={{ height: 20 }} />
         </View>
       </ScrollView>
-
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} disabled={loading}>
-        <LinearGradient
-          colors={['#FF4757', '#E5394A']}
-          start={[0, 0]}
-          end={[1, 0]}
-          style={styles.logoutGradient}>
-          {loading ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <>
-              <FontAwesome name="sign-out" size={18} color="#fff" style={styles.logoutIcon} />
-              <Text style={styles.logoutText}>Logout</Text>
-            </>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -203,30 +257,46 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#2c2c3e',
   },
   scrollView: {
     width: '100%',
   },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#fff',
+  },
   header: {
     padding: screenWidth * 0.05,
-    paddingTop: screenWidth * 0.08,
+    paddingTop: screenWidth * 0.05,
   },
   profileCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: screenWidth * 0.05,
+    backgroundColor: '#3e3e50',
+    borderRadius: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    marginBottom: screenWidth * 0.05,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 10,
+    marginBottom: screenWidth * 0.06,
+  },
+  profileHeaderGradient: {
+    padding: screenWidth * 0.05,
+    paddingBottom: screenWidth * 0.06,
   },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: screenWidth * 0.05,
   },
   avatarContainer: {
     width: AVATAR_SIZE,
@@ -235,72 +305,83 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: screenWidth * 0.04,
+    marginRight: screenWidth * 0.05,
     overflow: 'hidden',
     borderWidth: 3,
-    borderColor: '#FF4757',
+    borderColor: '#4a90e2',
+    position: 'relative',
   },
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
   },
+  editAvatarButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'rgba(74, 144, 226, 0.9)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   userInfo: {
     flex: 1,
   },
   username: {
-    color: '#333',
-    fontSize: screenWidth * 0.05,
+    color: '#fff',
+    fontSize: screenWidth * 0.055,
     fontWeight: 'bold',
+    marginBottom: 4,
   },
   name: {
-    color: '#666',
+    color: '#e0e0e0',
     fontSize: screenWidth * 0.038,
-    marginTop: 2,
+    marginBottom: 12,
   },
-  helpButton: {
-    width: 40,
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-  },
-  statsRow: {
+  editProfileButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: screenWidth * 0.04,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  statItem: {
-    flex: 1,
     alignItems: 'center',
+    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+    borderWidth: 1,
+    borderColor: '#4a90e2',
+    borderRadius: 50,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
   },
-  statNumber: {
-    fontSize: screenWidth * 0.05,
+  editIcon: {
+    marginRight: 5,
+  },
+  editProfileText: {
+    color: '#4a90e2',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bioContainer: {
+    paddingHorizontal: screenWidth * 0.05,
+    paddingBottom: screenWidth * 0.05,
+  },
+  bioLabel: {
+    fontSize: screenWidth * 0.045,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
+    marginBottom: 10,
   },
-  statLabel: {
-    fontSize: screenWidth * 0.032,
-    color: '#666',
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: '70%',
-    backgroundColor: '#eee',
-    alignSelf: 'center',
+  bioText: {
+    fontSize: screenWidth * 0.04,
+    color: '#e0e0e0',
+    lineHeight: screenWidth * 0.056,
   },
   sectionTitle: {
-    fontSize: screenWidth * 0.048,
+    fontSize: screenWidth * 0.055,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: screenWidth * 0.03,
-    marginTop: screenWidth * 0.06,
+    color: '#fff',
+    marginBottom: screenWidth * 0.04,
+    marginTop: screenWidth * 0.08,
+    paddingLeft: screenWidth * 0.01,
   },
   quickActions: {
     flexDirection: 'row',
@@ -312,32 +393,33 @@ const styles = StyleSheet.create({
     width: '22%',
   },
   actionIcon: {
-    width: screenWidth * 0.14,
-    height: screenWidth * 0.14,
-    borderRadius: 12,
+    width: screenWidth * 0.16,
+    height: screenWidth * 0.16,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
   actionText: {
-    color: '#555',
+    color: '#fff',
     fontSize: screenWidth * 0.032,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginTop: 4,
   },
   calendarSection: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    backgroundColor: '#3e3e50',
+    borderRadius: 20,
     padding: screenWidth * 0.05,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 6,
   },
   calendarHeader: {
     flexDirection: 'row',
@@ -345,20 +427,20 @@ const styles = StyleSheet.create({
     marginBottom: screenWidth * 0.05,
   },
   calendarTitle: {
-    color: '#333',
+    color: '#fff',
     fontSize: screenWidth * 0.045,
     fontWeight: 'bold',
     marginLeft: screenWidth * 0.02,
     flex: 1,
   },
   calendarAction: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 50,
+    backgroundColor: 'rgba(74, 144, 226, 0.15)',
   },
   calendarActionText: {
-    color: '#666',
+    color: '#4a90e2',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -370,18 +452,18 @@ const styles = StyleSheet.create({
   calendarDay: {
     width: '13.5%',
     aspectRatio: 1,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: '#2c2c3e',
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
     marginHorizontal: '0.25%',
   },
   calendarDayActive: {
-    backgroundColor: '#FF4757',
+    backgroundColor: '#4a90e2',
   },
   calendarDayText: {
-    color: '#333',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -396,27 +478,27 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   achievementsSection: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    backgroundColor: '#3e3e50',
+    borderRadius: 20,
     padding: screenWidth * 0.05,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 6,
   },
   achievement: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: 'rgba(200, 200, 200, 0.1)',
   },
   achievementIconContainer: {
-    width: 45,
-    height: 45,
-    borderRadius: 10,
-    backgroundColor: '#FFF5E6',
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: 'rgba(247, 151, 30, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -426,46 +508,23 @@ const styles = StyleSheet.create({
   },
   achievementTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
   },
   achievementDate: {
     fontSize: 12,
-    color: '#888',
-    marginTop: 2,
+    color: '#aaa',
+  },
+  pointsContainer: {
+    backgroundColor: 'rgba(17, 153, 142, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 50,
   },
   achievementPoints: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#11998E',
-  },
-  logoutButton: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#FF4757',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  logoutGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-  },
-  logoutIcon: {
-    marginRight: 10,
-  },
-  logoutText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    color: '#38EF7D',
   },
 }); 

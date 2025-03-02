@@ -1,19 +1,31 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Switch, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Switch, Dimensions, ActivityIndicator } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuth } from '@/contexts/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { isDarkMode, toggleTheme, colors } = useTheme();
+  const { signOut, loading } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [soundEffects, setSoundEffects] = useState(true);
 
   const handleBackToProfile = () => {
     router.replace('/(tabs)/profile');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.replace("/(auth)/login");
+    } catch (error) {
+      console.error('Erro ao terminar sessão:', error);
+    }
   };
 
   const SettingItem = ({ 
@@ -166,6 +178,26 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
+
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} disabled={loading}>
+          <LinearGradient
+            colors={['#4a90e2', '#3570b2']}
+            start={[0, 0]}
+            end={[1, 0]}
+            style={styles.logoutGradient}>
+            {loading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <>
+                <FontAwesome name="sign-out" size={18} color="#fff" style={styles.logoutIcon} />
+                <Text style={styles.logoutText}>Terminar Sessão</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+        
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
@@ -240,5 +272,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  logoutButton: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 10,
+    borderRadius: 15,
+    overflow: 'hidden',
+    shadowColor: '#333',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  logoutGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  logoutIcon: {
+    marginRight: 10,
+  },
+  logoutText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 }); 

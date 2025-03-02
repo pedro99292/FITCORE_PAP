@@ -33,7 +33,6 @@ export default function LoginScreen() {
   const colorScheme = useColorScheme();
 
   const handleLogin = async () => {
-    // Basic validation
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password');
       return;
@@ -57,7 +56,6 @@ export default function LoginScreen() {
         router.replace("/(tabs)/home");
       }
     } catch (error: any) {
-      // Check for specific error messages for more user-friendly feedback
       let errorMessage = error.message || 'Login failed';
       
       if (errorMessage.includes('Invalid login credentials')) {

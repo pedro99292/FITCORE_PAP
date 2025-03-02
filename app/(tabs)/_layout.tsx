@@ -12,7 +12,7 @@ import HeaderStats from '@/components/HeaderStats';
 // Helper function to calculate icon size based on screen width
 function getIconSize() {
   const { width } = Dimensions.get('window');
-  return Math.min(24, width * 0.06);
+  return Math.max(36, width * 0.1);
 }
 
 export default function TabLayout() {

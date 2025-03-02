@@ -14,9 +14,9 @@ type IconType = 'fontawesome' | 'ionicons' | 'material';
 const achievementsData = [
     { 
         id: 1, 
-        title: '5K Run Master', 
-        description: 'Completed a 5K run in under 30 minutes', 
-        date: '2023-01-15',
+        title: 'Mestre de Corrida 5K', 
+        description: 'Completou uma corrida de 5K em menos de 30 minutos', 
+        date: '15-01-2025',
         iconType: 'ionicons' as IconType,
         icon: 'fitness',
         progress: 100,
@@ -24,9 +24,9 @@ const achievementsData = [
     },
     { 
         id: 2, 
-        title: 'Weight Lifting Pro', 
-        description: 'Lifted 100kg in deadlift', 
-        date: '2023-03-10',
+        title: 'Profissional em Levantamento', 
+        description: 'Levantou 100kg em peso morto', 
+        date: '10-03-2024',
         iconType: 'material' as IconType,
         icon: 'weight-lifter',
         progress: 100,
@@ -34,9 +34,9 @@ const achievementsData = [
     },
     { 
         id: 3, 
-        title: 'Cardio Warrior', 
-        description: 'Complete 50 cardio sessions', 
-        date: 'In Progress',
+        title: 'Guerreiro de Cardio', 
+        description: 'Complete 50 sessões de cardio', 
+        date: 'Em progresso',
         iconType: 'fontawesome' as IconType,
         icon: 'heartbeat',
         progress: 70,
@@ -44,9 +44,9 @@ const achievementsData = [
     },
     { 
         id: 4, 
-        title: 'Protein Tracker', 
-        description: 'Track your protein intake for 30 days', 
-        date: 'In Progress',
+        title: 'Registo de Proteínas', 
+        description: 'Atingiu a sua meta de proteína diária durante 30 dias', 
+        date: 'Em progresso',
         iconType: 'fontawesome' as IconType,
         icon: 'cutlery',
         progress: 45,
@@ -110,20 +110,20 @@ const AchievementsPage = () => {
             <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
                 {/* Header Section */}
                 <View style={styles.headerSection}>
-                    <Text style={styles.header}>Gym Achievements</Text>
-                    <Text style={styles.statsText}>Completed: {completedAchievements.length} | In Progress: {inProgressAchievements.length}</Text>
+                    <Text style={styles.header}>Conquistas de Ginásio</Text>
+                    <Text style={styles.statsText}>Concluídas: {completedAchievements.length} | Em Progresso: {inProgressAchievements.length}</Text>
                 </View>
                 
                 {/* Achievement Categories */}
                 <View style={styles.categoriesContainer}>
                     <TouchableOpacity style={[styles.categoryTab, styles.activeTab]}>
-                        <Text style={styles.categoryText}>All</Text>
+                        <Text style={styles.categoryText}>Todas</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.categoryTab}>
-                        <Text style={styles.categoryText}>Completed</Text>
+                        <Text style={styles.categoryText}>Concluídas</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.categoryTab}>
-                        <Text style={styles.categoryText}>In Progress</Text>
+                        <Text style={styles.categoryText}>Em Progresso</Text>
                     </TouchableOpacity>
                 </View>
                 
@@ -147,13 +147,13 @@ const AchievementsPage = () => {
                 <View style={styles.trophySection}>
                     <View style={styles.sectionHeader}>
                         <FontAwesome name="trophy" size={24} color="#FFD700" />
-                        <Text style={styles.sectionTitle}>Your Trophies</Text>
+                        <Text style={styles.sectionTitle}>Os Seus Troféus</Text>
                     </View>
                     <View style={styles.trophyGrid}>
                         {[1, 2, 3].map((item) => (
                             <View key={item} style={styles.trophyItem}>
                                 <FontAwesome name="trophy" size={36} color="#FFD700" />
-                                <Text style={styles.trophyText}>Level {item}</Text>
+                                <Text style={styles.trophyText}>Nível {item}</Text>
                             </View>
                         ))}
                     </View>

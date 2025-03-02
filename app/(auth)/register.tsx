@@ -38,7 +38,6 @@ export default function RegisterScreen() {
   const colorScheme = useColorScheme();
 
   const handleRegister = async () => {
-    // Basic validation
     if (!name || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
