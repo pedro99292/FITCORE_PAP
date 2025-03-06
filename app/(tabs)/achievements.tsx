@@ -20,7 +20,8 @@ const achievementsData = [
         iconType: 'ionicons' as IconType,
         icon: 'fitness',
         progress: 100,
-        color: '#FF6B6B'
+        color: '#FF6B6B',
+        category: 'cardio'
     },
     { 
         id: 2, 
@@ -30,7 +31,8 @@ const achievementsData = [
         iconType: 'material' as IconType,
         icon: 'weight-lifter',
         progress: 100,
-        color: '#FFD166'
+        color: '#FFD166',
+        category: 'força'
     },
     { 
         id: 3, 
@@ -40,7 +42,8 @@ const achievementsData = [
         iconType: 'fontawesome' as IconType,
         icon: 'heartbeat',
         progress: 70,
-        color: '#F72585'
+        color: '#F72585',
+        category: 'cardio'
     },
     { 
         id: 4, 
@@ -50,7 +53,8 @@ const achievementsData = [
         iconType: 'fontawesome' as IconType,
         icon: 'cutlery',
         progress: 45,
-        color: '#06D6A0'
+        color: '#06D6A0',
+        category: 'nutrição'
     },
 ];
 
@@ -63,9 +67,10 @@ interface AchievementItemProps {
     iconType: IconType;
     progress: number;
     color: string;
+    category: string;
 }
 
-const AchievementItem: React.FC<AchievementItemProps> = ({ title, description, date, icon, iconType, progress, color }) => {
+const AchievementItem: React.FC<AchievementItemProps> = ({ title, description, date, icon, iconType, progress, color, category }) => {
     // Render the appropriate icon based on icon type
     const renderIcon = () => {
         switch (iconType) {
@@ -110,7 +115,7 @@ const AchievementsPage = () => {
             <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
                 {/* Header Section */}
                 <View style={styles.headerSection}>
-                    <Text style={styles.header}>Conquistas de Ginásio</Text>
+                    <Text style={styles.header}>Conquistas</Text>
                     <Text style={styles.statsText}>Concluídas: {completedAchievements.length} | Em Progresso: {inProgressAchievements.length}</Text>
                 </View>
                 
@@ -139,6 +144,7 @@ const AchievementsPage = () => {
                             iconType={achievement.iconType as IconType}
                             progress={achievement.progress}
                             color={achievement.color}
+                            category={achievement.category}
                         />
                     ))}
                 </View>
