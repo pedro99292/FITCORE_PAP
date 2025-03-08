@@ -17,6 +17,11 @@ export default function EditProfileScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingProfile, setIsFetchingProfile] = useState(true);
 
+  // Navigation handler to return to profile screen
+  const handleBackNavigation = () => {
+    router.push('/(tabs)/profile');
+  };
+
   // Fetch user profile data when component mounts
   useEffect(() => {
     if (user) {
@@ -41,7 +46,7 @@ export default function EditProfileScreen() {
         .single();
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Erro ao buscar perfil:', error);
       } else if (data) {
         // Populate the form with existing data
         setUsername(data.username || '');
@@ -50,26 +55,21 @@ export default function EditProfileScreen() {
         setBio(data.bio || '');
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Erro ao buscar perfil do utilizador:', error);
     } finally {
       setIsFetchingProfile(false);
     }
   };
 
   const handleSave = async () => {
-    // Validate inputs
-    if (!name.trim()) {
-      Alert.alert('Error', 'Please enter your full name');
-      return;
-    }
-
+    // Only validate age if provided
     if (age && isNaN(Number(age))) {
-      Alert.alert('Error', 'Age must be a number');
+      Alert.alert('Erro', 'A idade deve ser um número');
       return;
     }
 
     if (!user) {
-      Alert.alert('Error', 'User not authenticated');
+      Alert.alert('Erro', 'Utilizador não autenticado');
       return;
     }
 
@@ -78,7 +78,7 @@ export default function EditProfileScreen() {
 
       // Update user metadata in Auth
       const { error: authError } = await supabase.auth.updateUser({
-        data: { full_name: name }
+        data: { full_name: name.trim() }
       });
 
       if (authError) throw authError;
@@ -97,11 +97,12 @@ export default function EditProfileScreen() {
 
       if (profileError) throw profileError;
 
-      Alert.alert('Success', 'Profile updated successfully');
-      router.back();
+      Alert.alert('Sucesso', 'Perfil atualizado com sucesso');
+      // Use direct navigation instead of router.back()
+      handleBackNavigation();
     } catch (error: any) {
-      console.error('Error updating profile:', error);
-      Alert.alert('Error', error.message || 'Failed to update profile');
+      console.error('Erro ao atualizar perfil:', error);
+      Alert.alert('Erro', error.message || 'Falha ao atualizar perfil');
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +115,7 @@ export default function EditProfileScreen() {
         <StatusBar barStyle="light-content" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4a90e2" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <Text style={styles.loadingText}>A carregar perfil...</Text>
         </View>
       </SafeAreaView>
     );
@@ -126,7 +127,7 @@ export default function EditProfileScreen() {
       
       <Stack.Screen 
         options={{
-          title: 'Edit Profile',
+          title: 'Editar Perfil',
           headerStyle: {
             backgroundColor: '#2c2c3e',
           },
@@ -136,7 +137,7 @@ export default function EditProfileScreen() {
           },
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={() => router.back()}
+              onPress={handleBackNavigation}
               style={{ marginLeft: 16 }}
             >
               <FontAwesome name="arrow-left" size={24} color="#fff" />
@@ -154,31 +155,31 @@ export default function EditProfileScreen() {
           />
           <TouchableOpacity style={styles.changePhotoButton}>
             <Text style={styles.changePhotoText}>
-              Change Photo
+              Alterar Foto
             </Text>
           </TouchableOpacity>
         </View>
         
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Username</Text>
+            <Text style={styles.inputLabel}>Nome de Utilizador</Text>
             <TextInput
               style={styles.input}
               value={username}
               onChangeText={setUsername}
-              placeholder="Your username"
+              placeholder="O seu nome de utilizador"
               placeholderTextColor="#888"
               selectionColor="#4a90e2"
             />
           </View>
           
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Full Name</Text>
+            <Text style={styles.inputLabel}>Nome Completo</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Your full name"
+              placeholder="O seu nome completo"
               placeholderTextColor="#888"
               selectionColor="#4a90e2"
             />
@@ -186,12 +187,12 @@ export default function EditProfileScreen() {
           
           
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Age</Text>
+            <Text style={styles.inputLabel}>Idade</Text>
             <TextInput
               style={styles.input}
               value={age}
               onChangeText={setAge}
-              placeholder="Your age"
+              placeholder="A sua idade"
               keyboardType="numeric"
               maxLength={3}
               placeholderTextColor="#888"
@@ -200,12 +201,12 @@ export default function EditProfileScreen() {
           </View>
           
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Bio</Text>
+            <Text style={styles.inputLabel}>Biografia</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={bio}
               onChangeText={setBio}
-              placeholder="Tell us about yourself"
+              placeholder="Fale-nos sobre si"
               multiline
               numberOfLines={4}
               placeholderTextColor="#888"
@@ -228,7 +229,7 @@ export default function EditProfileScreen() {
           {isLoading ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
-            <Text style={styles.saveButtonText}>SAVE CHANGES</Text>
+            <Text style={styles.saveButtonText}>GUARDAR</Text>
           )}
         </LinearGradient>
       </TouchableOpacity>
