@@ -30,13 +30,13 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function RegisterScreen() {
   const { colors, isDarkMode } = useTheme();
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isNameFocused, setIsNameFocused] = useState(false);
+  const [isUsernameFocused, setIsUsernameFocused] = useState(false);
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [isConfirmPasswordFocused, setIsConfirmPasswordFocused] = useState(false);
@@ -67,7 +67,7 @@ export default function RegisterScreen() {
   });
 
   const handleRegister = async () => {
-    if (!name || !email || !password || !confirmPassword) {
+    if (!username || !email || !password || !confirmPassword) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos');
       return;
     }
@@ -91,7 +91,7 @@ export default function RegisterScreen() {
         password,
         options: {
           data: {
-            full_name: name,
+            username: username,
           },
           emailRedirectTo: 'https://vhvoiekejcawjgwqimxy.supabase.co/auth/v1/callback',
         },
@@ -141,19 +141,19 @@ export default function RegisterScreen() {
           
           <View style={[
             styles.inputContainer, 
-            isNameFocused && styles.inputContainerFocused,
+            isUsernameFocused && styles.inputContainerFocused,
             { borderColor: colors.border }
           ]}>
-            <Ionicons name="person-outline" size={20} color={isNameFocused ? colors.primary : 'rgba(255,255,255,0.5)'} style={styles.inputIcon} />
+            <Ionicons name="person-outline" size={20} color={isUsernameFocused ? colors.primary : 'rgba(255,255,255,0.5)'} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: colors.text }]}
-              placeholder="Nome Completo"
+              placeholder="Username"
               placeholderTextColor="rgba(255,255,255,0.5)"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-              onFocus={() => setIsNameFocused(true)}
-              onBlur={() => setIsNameFocused(false)}
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              onFocus={() => setIsUsernameFocused(true)}
+              onBlur={() => setIsUsernameFocused(false)}
             />
           </View>
 

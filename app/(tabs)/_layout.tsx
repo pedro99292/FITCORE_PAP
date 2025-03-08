@@ -9,10 +9,10 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import HeaderStats from '@/components/HeaderStats';
 
-// Helper function to calculate icon size based on screen width
+// Helper function to calculate icon size based on screen width - moderately increased
 function getIconSize() {
   const { width } = Dimensions.get('window');
-  return Math.max(36, width * 0.1);
+  return Math.max(41, width * 0.09); // Moderately increased size - balanced approach
 }
 
 export default function TabLayout() {
@@ -50,32 +50,22 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#2D2B3F',
           borderTopWidth: 1,
-          borderTopColor: 'white',
+          borderTopColor: 'rgba(255,255,255,0.1)',
           height: 75,
           paddingBottom: 12,
           paddingTop: 12,
         },
         tabBarItemStyle: {
           paddingVertical: 8,
+          justifyContent: 'center', // Center the icon vertically
         },
-        tabBarShowLabel: true,
-        tabBarLabelStyle: {
-          fontSize: 13,
-          marginTop: 3,
-        },
+        tabBarShowLabel: false, // Hide all labels
       }}>
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <FontAwesome name="home" size={iconSize} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="exercises"
-        options={{
-          title: 'Exercises',
-          tabBarIcon: ({ color }) => <FontAwesome name="list" size={iconSize} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -95,7 +85,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'Perfil',
           tabBarIcon: ({ color }) => <FontAwesome name="user" size={iconSize} color={color} />,
         }}
       />

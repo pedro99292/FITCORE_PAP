@@ -156,7 +156,6 @@ export default function ProfileScreen() {
           </View>
 
           {/* Quick Actions Section */}
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Ações Rápidas</Text>
           <View style={styles.quickActions}>
             <TouchableOpacity style={styles.actionItem}>
               <LinearGradient

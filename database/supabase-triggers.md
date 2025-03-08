@@ -23,14 +23,12 @@ BEGIN
       id,
       email,
       username,
-      full_name,
       created_at,
       updated_at
     ) VALUES (
       NEW.id,
       NEW.email,
-      split_part(NEW.email, '@', 1),  -- Default username from email
-      NEW.raw_user_meta_data->>'full_name',
+      COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),  -- Use username from metadata, fallback to email
       NEW.created_at,
       NOW()
     )
