@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, ScrollView, SafeAreaView, StatusBar, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, ScrollView, SafeAreaView, StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -39,6 +39,16 @@ export default function ProfileScreen() {
         return;
       }
 
+      // Check if email is verified
+      if (!user.email_confirmed_at) {
+        Alert.alert(
+          'Email não verificado',
+          'Por favor, verifique o seu email para confirmar o registo e acessar o seu perfil.'
+        );
+        router.replace('/login');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('username, full_name, bio')
@@ -47,6 +57,16 @@ export default function ProfileScreen() {
 
       if (error) {
         console.error('Erro ao buscar perfil:', error);
+        
+        // If the error is 'No rows found', the profile might not exist yet due to pending email verification
+        if (error.code === 'PGRST116') {
+          Alert.alert(
+            'Perfil não encontrado',
+            'O seu perfil ainda está sendo processado após a verificação de email. Por favor, tente novamente em alguns instantes.'
+          );
+          router.replace('/login');
+          return;
+        }
       } else if (data) {
         // Update user data with database values
         setUserData({

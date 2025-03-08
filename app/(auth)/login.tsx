@@ -81,7 +81,17 @@ export default function LoginScreen() {
       }
 
       if (data?.user) {
-        // Login successful, navigate to the main app
+        // Check if email is verified
+        if (!data.user.email_confirmed_at) {
+          Alert.alert(
+            'Email não verificado',
+            'Por favor, verifique o seu email para confirmar o registo antes de fazer login.'
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        // Email is verified, login successful, navigate to the main app
         router.replace("/(tabs)/home");
       }
     } catch (error: any) {
@@ -89,6 +99,8 @@ export default function LoginScreen() {
       
       if (errorMessage.includes('Invalid login credentials')) {
         errorMessage = 'Email ou palavra-passe inválidos';
+      } else if (errorMessage.includes('Email not confirmed')) {
+        errorMessage = 'Por favor, verifique o seu email para confirmar o registo.';
       }
       
       Alert.alert('Erro de Login', errorMessage);

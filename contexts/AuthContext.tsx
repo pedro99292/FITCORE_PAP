@@ -1,12 +1,14 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '@/utils/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { router } from 'expo-router';
 
 // Define types
 type AuthContextType = {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  isEmailVerified: boolean;
   signOut: () => Promise<void>;
 };
 
@@ -18,12 +20,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+
+  const checkEmailVerification = (user: User | null) => {
+    return !!user?.email_confirmed_at;
+  };
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      // Check email verification
+      const isVerified = checkEmailVerification(currentUser);
+      setIsEmailVerified(isVerified);
+      
+      // Redirect to login if user exists but email is not verified
+      if (currentUser && !isVerified) {
+        router.replace('/login');
+      }
+      
       setLoading(false);
     });
 
@@ -31,7 +49,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        
+        // Check email verification on auth state change
+        const isVerified = checkEmailVerification(currentUser);
+        setIsEmailVerified(isVerified);
+        
+        // Redirect to login if user exists but email is not verified
+        if (currentUser && !isVerified) {
+          router.replace('/login');
+        }
+        
         setLoading(false);
       }
     );
@@ -59,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     user,
     loading,
+    isEmailVerified,
     signOut,
   };
 

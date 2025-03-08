@@ -85,7 +85,7 @@ export default function RegisterScreen() {
     try {
       setIsLoading(true);
 
-      // Register the user with Supabase
+      // Register the user with Supabase with email confirmation required
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -93,6 +93,7 @@ export default function RegisterScreen() {
           data: {
             full_name: name,
           },
+          emailRedirectTo: 'https://vhvoiekejcawjgwqimxy.supabase.co/auth/v1/callback',
         },
       });
 
@@ -104,7 +105,7 @@ export default function RegisterScreen() {
         // Now the user is registered, they need to confirm their email
         Alert.alert(
           'Registo Bem-sucedido',
-          'Por favor, verifique o seu email para confirmar o registo.'
+          'Por favor, verifique o seu email para confirmar o registo. Só poderá aceder à aplicação após confirmar o email.'
         );
         
         // Navigate to login page

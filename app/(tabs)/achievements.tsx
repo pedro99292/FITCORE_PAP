@@ -84,7 +84,7 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
     };
   });
 
-  const renderIcon = () => {
+    const renderIcon = () => {
     if (iconType === 'fontawesome') {
       return <FontAwesome name={icon as any} size={26} color="#fff" />;
     } else if (iconType === 'material') {
@@ -97,7 +97,7 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
   // Determina se a conquista está concluída
   const isCompleted = progress === 100;
 
-  return (
+    return (
     <Animated.View 
       entering={FadeInDown.duration(400).delay(Math.random() * 300)}
       style={styles.achievementCard}
@@ -109,8 +109,8 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
         style={styles.cardGradient}
       >
         <View style={styles.cardHeader}>
-          <View style={[styles.iconContainer, { backgroundColor: color }]}>
-            {renderIcon()}
+            <View style={[styles.iconContainer, { backgroundColor: color }]}>
+                {renderIcon()}
           </View>
           
           <View style={styles.titleContainer}>
@@ -123,8 +123,8 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
         
         <Text style={styles.achievementDescription}>{description}</Text>
         
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBackground}>
+                <View style={styles.progressContainer}>
+                    <View style={styles.progressBackground}>
             <Animated.View 
               style={[
                 styles.progressFill,
@@ -134,14 +134,14 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
             />
           </View>
           <Text style={styles.progressText}>{progress}%</Text>
-        </View>
+                    </View>
         
         <View style={styles.cardFooter}>
           {isCompleted ? (
             <View style={styles.completedBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
               <Text style={styles.completedText}>Concluído</Text>
-            </View>
+                </View>
           ) : (
             <View style={styles.inProgressBadge}>
               <Ionicons name="time-outline" size={16} color="#FF9800" />
@@ -293,8 +293,8 @@ const StatusFilter = ({
           Em Progresso
         </Text>
       </TouchableOpacity>
-    </View>
-  );
+        </View>
+    );
 };
 
 // Componente principal da página
@@ -368,10 +368,10 @@ const AchievementsPage = () => {
     { id: 4, title: 'Platina', color: '#E5E4E2', unlocked: completedAchievements.length >= 20 },
     { id: 5, title: 'Diamante', color: '#B9F2FF', unlocked: completedAchievements.length >= 25 },
   ];
-
-  return (
+    
+    return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="light-content" />
+            <StatusBar barStyle="light-content" />
       
       {/* Header */}
       <Animated.View 
@@ -398,7 +398,7 @@ const AchievementsPage = () => {
               <Text style={styles.statValue}>{achievements.length}</Text>
               <Text style={styles.statLabel}>Total</Text>
             </View>
-          </View>
+                </View>
         </LinearGradient>
       </Animated.View>
       
@@ -429,28 +429,28 @@ const AchievementsPage = () => {
                 ? 'Todas as Conquistas' 
                 : `Conquistas: ${selectedCategory}`}
             </Text>
-          </View>
-          
+                </View>
+                
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#4a90e2" />
               <Text style={styles.loadingText}>Carregando conquistas...</Text>
             </View>
           ) : achievements.length > 0 ? (
-            <View style={styles.achievementsList}>
+                <View style={styles.achievementsList}>
               {achievements.map((achievement) => (
-                <AchievementItem 
-                  key={achievement.id} 
-                  title={achievement.title} 
-                  description={achievement.description} 
+                        <AchievementItem 
+                            key={achievement.id} 
+                            title={achievement.title} 
+                            description={achievement.description} 
                   date={achievement.date || ''} 
-                  icon={achievement.icon} 
+                            icon={achievement.icon}
                   iconType={achievement.iconType} 
-                  progress={achievement.progress} 
-                  color={achievement.color} 
+                            progress={achievement.progress}
+                            color={achievement.color}
                   category={achievement.category} 
-                />
-              ))}
+                        />
+                    ))}
             </View>
           ) : (
             <View style={styles.emptyStateContainer}>
@@ -463,16 +463,16 @@ const AchievementsPage = () => {
               </Text>
             </View>
           )}
-        </View>
-        
+                </View>
+                
         {/* Trophies Section */}
         <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeader}>
+                    <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Coleção de Troféus</Text>
             <Text style={styles.sectionSubtitle}>
               Complete mais conquistas para desbloquear troféus
             </Text>
-          </View>
+                    </View>
           
           <View style={styles.trophiesContainer}>
             {trophies.map((trophy) => (
@@ -482,20 +482,20 @@ const AchievementsPage = () => {
                 title={trophy.title}
                 unlocked={trophy.unlocked}
               />
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+                        ))}
+                    </View>
+                </View>
+            </ScrollView>
+        </SafeAreaView>
+    );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+    container: {
+        flex: 1,
     backgroundColor: '#2c2c3e',
-  },
-  header: {
+    },
+    header: {
     paddingTop: 10,
     paddingBottom: 15,
     overflow: 'hidden',
@@ -508,9 +508,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 25,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#fff',
     marginBottom: 15,
     textAlign: 'center',
   },
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   statValue: {
-    color: '#fff',
+        color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statusFilterContainer: {
-    flexDirection: 'row',
+        flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     marginTop: 15,
@@ -577,12 +577,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   categoryScrollContent: {
-    paddingHorizontal: 20,
+        paddingHorizontal: 20,
     paddingVertical: 5,
   },
   categoryChip: {
     marginRight: 10,
-    borderRadius: 20,
+        borderRadius: 20,
     overflow: 'hidden',
   },
   selectionIndicator: {
@@ -609,8 +609,8 @@ const styles = StyleSheet.create({
   categoryChipText: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
-    fontWeight: '500',
-  },
+        fontWeight: '500',
+    },
   activeCategoryChipText: {
     color: '#fff',
     fontWeight: 'bold',
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 14,
   },
-  achievementsList: {
+    achievementsList: {
     gap: 15,
   },
   achievementCard: {
@@ -666,27 +666,27 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+        flexDirection: 'row',
+        alignItems: 'center',
     marginBottom: 10,
-  },
-  iconContainer: {
+    },
+    iconContainer: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+        justifyContent: 'center',
+        alignItems: 'center',
     marginRight: 12,
-  },
+    },
   titleContainer: {
-    flex: 1,
-  },
+        flex: 1,
+    },
   achievementTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
+        fontWeight: 'bold',
+        color: '#fff',
+        marginBottom: 4,
+    },
   categoryBadge: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 10,
@@ -699,31 +699,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   achievementDescription: {
-    fontSize: 14,
+        fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
     marginBottom: 15,
     lineHeight: 20,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    },
+    progressContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
     marginBottom: 12,
-  },
-  progressBackground: {
-    flex: 1,
-    height: 8,
+    },
+    progressBackground: {
+        flex: 1,
+        height: 8,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 4,
+        borderRadius: 4,
     overflow: 'hidden',
-    marginRight: 10,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
+        marginRight: 10,
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 4,
+    },
   progressText: {
     fontSize: 14,
-    color: '#fff',
+        color: '#fff',
     fontWeight: 'bold',
     width: 40,
     textAlign: 'right',
@@ -748,8 +748,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   inProgressBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+        flexDirection: 'row',
+        alignItems: 'center',
     backgroundColor: 'rgba(255, 152, 0, 0.2)',
     borderRadius: 10,
     paddingHorizontal: 8,
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 16,
-    fontWeight: 'bold',
+        fontWeight: 'bold',
     marginTop: 15,
   },
   emptyStateSubtext: {
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   trophiesContainer: {
-    flexDirection: 'row',
+        flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 10,
@@ -805,13 +805,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     justifyContent: 'center',
-    alignItems: 'center',
+        alignItems: 'center',
     padding: 15,
-  },
+    },
   trophyTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#fff',
+        color: '#fff',
     marginTop: 10,
     textAlign: 'center',
   },
@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 16,
-  },
+    },
 });
 
 export default AchievementsPage;
