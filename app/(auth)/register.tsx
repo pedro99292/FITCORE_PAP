@@ -102,6 +102,9 @@ export default function RegisterScreen() {
       }
 
       if (data?.user) {
+        // The database trigger will handle creating the user profile
+        // No need to manually insert into the users table
+
         // Now the user is registered, they need to confirm their email
         Alert.alert(
           'Registo Bem-sucedido',

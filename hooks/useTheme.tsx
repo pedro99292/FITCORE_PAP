@@ -8,8 +8,10 @@ type ThemeContextType = {
     background: string;
     surface: string;
     text: string;
+    textSecondary: string;
     border: string;
     primary: string;
+    card: string;
   };
 };
 
@@ -49,15 +51,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         background: '#2c2c3e',
         surface: '#3e3e50',
         text: '#ffffff',
+        textSecondary: '#666',
         border: '#ffffff',
         primary: '#4a90e2',
+        card: '#e0e0e0',
       }
     : {
         background: '#ffffff',
         surface: '#f5f5f5',
         text: '#000000',
+        textSecondary: '#666',
         border: '#e0e0e0',
         primary: '#007AFF',
+        card: '#e0e0e0',
       };
 
   return (
