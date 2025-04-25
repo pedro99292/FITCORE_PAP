@@ -168,7 +168,10 @@ export default function ProfileScreen() {
               <Text style={[styles.actionText, { color: colors.text }]}>LOJA</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.actionItem}>
+            <TouchableOpacity 
+              style={styles.actionItem}
+              onPress={() => router.push('/workout-builder')}
+            >
               <LinearGradient
                 colors={['#3E64FF', '#5A7BFF']}
                 start={[0, 0]}

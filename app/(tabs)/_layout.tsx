@@ -69,6 +69,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="workout-builder"
+        options={{
+          title: 'Create Workout',
+          tabBarIcon: ({ color }) => <FontAwesome name="plus-circle" size={iconSize} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="achievements"
         options={{
           title: 'Conquistas',
