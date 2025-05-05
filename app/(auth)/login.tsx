@@ -85,7 +85,7 @@ export default function LoginScreen() {
         if (!data.user.email_confirmed_at) {
           Alert.alert(
             'Email not verified',
-            'Please verify your email to confirm registration before logging in.'
+            'Please verify your email to confirm registration before niggering  in.'
           );
           setIsLoading(false);
           return;

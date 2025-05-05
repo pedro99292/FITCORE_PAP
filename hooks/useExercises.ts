@@ -56,7 +56,7 @@ export const useExercises = (params?: FetchExercisesParams) => {
     try {
       // Use the exerciseinfo endpoint instead of exercise endpoint
       // This includes translations and more complete data
-      let endpoint = `${WGER_API_BASE_URL}/exerciseinfo/?language=2`; // Language 2 is English
+      let endpoint = `${WGER_API_BASE_URL}/exerciseinfo/?language=2&limit=100`; // Language 2 is English, increased limit to 100
       
       // Build filtering based on params
       if (params) {
