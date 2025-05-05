@@ -68,17 +68,17 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!username || !email || !password || !confirmPassword) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Erro', 'As palavras-passe não coincidem');
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Erro', 'A palavra-passe deve ter pelo menos 6 caracteres');
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
@@ -107,15 +107,15 @@ export default function RegisterScreen() {
 
         // Now the user is registered, they need to confirm their email
         Alert.alert(
-          'Registo Bem-sucedido',
-          'Por favor, verifique o seu email para confirmar o registo. Só poderá aceder à aplicação após confirmar o email.'
+          'Registration Successful',
+          'Please check your email to confirm registration. You can only access the application after confirming your email.'
         );
         
         // Navigate to login page
         router.replace('/login');
       }
     } catch (error: any) {
-      Alert.alert('Erro', error.message || 'Falha no registo');
+      Alert.alert('Error', error.message || 'Registration failed');
       console.error('Registration error:', error.message);
     } finally {
       setIsLoading(false);
@@ -136,11 +136,11 @@ export default function RegisterScreen() {
             resizeMode="contain"
           />
           <Text style={[styles.title, { color: colors.text }]}>FITCORE</Text>
-          <Text style={[styles.subtitle, { color: 'rgba(255,255,255,0.7)' }]}>Inicie a Sua Jornada</Text>
+          <Text style={[styles.subtitle, { color: 'rgba(255,255,255,0.7)' }]}>Start Your Journey</Text>
         </Animated.View>
 
         <Animated.View style={[styles.formContainer, formAnimatedStyle, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.formTitle, { color: colors.text }]}>Criar Conta</Text>
+          <Text style={[styles.formTitle, { color: colors.text }]}>Create Account</Text>
           
           <View style={[
             styles.inputContainer, 
@@ -187,7 +187,7 @@ export default function RegisterScreen() {
             <Ionicons name="lock-closed-outline" size={20} color={isPasswordFocused ? colors.primary : 'rgba(255,255,255,0.5)'} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: colors.text }]}
-              placeholder="Palavra-passe"
+              placeholder="Password"
               placeholderTextColor="rgba(255,255,255,0.5)"
               value={password}
               onChangeText={setPassword}
@@ -211,7 +211,7 @@ export default function RegisterScreen() {
             <Ionicons name="lock-closed-outline" size={20} color={isConfirmPasswordFocused ? colors.primary : 'rgba(255,255,255,0.5)'} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: colors.text }]}
-              placeholder="Confirmar Palavra-passe"
+              placeholder="Confirm Password"
               placeholderTextColor="rgba(255,255,255,0.5)"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -229,7 +229,7 @@ export default function RegisterScreen() {
 
           <View style={styles.termsContainer}>
             <Text style={[styles.termsText, { color: 'rgba(255,255,255,0.7)' }]}>
-              Ao registar-se, concorda com os nossos <Text style={[styles.termsLink, { color: colors.primary }]}>Termos de Serviço</Text> e <Text style={[styles.termsLink, { color: colors.primary }]}>Política de Privacidade</Text>
+              By registering, you agree to our <Text style={[styles.termsLink, { color: colors.primary }]}>Terms of Service</Text> and <Text style={[styles.termsLink, { color: colors.primary }]}>Privacy Policy</Text>
             </Text>
           </View>
 
@@ -245,18 +245,18 @@ export default function RegisterScreen() {
               {isLoading ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.registerButtonText}>CRIAR CONTA</Text>
+                <Text style={styles.registerButtonText}>CREATE ACCOUNT</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
 
           <View style={styles.loginContainer}>
-            <Text style={[styles.loginText, { color: 'rgba(255,255,255,0.7)' }]}>Já tem uma conta? </Text>
+            <Text style={[styles.loginText, { color: 'rgba(255,255,255,0.7)' }]}>Already have an account? </Text>
             <TouchableOpacity onPress={() => {
               const path = '/login';
               router.push(path as any);
             }}>
-              <Text style={[styles.loginLink, { color: colors.primary }]}>Entrar</Text>
+              <Text style={[styles.loginLink, { color: colors.primary }]}>Login</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

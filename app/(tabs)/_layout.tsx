@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
 import { ActivityIndicator, View, Platform, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTheme } from '@/hooks/useTheme';
 
 import { Colors } from '@/constants/Colors';
 import HeaderStats from '@/components/HeaderStats';
@@ -17,7 +17,7 @@ function getIconSize() {
 
 export default function TabLayout() {
   const { session, loading } = useAuth();
-  const colorScheme = useColorScheme();
+  const { isDarkMode, colors } = useTheme();
   const iconSize = getIconSize();
 
   useEffect(() => {
@@ -44,13 +44,13 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#888',
         header: () => <HeaderStats />,
         tabBarStyle: {
-          backgroundColor: '#2D2B3F',
+          backgroundColor: isDarkMode ? '#2D2B3F' : '#ffffff',
           borderTopWidth: 1,
-          borderTopColor: 'rgba(255,255,255,0.1)',
+          borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
           height: 75,
           paddingBottom: 12,
           paddingTop: 12,

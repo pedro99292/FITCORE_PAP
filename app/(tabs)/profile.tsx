@@ -204,7 +204,7 @@ export default function ProfileScreen() {
                 style={styles.actionIcon}>
                 <FontAwesome name="cog" size={26} color="#fff" />
               </LinearGradient>
-              <Text style={[styles.actionText, { color: colors.text }]}>DEFINIÇÕES</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>SETTINGS</Text>
             </TouchableOpacity>
           </View>
 

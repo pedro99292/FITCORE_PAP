@@ -69,6 +69,7 @@ export default function WorkoutBuilderScreen() {
         exerciseId: exercise.id,
         workoutId: '', // Will be set when workout is created
         order: selectedExercises.length,
+        exerciseDetails: exercise, // Store the complete exercise details
         sets: [
           {
             id: `temp-set-${Date.now()}`,
@@ -418,16 +419,21 @@ export default function WorkoutBuilderScreen() {
               </View>
             ) : (
               selectedExercises.map((workoutExercise, index) => {
-                const exercise = exercises.find(e => e.id === workoutExercise.exerciseId);
+                // Use the stored exercise details instead of looking it up
+                const exercise = workoutExercise.exerciseDetails;
                 
-                if (!exercise) return null;
+                // Fall back to finding in the exercises array if exerciseDetails is not available
+                // This ensures backward compatibility with existing data
+                const exerciseToUse = exercise || exercises.find(e => e.id === workoutExercise.exerciseId);
+                
+                if (!exerciseToUse) return null;
                 
                 return (
                   <View key={workoutExercise.id} style={styles.exerciseItem}>
                     <View style={styles.exerciseHeader}>
                       <View style={styles.exerciseInfo}>
-                        <Text style={styles.exerciseName}>{exercise.name}</Text>
-                        <Text style={styles.exerciseTarget}>{exercise.target}</Text>
+                        <Text style={styles.exerciseName}>{exerciseToUse.name}</Text>
+                        <Text style={styles.exerciseTarget}>{exerciseToUse.target}</Text>
                       </View>
                       
                       <View style={styles.exerciseActions}>

@@ -18,6 +18,7 @@ export interface WorkoutExercise {
   sets: WorkoutSet[];
   order: number;
   notes?: string;
+  exerciseDetails?: Exercise; // Store complete exercise details
 }
 
 export interface WorkoutSet {

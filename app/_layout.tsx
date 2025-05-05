@@ -1,12 +1,11 @@
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { Platform, StyleSheet, Text, TextProps, View } from 'react-native';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { StatusBar } from 'expo-status-bar';
 
 import { Colors } from '@/constants/Colors';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/hooks/useTheme';
+import { ThemeProvider, useTheme } from '@/hooks/useTheme';
 
 // This is a helper component to fix issues with text inside View components
 // It ensures all text is properly wrapped with a Text component
@@ -29,31 +28,38 @@ if (__DEV__ && Platform.OS !== 'web') {
   };
 }
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function StackNavigator() {
+  const { isDarkMode, colors } = useTheme();
+  
+  return (
+    <>
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerShown: false,
+        }}>
+        <Stack.Screen name="index" options={{ title: 'Home' }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: true }} />
+        <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile', headerShown: true }} />
+      </Stack>
+    </>
+  );
+}
 
-  // Configure the global status bar
+export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <Stack
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: Colors[colorScheme ?? 'light'].background,
-            },
-            headerTintColor: Colors[colorScheme ?? 'light'].text,
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-            headerShown: false,
-          }}>
-          <Stack.Screen name="index" options={{ title: 'Home' }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: true }} />
-          <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile', headerShown: true }} />
-        </Stack>
+        <StackNavigator />
       </ThemeProvider>
     </AuthProvider>
   );

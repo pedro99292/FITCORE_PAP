@@ -10,6 +10,8 @@ type ExerciseCardProps = {
 };
 
 const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onSelect, selected }) => {
+  const [imageSource, setImageSource] = React.useState(require('@/assets/images/muscle-silhouette-front.png'));
+
   return (
     <TouchableOpacity 
       style={[styles.container, selected && styles.selectedContainer]} 
@@ -20,7 +22,13 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onSelect, selecte
         <Image
           source={{ uri: exercise.gifUrl }}
           style={styles.image}
-          resizeMode="cover"
+          resizeMode="contain"
+          defaultSource={require('@/assets/images/muscle-silhouette-front.png')}
+          onError={(error) => {
+            console.log('Error loading image:', exercise.gifUrl);
+            // If network image fails, fall back to local silhouette
+            setImageSource(require('@/assets/images/muscle-silhouette-front.png'));
+          }}
         />
       </View>
 
@@ -79,10 +87,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 180,
     backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   image: {
     width: '100%',
     height: '100%',
+    resizeMode: 'contain',
   },
   contentContainer: {
     padding: 16,

@@ -63,7 +63,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, insira email e palavra-passe');
+      Alert.alert('Error', 'Please enter email and password');
       return;
     }
 
@@ -84,8 +84,8 @@ export default function LoginScreen() {
         // Check if email is verified
         if (!data.user.email_confirmed_at) {
           Alert.alert(
-            'Email não verificado',
-            'Por favor, verifique o seu email para confirmar o registo antes de fazer login.'
+            'Email not verified',
+            'Please verify your email to confirm registration before logging in.'
           );
           setIsLoading(false);
           return;
@@ -95,15 +95,15 @@ export default function LoginScreen() {
         router.replace("/(tabs)/home");
       }
     } catch (error: any) {
-      let errorMessage = error.message || 'Login falhou';
+      let errorMessage = error.message || 'Login failed';
       
       if (errorMessage.includes('Invalid login credentials')) {
-        errorMessage = 'Email ou palavra-passe inválidos';
+        errorMessage = 'Invalid email or password';
       } else if (errorMessage.includes('Email not confirmed')) {
-        errorMessage = 'Por favor, verifique o seu email para confirmar o registo.';
+        errorMessage = 'Please verify your email to confirm registration.';
       }
       
-      Alert.alert('Erro de Login', errorMessage);
+      Alert.alert('Login Error', errorMessage);
       console.error('Login error:', error.message);
     } finally {
       setIsLoading(false);
@@ -112,7 +112,7 @@ export default function LoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      Alert.alert('Erro', 'Por favor, insira o seu endereço de email');
+      Alert.alert('Error', 'Please enter your email address');
       return;
     }
 
@@ -123,11 +123,11 @@ export default function LoginScreen() {
       if (error) throw error;
       
       Alert.alert(
-        'Email de Recuperação Enviado',
-        'Se o seu email existir no nosso sistema, receberá instruções para redefinir a sua palavra-passe.'
+        'Recovery Email Sent',
+        'If your email exists in our system, you will receive instructions to reset your password.'
       );
     } catch (error: any) {
-      Alert.alert('Erro', error.message || 'Falha ao enviar email de recuperação');
+      Alert.alert('Error', error.message || 'Failed to send recovery email');
     } finally {
       setIsLoading(false);
     }
@@ -147,7 +147,7 @@ export default function LoginScreen() {
             resizeMode="contain"
           />
           <Text style={[styles.title, { color: colors.text }]}>FITCORE</Text>
-          <Text style={[styles.subtitle, { color: 'rgba(255,255,255,0.7)' }]}>Alcance os Seus Objetivos</Text>
+          <Text style={[styles.subtitle, { color: 'rgba(255,255,255,0.7)' }]}>Achieve Your Goals</Text>
         </Animated.View>
 
         <Animated.View style={[styles.formContainer, formAnimatedStyle, { backgroundColor: colors.surface }]}>
@@ -180,7 +180,7 @@ export default function LoginScreen() {
             <Ionicons name="lock-closed-outline" size={20} color={isPasswordFocused ? colors.primary : 'rgba(255,255,255,0.5)'} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: colors.text }]}
-              placeholder="Palavra-passe"
+              placeholder="Password"
               placeholderTextColor="rgba(255,255,255,0.5)"
               value={password}
               onChangeText={setPassword}
@@ -201,7 +201,7 @@ export default function LoginScreen() {
             onPress={handleForgotPassword}
             disabled={isLoading}
           >
-            <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>Esqueceu a Palavra-passe?</Text>
+            <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>Forgot Password?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -216,18 +216,18 @@ export default function LoginScreen() {
               {isLoading ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.loginButtonText}>ENTRAR</Text>
+                <Text style={styles.loginButtonText}>LOGIN</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
 
           <View style={styles.signupContainer}>
-            <Text style={[styles.signupText, { color: 'rgba(255,255,255,0.7)' }]}>Não tem uma conta? </Text>
+            <Text style={[styles.signupText, { color: 'rgba(255,255,255,0.7)' }]}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => {
               const path = '/register';
               router.push(path as any);
             }}>
-              <Text style={[styles.signupLink, { color: colors.primary }]}>Registar</Text>
+              <Text style={[styles.signupLink, { color: colors.primary }]}>Register</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

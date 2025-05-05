@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
+import { useTheme } from '@/hooks/useTheme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -44,7 +45,592 @@ type ImageMapping = {
   [key: string]: string;
 };
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+  },
+  header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarGradientSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#3e3e50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2c2c3e',
+  },
+  headerActions: {
+    flexDirection: 'row',
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  storiesContainer: {
+    height: 110,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  storiesContent: {
+    padding: 15,
+  },
+  storyItem: {
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  storyRing: {
+    width: 65,
+    height: 65,
+    borderRadius: 35,
+    padding: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  storyInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#3e3e50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#1a1a2e',
+  },
+  storyName: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 5,
+  },
+  storyAdd: {
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  storyAddIcon: {
+    width: 55,
+    height: 55,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#4a90e2',
+  },
+  storyAddText: {
+    color: '#4a90e2',
+    fontSize: 12,
+    marginTop: 5,
+  },
+  storyAddRing: {
+    width: 65,
+    height: 65,
+    borderRadius: 35,
+    padding: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  feed: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+  },
+  feedContent: {
+    paddingBottom: 80,
+    paddingTop: 5,
+  },
+  loadingContainer: {
+    padding: 15,
+  },
+  loadingCard: {
+    backgroundColor: '#2c2c3e',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  loadingHeader: {
+    flexDirection: 'row',
+    marginBottom: 15,
+  },
+  loadingAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3e3e50',
+    marginRight: 10,
+  },
+  loadingLines: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingLine1: {
+    height: 12,
+    width: '60%',
+    backgroundColor: '#3e3e50',
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  loadingLine2: {
+    height: 10,
+    width: '40%',
+    backgroundColor: '#3e3e50',
+    borderRadius: 5,
+  },
+  loadingImage: {
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: '#3e3e50',
+    marginBottom: 15,
+  },
+  loadingFooter: {
+    flexDirection: 'row',
+  },
+  loadingAction: {
+    height: 20,
+    width: 80,
+    backgroundColor: '#3e3e50',
+    borderRadius: 10,
+    marginRight: 15,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    minHeight: 400,
+  },
+  emptyText: {
+    color: '#fff',
+    marginTop: 15,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  emptySubtext: {
+    color: '#8e8e93',
+    marginTop: 5,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 25,
+  },
+  emptyButton: {
+    backgroundColor: '#4a90e2',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  postCard: {
+    backgroundColor: '#2c2c3e',
+    borderRadius: 16,
+    marginHorizontal: 15,
+    marginTop: 15,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.03)',
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarGradient: {
+    width: 45,
+    height: 45,
+    borderRadius: 25,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3e3e50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2c2c3e',
+  },
+  username: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  timeAgo: {
+    color: '#8e8e93',
+    fontSize: 13,
+  },
+  moreButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageContainer: {
+    width: '100%',
+    position: 'relative',
+  },
+  postImage: {
+    width: '100%',
+    height: 350,
+    backgroundColor: '#3e3e50',
+  },
+  doubleTapArea: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    top: 0,
+    left: 0,
+  },
+  postContent: {
+    padding: 15,
+  },
+  postText: {
+    color: '#fff',
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  postActions: {
+    flexDirection: 'row',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.03)',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 20,
+  },
+  actionText: {
+    color: '#fff',
+    marginLeft: 5,
+    fontSize: 14,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  fabGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  modalContent: {
+    width: screenWidth - 30,
+    maxHeight: 500,
+    borderRadius: 20,
+    backgroundColor: '#2c2c3e',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalHeader: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  createPostContent: {
+    padding: 15,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  createPostUsername: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  postInput: {
+    color: '#fff',
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  selectedImageContainer: {
+    marginVertical: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    position: 'relative',
+  },
+  selectedImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  postOptions: {
+    marginTop: 15,
+  },
+  addToPostText: {
+    color: '#8e8e93',
+    marginBottom: 10,
+  },
+  postOptionsRow: {
+    flexDirection: 'row',
+  },
+  postOptionButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  publishButton: {
+    backgroundColor: '#4a90e2',
+    padding: 14,
+    borderRadius: 25,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  publishButtonDisabled: {
+    backgroundColor: 'rgba(74,144,226,0.5)',
+  },
+  publishButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  bottomPadding: {
+    height: 100,
+  },
+  searchModalContent: {
+    width: screenWidth - 30,
+    height: '80%',
+    borderRadius: 20,
+    backgroundColor: '#2c2c3e',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  searchHeader: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    height: 40,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#fff',
+    height: 40,
+  },
+  clearButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeSearchButton: {
+    marginLeft: 15,
+  },
+  cancelText: {
+    color: '#4a90e2',
+    fontSize: 16,
+  },
+  searchLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  noResultsText: {
+    color: '#8e8e93',
+    fontSize: 16,
+    marginTop: 10,
+  },
+  searchResultsContainer: {
+    padding: 15,
+    flex: 1,
+  },
+  userResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  resultAvatarGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  resultAvatar: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    backgroundColor: '#3e3e50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2c2c3e',
+  },
+  userResultInfo: {
+    flex: 1,
+  },
+  userResultUsername: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  userResultName: {
+    color: '#8e8e93',
+    fontSize: 14,
+  },
+});
+
 export default function SocialScreen() {
+  const { isDarkMode, colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
@@ -561,47 +1147,52 @@ export default function SocialScreen() {
   }, [searchQuery, showSearch]);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
       {/* Header */}
       <LinearGradient
-        colors={['#2b2b45', '#1a1a2e']}
+        colors={isDarkMode ? ['#2b2b45', '#1a1a2e'] : ['#f5f5f5', '#e0e0e0']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.header}
       >
         <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.profileButton}>
+          <TouchableOpacity style={[styles.profileButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
             <LinearGradient
               colors={['#f2709c', '#ff9472']}
               style={styles.avatarGradientSmall}
             >
-              <View style={styles.avatarSmall}>
-                <FontAwesome name="user" size={16} color="#fff" />
-        </View>
+              <View style={[styles.avatarSmall, { 
+                backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
+                borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+              }]}>
+                <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
+              </View>
             </LinearGradient>
           </TouchableOpacity>
         </View>
         <View style={styles.headerActions}>
-        <TouchableOpacity 
-            style={styles.iconButton}
+          <TouchableOpacity 
+            style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
             onPress={() => setShowSearch(true)}
           >
-            <Feather name="search" size={22} color="#fff" />
+            <Feather name="search" size={22} color={isDarkMode ? "#fff" : "#333"} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Feather name="bell" size={22} color="#fff" />
+          <TouchableOpacity style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+            <Feather name="bell" size={22} color={isDarkMode ? "#fff" : "#333"} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Feather name="message-circle" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+            <Feather name="message-circle" size={22} color={isDarkMode ? "#fff" : "#333"} />
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
 
       {/* Stories Section */}
-      <View style={styles.storiesContainer}>
-      <ScrollView 
+      <View style={[styles.storiesContainer, { 
+        borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' 
+      }]}>
+        <ScrollView 
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.storiesContent}
@@ -611,11 +1202,13 @@ export default function SocialScreen() {
               colors={['rgba(74,144,226,0.2)', 'rgba(74,144,226,0.1)']}
               style={styles.storyAddRing}
             >
-              <View style={styles.storyAddIcon}>
+              <View style={[styles.storyAddIcon, {
+                backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)'
+              }]}>
                 <Feather name="plus" size={20} color="#4a90e2" />
               </View>
             </LinearGradient>
-            <Text style={styles.storyAddText}>Add</Text>
+            <Text style={[styles.storyAddText, { color: '#4a90e2' }]}>Add</Text>
           </TouchableOpacity>
           
           {['John', 'Maria', 'Carlos', 'Ana', 'Pedro'].map((name, index) => (
@@ -624,19 +1217,22 @@ export default function SocialScreen() {
                 colors={index % 2 === 0 ? ['#f2709c', '#ff9472'] : ['#4776E6', '#8E54E9']}
                 style={styles.storyRing}
               >
-                <View style={styles.storyInner}>
-                  <FontAwesome name="user" size={22} color="#fff" />
+                <View style={[styles.storyInner, { 
+                  backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
+                  borderColor: isDarkMode ? '#1a1a2e' : '#e0e0e0'
+                }]}>
+                  <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
                 </View>
               </LinearGradient>
-              <Text style={styles.storyName}>{name}</Text>
-        </TouchableOpacity>
+              <Text style={[styles.storyName, { color: isDarkMode ? '#fff' : '#000' }]}>{name}</Text>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
       {/* Posts Feed */}
       <Animated.ScrollView 
-        style={styles.feed} 
+        style={[styles.feed, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }]} 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.feedContent}
         scrollEventThrottle={16}
@@ -648,34 +1244,34 @@ export default function SocialScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#4a90e2"
-            colors={['#4a90e2']}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
-            <View style={styles.loadingCard}>
+            <View style={[styles.loadingCard, { backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff' }]}>
               <View style={styles.loadingHeader}>
-                <View style={styles.loadingAvatar} />
+                <View style={[styles.loadingAvatar, { backgroundColor: isDarkMode ? '#3e3e50' : '#e0e0e0' }]} />
                 <View style={styles.loadingLines}>
-                  <View style={styles.loadingLine1} />
-                  <View style={styles.loadingLine2} />
+                  <View style={[styles.loadingLine1, { backgroundColor: isDarkMode ? '#3e3e50' : '#e0e0e0' }]} />
+                  <View style={[styles.loadingLine2, { backgroundColor: isDarkMode ? '#3e3e50' : '#e0e0e0' }]} />
                 </View>
               </View>
-              <View style={styles.loadingImage} />
+              <View style={[styles.loadingImage, { backgroundColor: isDarkMode ? '#3e3e50' : '#e0e0e0' }]} />
               <View style={styles.loadingFooter}>
-                <View style={styles.loadingAction} />
-                <View style={styles.loadingAction} />
-                <View style={styles.loadingAction} />
+                <View style={[styles.loadingAction, { backgroundColor: isDarkMode ? '#3e3e50' : '#e0e0e0' }]} />
+                <View style={[styles.loadingAction, { backgroundColor: isDarkMode ? '#3e3e50' : '#e0e0e0' }]} />
+                <View style={[styles.loadingAction, { backgroundColor: isDarkMode ? '#3e3e50' : '#e0e0e0' }]} />
               </View>
             </View>
           </View>
         ) : posts.length === 0 && !loading ? (
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="post-outline" size={80} color="#8e8e93" />
-            <Text style={styles.emptyText}>Não existem posts ainda</Text>
-            <Text style={styles.emptySubtext}>Sê o primeiro a partilhar!</Text>
+            <MaterialCommunityIcons name="post-outline" size={80} color={isDarkMode ? "#8e8e93" : "#999"} />
+            <Text style={[styles.emptyText, { color: isDarkMode ? '#fff' : '#000' }]}>Não existem posts ainda</Text>
+            <Text style={[styles.emptySubtext, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Sê o primeiro a partilhar!</Text>
             <TouchableOpacity 
               style={styles.emptyButton}
               onPress={() => setShowPostInput(true)}
@@ -685,26 +1281,36 @@ export default function SocialScreen() {
           </View>
         ) : (
           posts.map(post => (
-            <View key={post.id} style={styles.postCard}>
-            <View style={styles.postHeader}>
-              <View style={styles.userInfo}>
+            <View key={post.id} style={[styles.postCard, { 
+              backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff',
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+            }]}>
+              <View style={[styles.postHeader, { 
+                borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)' 
+              }]}>
+                <View style={styles.userInfo}>
                   <LinearGradient
                     colors={['#f2709c', '#ff9472']}
                     style={styles.avatarGradient}
                   >
-                <View style={styles.avatar}>
-                      <FontAwesome name="user" size={22} color="#fff" />
-                </View>
+                    <View style={[styles.avatar, { 
+                      backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                      borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                    }]}>
+                      <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
+                    </View>
                   </LinearGradient>
-                <View>
-                  <Text style={styles.username}>{post.username}</Text>
-                  <Text style={styles.timeAgo}>{post.timeAgo}</Text>
+                  <View>
+                    <Text style={[styles.username, { color: isDarkMode ? '#fff' : '#000' }]}>{post.username}</Text>
+                    <Text style={[styles.timeAgo, { color: isDarkMode ? '#8e8e93' : '#666' }]}>{post.timeAgo}</Text>
+                  </View>
                 </View>
+                <TouchableOpacity style={[styles.moreButton, { 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' 
+                }]}>
+                  <Feather name="more-horizontal" size={20} color={isDarkMode ? "#8e8e93" : "#666"} />
+                </TouchableOpacity>
               </View>
-                <TouchableOpacity style={styles.moreButton}>
-                  <Feather name="more-horizontal" size={20} color="#8e8e93" />
-              </TouchableOpacity>
-            </View>
 
               {post.image_url && (
                 <View style={styles.imageContainer}>
@@ -726,15 +1332,17 @@ export default function SocialScreen() {
                   colors={['rgba(74,144,226,0.05)', 'rgba(0,0,0,0)']}
                   style={styles.postContent}
                 >
-                  <Text style={styles.postText}>{post.content}</Text>
+                  <Text style={[styles.postText, { color: isDarkMode ? '#fff' : '#000' }]}>{post.content}</Text>
                 </LinearGradient>
               )}
 
-            <View style={styles.postActions}>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => handleLike(post.id)}
-              >
+              <View style={[styles.postActions, { 
+                borderTopColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)' 
+              }]}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => handleLike(post.id)}
+                >
                   <Animated.View
                     style={[
                       post.isLiked && { transform: [{ scale: likeScale }] }
@@ -743,22 +1351,22 @@ export default function SocialScreen() {
                     {post.isLiked ? (
                       <MaterialCommunityIcons name="heart" size={26} color="#ff4757" />
                     ) : (
-                      <MaterialCommunityIcons name="heart-outline" size={26} color="#fff" />
+                      <MaterialCommunityIcons name="heart-outline" size={26} color={isDarkMode ? "#fff" : "#000"} />
                     )}
                   </Animated.View>
-                <Text style={styles.actionText}>{post.likes}</Text>
-              </TouchableOpacity>
+                  <Text style={[styles.actionText, { color: isDarkMode ? '#fff' : '#000' }]}>{post.likes}</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionButton}>
-                  <MaterialCommunityIcons name="comment-outline" size={26} color="#fff" />
-                <Text style={styles.actionText}>{post.comments}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                  <MaterialCommunityIcons name="comment-outline" size={26} color={isDarkMode ? "#fff" : "#000"} />
+                  <Text style={[styles.actionText, { color: isDarkMode ? '#fff' : '#000' }]}>{post.comments}</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionButton}>
-                  <Feather name="share" size={24} color="#fff" />
-              </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                  <Feather name="share" size={24} color={isDarkMode ? "#fff" : "#000"} />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
           ))
         )}
         <View style={styles.bottomPadding} />
@@ -800,23 +1408,29 @@ export default function SocialScreen() {
 
       {/* Post Creation Modal */}
       {showPostInput && (
-        <BlurView intensity={80} style={styles.modalOverlay} tint="dark">
+        <BlurView intensity={80} style={styles.modalOverlay} tint={isDarkMode ? "dark" : "light"}>
           <Animated.View 
-            style={styles.modalContent}
+            style={[styles.modalContent, {
+              backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff',
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+            }]}
           >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Criar Post</Text>
+            <View style={[styles.modalHeader, {
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+            }]}>
+              <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>Criar Post</Text>
               <TouchableOpacity 
-                style={styles.closeButton}
+                style={[styles.closeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                 onPress={() => {
                   setShowPostInput(false);
                   setImage(null);
                   setNewPost('');
                 }}
               >
-                <Feather name="x" size={24} color="#fff" />
+                <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
               </TouchableOpacity>
-          </View>
+            </View>
 
             <View style={styles.createPostContent}>
               <View style={styles.userRow}>
@@ -824,25 +1438,30 @@ export default function SocialScreen() {
                   colors={['#f2709c', '#ff9472']}
                   style={styles.avatarGradient}
                 >
-                  <View style={styles.avatar}>
-                    <FontAwesome name="user" size={22} color="#fff" />
+                  <View style={[styles.avatar, {
+                    backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                    borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                  }]}>
+                    <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
                   </View>
                 </LinearGradient>
-                <Text style={styles.createPostUsername}>{DEFAULT_USERNAME}</Text>
-          </View>
+                <Text style={[styles.createPostUsername, { color: isDarkMode ? '#fff' : '#000' }]}>{DEFAULT_USERNAME}</Text>
+              </View>
 
-            <TextInput
-                style={styles.postInput}
-              placeholder="Em que estás a pensar?"
-              placeholderTextColor="#8e8e93"
-              value={newPost}
-              onChangeText={setNewPost}
-              multiline
+              <TextInput
+                style={[styles.postInput, { color: isDarkMode ? '#fff' : '#000' }]}
+                placeholder="Em que estás a pensar?"
+                placeholderTextColor={isDarkMode ? "#8e8e93" : "#666"}
+                value={newPost}
+                onChangeText={setNewPost}
+                multiline
                 autoFocus
               />
 
               {image && (
-                <View style={styles.selectedImageContainer}>
+                <View style={[styles.selectedImageContainer, {
+                  borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
+                }]}>
                   <Image source={{ uri: image }} style={styles.selectedImage} />
                   <TouchableOpacity 
                     style={styles.removeImageButton}
@@ -854,30 +1473,30 @@ export default function SocialScreen() {
               )}
 
               <View style={styles.postOptions}>
-                <Text style={styles.addToPostText}>Adicionar ao post:</Text>
+                <Text style={[styles.addToPostText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Adicionar ao post:</Text>
                 <View style={styles.postOptionsRow}>
                   <TouchableOpacity 
-                    style={styles.postOptionButton}
+                    style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
                     onPress={pickImage}
                   >
                     <Feather name="image" size={22} color="#4a90e2" />
                   </TouchableOpacity>
                   
-                  <TouchableOpacity style={styles.postOptionButton}>
+                  <TouchableOpacity style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
                     <Feather name="camera" size={22} color="#4a90e2" />
                   </TouchableOpacity>
                   
-                  <TouchableOpacity style={styles.postOptionButton}>
+                  <TouchableOpacity style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
                     <MaterialCommunityIcons name="emoticon-outline" size={22} color="#4a90e2" />
                   </TouchableOpacity>
                   
-                  <TouchableOpacity style={styles.postOptionButton}>
+                  <TouchableOpacity style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
                     <MaterialCommunityIcons name="map-marker-outline" size={22} color="#4a90e2" />
                   </TouchableOpacity>
-          </View>
-        </View>
-        
-        <TouchableOpacity 
+                </View>
+              </View>
+              
+              <TouchableOpacity 
                 style={[
                   styles.publishButton, 
                   ((!newPost.trim() && !image) || uploading) && styles.publishButtonDisabled
@@ -893,23 +1512,31 @@ export default function SocialScreen() {
                 ) : (
                   <Text style={styles.publishButtonText}>Publicar</Text>
                 )}
-        </TouchableOpacity>
-      </View>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         </BlurView>
       )}
 
       {/* Search Modal */}
       {showSearch && (
-        <BlurView intensity={80} style={styles.modalOverlay} tint="dark">
-          <Animated.View style={styles.searchModalContent}>
-            <View style={styles.searchHeader}>
-              <View style={styles.searchInputContainer}>
-                <Feather name="search" size={20} color="#8e8e93" style={styles.searchIcon} />
+        <BlurView intensity={80} style={styles.modalOverlay} tint={isDarkMode ? "dark" : "light"}>
+          <Animated.View style={[styles.searchModalContent, {
+            backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff',
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+          }]}>
+            <View style={[styles.searchHeader, {
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+            }]}>
+              <View style={[styles.searchInputContainer, {
+                backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)'
+              }]}>
+                <Feather name="search" size={20} color={isDarkMode ? "#8e8e93" : "#666"} style={styles.searchIcon} />
                 <TextInput
-                  style={styles.searchInput}
+                  style={[styles.searchInput, { color: isDarkMode ? '#fff' : '#000' }]}
                   placeholder="Search users..."
-                  placeholderTextColor="#8e8e93"
+                  placeholderTextColor={isDarkMode ? "#8e8e93" : "#666"}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   autoFocus
@@ -919,7 +1546,7 @@ export default function SocialScreen() {
                     style={styles.clearButton} 
                     onPress={() => setSearchQuery('')}
                   >
-                    <Feather name="x" size={18} color="#8e8e93" />
+                    <Feather name="x" size={18} color={isDarkMode ? "#8e8e93" : "#666"} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -941,8 +1568,8 @@ export default function SocialScreen() {
               </View>
             ) : searchQuery.trim() && searchResults.length === 0 ? (
               <View style={styles.noResultsContainer}>
-                <MaterialCommunityIcons name="account-search-outline" size={60} color="#8e8e93" />
-                <Text style={styles.noResultsText}>No users found</Text>
+                <MaterialCommunityIcons name="account-search-outline" size={60} color={isDarkMode ? "#8e8e93" : "#666"} />
+                <Text style={[styles.noResultsText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>No users found</Text>
               </View>
             ) : (
               <ScrollView 
@@ -952,7 +1579,9 @@ export default function SocialScreen() {
                 {searchResults.map(user => (
                   <TouchableOpacity 
                     key={user.id} 
-                    style={styles.userResultItem}
+                    style={[styles.userResultItem, {
+                      borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+                    }]}
                     onPress={() => {
                       setShowSearch(false);
                       setSearchQuery('');
@@ -981,627 +1610,4 @@ export default function SocialScreen() {
       )}
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarGradientSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2c2c3e',
-  },
-  headerActions: {
-    flexDirection: 'row',
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  storiesContainer: {
-    height: 110,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  storiesContent: {
-    padding: 15,
-  },
-  storyItem: {
-    alignItems: 'center',
-    marginHorizontal: 8,
-  },
-  storyRing: {
-    width: 65,
-    height: 65,
-    borderRadius: 35,
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  storyInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#1a1a2e',
-  },
-  storyName: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 5,
-  },
-  storyAdd: {
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  storyAddIcon: {
-    width: 55,
-    height: 55,
-    borderRadius: 30,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#4a90e2',
-  },
-  storyAddText: {
-    color: '#4a90e2',
-    fontSize: 12,
-    marginTop: 5,
-  },
-  storyAddRing: {
-    width: 65,
-    height: 65,
-    borderRadius: 35,
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  feed: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  feedContent: {
-    paddingBottom: 80,
-    paddingTop: 5,
-  },
-  loadingContainer: {
-    padding: 15,
-  },
-  loadingCard: {
-    backgroundColor: '#2c2c3e',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  loadingHeader: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  loadingAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#3e3e50',
-    marginRight: 10,
-  },
-  loadingLines: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  loadingLine1: {
-    height: 12,
-    width: '60%',
-    backgroundColor: '#3e3e50',
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  loadingLine2: {
-    height: 10,
-    width: '40%',
-    backgroundColor: '#3e3e50',
-    borderRadius: 5,
-  },
-  loadingImage: {
-    height: 200,
-    borderRadius: 8,
-    backgroundColor: '#3e3e50',
-    marginBottom: 15,
-  },
-  loadingFooter: {
-    flexDirection: 'row',
-  },
-  loadingAction: {
-    height: 20,
-    width: 80,
-    backgroundColor: '#3e3e50',
-    borderRadius: 10,
-    marginRight: 15,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    minHeight: 400,
-  },
-  emptyText: {
-    color: '#fff',
-    marginTop: 15,
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  emptySubtext: {
-    color: '#8e8e93',
-    marginTop: 5,
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 25,
-  },
-  emptyButton: {
-    backgroundColor: '#4a90e2',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 25,
-  },
-  emptyButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  postCard: {
-    backgroundColor: '#2c2c3e',
-    borderRadius: 16,
-    marginHorizontal: 15,
-    marginTop: 15,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarGradient: {
-    width: 45,
-    height: 45,
-    borderRadius: 25,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2c2c3e',
-  },
-  username: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  timeAgo: {
-    color: '#8e8e93',
-    fontSize: 13,
-  },
-  moreButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageContainer: {
-    width: '100%',
-    position: 'relative',
-  },
-  postImage: {
-    width: '100%',
-    height: 350,
-    backgroundColor: '#3e3e50',
-  },
-  doubleTapArea: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  postContent: {
-    padding: 15,
-    borderRadius: 10,
-    marginHorizontal: 5,
-    marginVertical: 5,
-  },
-  postText: {
-    color: '#fff',
-    fontSize: 16,
-    lineHeight: 24,
-    letterSpacing: 0.3,
-  },
-  postActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 15,
-    paddingBottom: 15,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.03)',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 25,
-    paddingVertical: 5,
-  },
-  actionText: {
-    color: '#fff',
-    fontSize: 16,
-    marginLeft: 8,
-    fontWeight: '500',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 25,
-    right: 25,
-  },
-  fabGradient: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  fabButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modalContent: {
-    width: '90%',
-    backgroundColor: '#2c2c3e',
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
-        shadowRadius: 15,
-      },
-      android: {
-        elevation: 15,
-      },
-    }),
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  modalTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  createPostContent: {
-    padding: 15,
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  createPostUsername: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  postInput: {
-    color: '#fff',
-    fontSize: 18,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 15,
-  },
-  selectedImageContainer: {
-    marginBottom: 15,
-    position: 'relative',
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  selectedImage: {
-    width: '100%',
-    height: 200,
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  postOptions: {
-    marginBottom: 20,
-  },
-  addToPostText: {
-    color: '#8e8e93',
-    fontSize: 14,
-    marginBottom: 10,
-  },
-  postOptionsRow: {
-    flexDirection: 'row',
-  },
-  postOptionButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  publishButton: {
-    backgroundColor: '#4a90e2',
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#4a90e2',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  publishButtonDisabled: {
-    opacity: 0.5,
-  },
-  publishButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  bottomPadding: {
-    height: 30,
-  },
-  searchModalContent: {
-    width: '90%',
-    height: '80%',
-    backgroundColor: '#2c2c3e',
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
-        shadowRadius: 15,
-      },
-      android: {
-        elevation: 15,
-      },
-    }),
-  },
-  searchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    height: 40,
-    marginRight: 10,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    height: 40,
-  },
-  clearButton: {
-    padding: 5,
-  },
-  closeSearchButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 5,
-  },
-  cancelText: {
-    color: '#4a90e2',
-    fontSize: 16,
-  },
-  searchLoadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  noResultsContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  noResultsText: {
-    color: '#8e8e93',
-    fontSize: 16,
-    marginTop: 10,
-  },
-  searchResultsContainer: {
-    flex: 1,
-    padding: 10,
-  },
-  userResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
-  resultAvatarGradient: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  resultAvatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2c2c3e',
-  },
-  userResultInfo: {
-    flex: 1,
-  },
-  userResultUsername: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  userResultName: {
-    color: '#8e8e93',
-    fontSize: 14,
-    marginTop: 2,
-  },
-}); 
+} 

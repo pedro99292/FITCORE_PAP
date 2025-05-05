@@ -24,7 +24,7 @@ export default function SettingsScreen() {
       await signOut();
       router.replace("/(auth)/login");
     } catch (error) {
-      console.error('Erro ao terminar sessão:', error);
+      console.error('Error signing out:', error);
     }
   };
 
@@ -76,7 +76,7 @@ export default function SettingsScreen() {
       <Stack.Screen 
         options={{
           headerShown: true,
-          title: 'Definições',
+          title: 'Settings',
           headerStyle: {
             backgroundColor: colors.background,
           },
@@ -94,7 +94,7 @@ export default function SettingsScreen() {
           ),
           headerTitle: () => (
             <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>
-              Definições
+              Settings
             </Text>
           ),
         }} 
@@ -103,23 +103,23 @@ export default function SettingsScreen() {
       <ScrollView style={styles.scrollView}>
         {/* Account Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.primary }]}>Conta</Text>
+          <Text style={[styles.sectionTitle, { color: colors.primary }]}>Account</Text>
           <View style={[styles.sectionContent, { backgroundColor: colors.surface, borderColor: colors.background }]}>
             <SettingItem
               icon="user"
-              title="Perfil"
-              subtitle="Editar informações pessoais"
+              title="Profile"
+              subtitle="Edit personal information"
               onPress={() => router.push('/edit-profile')}
             />
             <SettingItem
               icon="lock"
-              title="Privacidade"
-              subtitle="Gerenciar configurações de privacidade"
+              title="Privacy"
+              subtitle="Manage privacy settings"
               onPress={() => {}}
             />
             <SettingItem
               icon="bell"
-              title="Notificações"
+              title="Notifications"
               hasSwitch
               switchValue={notifications}
               onSwitchChange={setNotifications}
@@ -129,26 +129,26 @@ export default function SettingsScreen() {
 
         {/* App Settings Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.primary }]}>Aplicativo</Text>
+          <Text style={[styles.sectionTitle, { color: colors.primary }]}>Application</Text>
           <View style={[styles.sectionContent, { backgroundColor: colors.surface, borderColor: colors.background }]}>
             <SettingItem
               icon="moon-o"
-              title="Modo Escuro"
+              title="Dark Mode"
               hasSwitch
               switchValue={isDarkMode}
               onSwitchChange={toggleTheme}
             />
             <SettingItem
               icon="volume-up"
-              title="Sons"
+              title="Sounds"
               hasSwitch
               switchValue={soundEffects}
               onSwitchChange={setSoundEffects}
             />
             <SettingItem
               icon="language"
-              title="Idioma"
-              subtitle="Português"
+              title="Language"
+              subtitle="English"
               onPress={() => {}}
             />
           </View>
@@ -156,24 +156,24 @@ export default function SettingsScreen() {
 
         {/* Support Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.primary }]}>Suporte</Text>
+          <Text style={[styles.sectionTitle, { color: colors.primary }]}>Support</Text>
           <View style={[styles.sectionContent, { backgroundColor: colors.surface, borderColor: colors.background }]}>
             <SettingItem
               icon="question-circle"
-              title="Ajuda"
-              subtitle="FAQs e guias"
+              title="Help"
+              subtitle="FAQs and guides"
               onPress={() => {}}
             />
             <SettingItem
               icon="envelope"
-              title="Contato"
-              subtitle="Fale conosco"
+              title="Contact"
+              subtitle="Contact us"
               onPress={() => {}}
             />
             <SettingItem
               icon="info-circle"
-              title="Sobre"
-              subtitle="Versão 1.0.0"
+              title="About"
+              subtitle="Version 1.0.0"
               onPress={() => {}}
             />
           </View>
@@ -191,7 +191,7 @@ export default function SettingsScreen() {
             ) : (
               <>
                 <FontAwesome name="sign-out" size={18} color="#fff" style={styles.logoutIcon} />
-                <Text style={styles.logoutText}>Terminar Sessão</Text>
+                <Text style={styles.logoutText}>Sign Out</Text>
               </>
             )}
           </LinearGradient>

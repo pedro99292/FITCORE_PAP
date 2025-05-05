@@ -32,6 +32,7 @@ interface WgerExercise {
   license_author: string;
   created?: string;
   last_update?: string;
+  images?: any[]; // Assuming the images property is optional
 }
 
 // Translation interface from wger API
@@ -47,54 +48,14 @@ export const useExercises = (params?: FetchExercisesParams) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Record<number, string>>({});
-  const [muscles, setMuscles] = useState<Record<number, string>>({});
-  const [equipmentList, setEquipmentList] = useState<Record<number, string>>({});
-
-  // Fetch categories, muscles, and equipment once on init
-  useEffect(() => {
-    const fetchMetadata = async () => {
-      try {
-        // Fetch categories
-        const categoriesResponse = await fetch(`${WGER_API_BASE_URL}/exercisecategory/`);
-        const categoriesData = await categoriesResponse.json();
-        const categoriesMap: Record<number, string> = {};
-        categoriesData.results.forEach((cat: any) => {
-          categoriesMap[cat.id] = cat.name;
-        });
-        setCategories(categoriesMap);
-
-        // Fetch muscles
-        const musclesResponse = await fetch(`${WGER_API_BASE_URL}/muscle/`);
-        const musclesData = await musclesResponse.json();
-        const musclesMap: Record<number, string> = {};
-        musclesData.results.forEach((muscle: any) => {
-          musclesMap[muscle.id] = muscle.name;
-        });
-        setMuscles(musclesMap);
-
-        // Fetch equipment
-        const equipmentResponse = await fetch(`${WGER_API_BASE_URL}/equipment/`);
-        const equipmentData = await equipmentResponse.json();
-        const equipmentMap: Record<number, string> = {};
-        equipmentData.results.forEach((eq: any) => {
-          equipmentMap[eq.id] = eq.name;
-        });
-        setEquipmentList(equipmentMap);
-      } catch (err) {
-        console.error('Error fetching metadata:', err);
-      }
-    };
-
-    fetchMetadata();
-  }, []);
 
   const fetchExercises = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Start with the base exercises endpoint
+      // Use the exerciseinfo endpoint instead of exercise endpoint
+      // This includes translations and more complete data
       let endpoint = `${WGER_API_BASE_URL}/exerciseinfo/?language=2`; // Language 2 is English
       
       // Build filtering based on params
@@ -110,7 +71,7 @@ export const useExercises = (params?: FetchExercisesParams) => {
       
       console.log('Fetching exercises from:', endpoint);
       
-      let allExercises: WgerExercise[] = [];
+      let allExercises: any[] = [];
       let nextPage = endpoint;
       
       // Fetch all pages of results
@@ -121,7 +82,7 @@ export const useExercises = (params?: FetchExercisesParams) => {
           throw new Error(`Failed to fetch exercises: ${response.status} ${response.statusText}`);
         }
         
-        const data: WgerExerciseResponse = await response.json();
+        const data = await response.json();
         allExercises = [...allExercises, ...data.results];
         nextPage = data.next || '';
       }
@@ -130,27 +91,48 @@ export const useExercises = (params?: FetchExercisesParams) => {
       
       // Transform wger exercises to our Exercise type
       const transformedExercises: Exercise[] = allExercises.map(wgerExercise => {
-        // Get primary muscle (target) or use category name if no muscles
-        const target = wgerExercise.muscles.length > 0 
-          ? muscles[wgerExercise.muscles[0]] || 'Unknown'
-          : categories[wgerExercise.category] || 'Unknown';
+        // Get the English translation (language=2)
+        const translation = wgerExercise.translations.find((t: any) => t.language === 2);
         
-        // Get body part from category
-        const bodyPart = categories[wgerExercise.category] || 'Unknown';
+        // Get category name
+        const categoryName = wgerExercise.category ? wgerExercise.category.name : 'Unknown';
+        
+        // Get primary muscle (target)
+        const primaryMuscle = wgerExercise.muscles.length > 0 
+          ? wgerExercise.muscles[0].name_en || wgerExercise.muscles[0].name 
+          : categoryName;
         
         // Get equipment name
-        const equipment = wgerExercise.equipment.length > 0
-          ? equipmentList[wgerExercise.equipment[0]] || 'bodyweight'
+        const equipmentName = wgerExercise.equipment.length > 0
+          ? wgerExercise.equipment[0].name.toLowerCase()
           : 'bodyweight';
-          
+        
+        // Get exercise image if available
+        let exerciseImageUrl = null;
+        if (wgerExercise.images && wgerExercise.images.length > 0) {
+          // Find the main image
+          const mainImage = wgerExercise.images.find((img: any) => img.is_main);
+          if (mainImage) {
+            exerciseImageUrl = mainImage.image;
+          } else if (wgerExercise.images[0]) {
+            // Use the first image if no main image is marked
+            exerciseImageUrl = wgerExercise.images[0].image;
+          }
+        }
+
+        // Get muscle image URL as fallback
+        const muscleImageUrl = wgerExercise.muscles.length > 0 
+          ? `https://wger.de${wgerExercise.muscles[0].image_url_main}` 
+          : 'https://wger.de/static/images/muscles/main/muscle-1.svg';
+        
         return {
           id: wgerExercise.uuid,
-          name: wgerExercise.name || `Exercise ${wgerExercise.id}`,
-          bodyPart: bodyPart.toLowerCase(),
-          target: target.toLowerCase(),
-          equipment: equipment.toLowerCase(),
-          gifUrl: `https://wger.de/static/images/muscles/main/muscle-${wgerExercise.muscles[0] || 1}.svg`,
-          instructions: []
+          name: translation ? translation.name : `Exercise ${wgerExercise.id}`,
+          bodyPart: categoryName.toLowerCase(),
+          target: primaryMuscle.toLowerCase(),
+          equipment: equipmentName.toLowerCase(),
+          gifUrl: exerciseImageUrl || muscleImageUrl,
+          instructions: translation && translation.description ? [translation.description] : []
         };
       });
       
@@ -192,20 +174,15 @@ export const useExercises = (params?: FetchExercisesParams) => {
     }
   };
 
-  // Fetch exercises whenever filter params change or metadata is loaded
+  // Fetch exercises whenever filter params change
   useEffect(() => {
-    if (Object.keys(categories).length > 0 && Object.keys(muscles).length > 0) {
-      console.log('Filter params or metadata changed, fetching exercises...');
-      fetchExercises();
-    }
+    console.log('Filter params changed, fetching exercises...');
+    fetchExercises();
   }, [
     params?.bodyPart,
     params?.equipment,
     params?.target,
-    params?.name,
-    JSON.stringify(categories),
-    JSON.stringify(muscles),
-    JSON.stringify(equipmentList)
+    params?.name
   ]);
 
   return { exercises, loading, error, refetch: fetchExercises };
@@ -298,61 +275,57 @@ export const useExercise = (id: string) => {
     setError(null);
 
     try {
-      // First we need to get the exercise info
-      const response = await fetch(`${WGER_API_BASE_URL}/exerciseinfo/${id}`);
+      // Get detailed exercise info including translations
+      const response = await fetch(`${WGER_API_BASE_URL}/exerciseinfo/${id}/`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch exercise: ${response.status}`);
       }
 
-      const data = await response.json();
+      const wgerExercise = await response.json();
       
-      // Fetch muscle and equipment data to transform the exercise
-      const musclesResponse = await fetch(`${WGER_API_BASE_URL}/muscle/`);
-      const musclesData = await musclesResponse.json();
-      const musclesMap: Record<number, string> = {};
-      musclesData.results.forEach((muscle: any) => {
-        musclesMap[muscle.id] = muscle.name;
-      });
+      // Get the English translation (language=2)
+      const translation = wgerExercise.translations.find((t: any) => t.language === 2);
       
-      const categoriesResponse = await fetch(`${WGER_API_BASE_URL}/exercisecategory/`);
-      const categoriesData = await categoriesResponse.json();
-      const categoriesMap: Record<number, string> = {};
-      categoriesData.results.forEach((cat: any) => {
-        categoriesMap[cat.id] = cat.name;
-      });
+      // Get category name
+      const categoryName = wgerExercise.category ? wgerExercise.category.name : 'Unknown';
       
-      const equipmentResponse = await fetch(`${WGER_API_BASE_URL}/equipment/`);
-      const equipmentData = await equipmentResponse.json();
-      const equipmentMap: Record<number, string> = {};
-      equipmentData.results.forEach((eq: any) => {
-        equipmentMap[eq.id] = eq.name;
-      });
-      
-      // Transform to our Exercise type
-      const wgerExercise = data;
-      
-      // Get primary muscle (target) or use category name if no muscles
-      const target = wgerExercise.muscles.length > 0 
-        ? musclesMap[wgerExercise.muscles[0].id] || 'Unknown'
-        : categoriesMap[wgerExercise.category.id] || 'Unknown';
-      
-      // Get body part from category
-      const bodyPart = categoriesMap[wgerExercise.category.id] || 'Unknown';
+      // Get primary muscle (target)
+      const primaryMuscle = wgerExercise.muscles.length > 0 
+        ? wgerExercise.muscles[0].name_en || wgerExercise.muscles[0].name 
+        : categoryName;
       
       // Get equipment name
       const equipmentName = wgerExercise.equipment.length > 0
-        ? equipmentMap[wgerExercise.equipment[0].id] || 'bodyweight'
+        ? wgerExercise.equipment[0].name.toLowerCase()
         : 'bodyweight';
-        
+      
+      // Get exercise image if available
+      let exerciseImageUrl = null;
+      if (wgerExercise.images && wgerExercise.images.length > 0) {
+        // Find the main image
+        const mainImage = wgerExercise.images.find((img: any) => img.is_main);
+        if (mainImage) {
+          exerciseImageUrl = mainImage.image;
+        } else if (wgerExercise.images[0]) {
+          // Use the first image if no main image is marked
+          exerciseImageUrl = wgerExercise.images[0].image;
+        }
+      }
+
+      // Get muscle image URL as fallback
+      const muscleImageUrl = wgerExercise.muscles.length > 0 
+        ? `https://wger.de${wgerExercise.muscles[0].image_url_main}` 
+        : 'https://wger.de/static/images/muscles/main/muscle-1.svg';
+      
       const transformedExercise: Exercise = {
         id: wgerExercise.uuid,
-        name: wgerExercise.name || `Exercise ${wgerExercise.id}`,
-        bodyPart: bodyPart.toLowerCase(),
-        target: target.toLowerCase(),
+        name: translation ? translation.name : `Exercise ${wgerExercise.id}`,
+        bodyPart: categoryName.toLowerCase(),
+        target: primaryMuscle.toLowerCase(),
         equipment: equipmentName.toLowerCase(),
-        gifUrl: `https://wger.de/static/images/muscles/main/muscle-${wgerExercise.muscles[0]?.id || 1}.svg`,
-        instructions: wgerExercise.description ? [wgerExercise.description] : []
+        gifUrl: exerciseImageUrl || muscleImageUrl,
+        instructions: translation && translation.description ? [translation.description] : []
       };
       
       setExercise(transformedExercise);

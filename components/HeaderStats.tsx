@@ -1,13 +1,21 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function HeaderStats() {
   // These values would typically come from your app's state management
   const streakCount = 7; // Example streak count
   const currencyCount = 350; // Example currency count
+  const { isDarkMode, colors } = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container, 
+      { 
+        backgroundColor: isDarkMode ? '#2D2B3F' : colors.surface,
+        borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+      }
+    ]}>
       {/* Streaks Counter on the Left */}
       <View style={styles.counterContainer}>
         <Image 
@@ -15,12 +23,12 @@ export default function HeaderStats() {
           style={styles.icon} 
           resizeMode="contain"
         />
-        <Text style={styles.counterText}>{streakCount}</Text>
-        <Text style={styles.labelText}>dias</Text>
+        <Text style={[styles.counterText, { color: colors.text }]}>{streakCount}</Text>
+        <Text style={[styles.labelText, { color: isDarkMode ? '#ccc' : '#666' }]}>dias</Text>
       </View>
 
       {/* Title in the Center */}
-      <Text style={styles.title}>FitCore</Text>
+      <Text style={[styles.title, { color: colors.text }]}>FitCore</Text>
 
       {/* Currency Counter on the Right */}
       <View style={styles.counterContainer}>
@@ -29,7 +37,7 @@ export default function HeaderStats() {
           style={styles.icon} 
           resizeMode="contain"
         />
-        <Text style={styles.counterText}>{currencyCount}</Text>
+        <Text style={[styles.counterText, { color: colors.text }]}>{currencyCount}</Text>
       </View>
     </View>
   );
@@ -43,9 +51,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 10,
-    backgroundColor: '#2D2B3F',
     borderBottomWidth: 1,
-    borderBottomColor: 'white',
   },
   counterContainer: {
     flexDirection: 'row',
@@ -59,16 +65,13 @@ const styles = StyleSheet.create({
   counterText: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: 'white',
   },
   labelText: {
     fontSize: 15,
-    color: '#ccc',
     marginLeft: 4,
   },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: 'white',
   },
 }); 
