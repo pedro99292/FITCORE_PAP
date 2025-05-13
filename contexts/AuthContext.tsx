@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { supabase } from '@/utils/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { router } from 'expo-router';
@@ -22,13 +22,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
-  const checkEmailVerification = (user: User | null) => {
+  const checkEmailVerification = useCallback((user: User | null) => {
     return !!user?.email_confirmed_at;
-  };
+  }, []);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Define handler here to avoid duplication
+    const handleAuthChange = (_event: string, session: Session | null) => {
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
@@ -43,36 +43,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setLoading(false);
+    };
+
+    // Get initial session - use Promise.then for better performance than async/await here
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleAuthChange('INITIAL', session);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        
-        // Check email verification on auth state change
-        const isVerified = checkEmailVerification(currentUser);
-        setIsEmailVerified(isVerified);
-        
-        // Redirect to login if user exists but email is not verified
-        if (currentUser && !isVerified) {
-          router.replace('/login');
-        }
-        
-        setLoading(false);
-      }
-    );
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
 
     // Cleanup
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [checkEmailVerification]);
 
   // Sign out function
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       setLoading(true);
       await supabase.auth.signOut();
@@ -81,16 +69,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Context value
-  const value = {
+  // Memoize context value to prevent unnecessary rerenders
+  const value = useMemo(() => ({
     session,
     user,
     loading,
     isEmailVerified,
     signOut,
-  };
+  }), [session, user, loading, isEmailVerified, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

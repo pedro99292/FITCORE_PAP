@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import { Stack } from 'expo-router';
 import { Platform, StyleSheet, Text, TextProps, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -9,9 +9,9 @@ import { ThemeProvider, useTheme } from '@/hooks/useTheme';
 
 // This is a helper component to fix issues with text inside View components
 // It ensures all text is properly wrapped with a Text component
-export function TextWrapper(props: TextProps) {
+export const TextWrapper = memo((props: TextProps) => {
   return <Text {...props} />;
-}
+});
 
 // Monkey patch the console.error to suppress specific text node warnings in development
 if (__DEV__ && Platform.OS !== 'web') {
@@ -28,7 +28,7 @@ if (__DEV__ && Platform.OS !== 'web') {
   };
 }
 
-function StackNavigator() {
+const StackNavigator = memo(() => {
   const { isDarkMode, colors } = useTheme();
   
   return (
@@ -53,7 +53,7 @@ function StackNavigator() {
       </Stack>
     </>
   );
-}
+});
 
 export default function RootLayout() {
   return (

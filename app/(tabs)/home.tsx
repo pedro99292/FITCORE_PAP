@@ -2,14 +2,85 @@ import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaVi
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate } from 'react-native-reanimated';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-export default function HomeScreen() {
+// Pre-loaded images for faster loading
+const FRONT_SILHOUETTE = require('../../assets/images/muscle-silhouette-front.png');
+const BACK_SILHOUETTE = require('../../assets/images/muscle-silhouette-back.png');
+
+// Memoized StatItem component to prevent unnecessary re-renders
+const StatItem = memo(({ icon, value, label }: { icon: React.ReactNode, value: number, label: string }) => (
+  <View style={styles.statItem}>
+    {icon}
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </View>
+));
+
+// Memoized StatsContainer component
+const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedValue<number> }) => {
+  const statsAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: statsOpacity.value,
+      transform: [
+        { translateY: interpolate(statsOpacity.value, [0, 1], [-20, 0]) }
+      ]
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.statsContainer, statsAnimatedStyle]}>
+      <LinearGradient
+        colors={['rgba(74, 144, 226, 0.6)', 'rgba(74, 144, 226, 0.2)']}
+        start={[0, 0]}
+        end={[1, 1]}
+        style={styles.statsGradient}
+      >
+        <View style={styles.statsBox}>
+          <StatItem 
+            icon={<FontAwesome5 name="dumbbell" size={20} color="#fff" />}
+            value={0}
+            label="Treinos"
+          />
+          
+          <View style={styles.statDivider} />
+          
+          <StatItem 
+            icon={<FontAwesome5 name="weight" size={20} color="#fff" />}
+            value={0}
+            label="Kgs Volume"
+          />
+          
+          <View style={styles.statDivider} />
+          
+          <StatItem 
+            icon={<Ionicons name="time-outline" size={20} color="#fff" />}
+            value={0}
+            label="Minutos"
+          />
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+});
+
+// Memoized Header component
+const Header = memo(({ title, color }: { title: string, color: string }) => (
+  <View style={styles.header}>
+    <Text style={[styles.title, { color }]}>{title}</Text>
+    <TouchableOpacity style={styles.notificationButton}>
+      <Ionicons name="notifications-outline" size={26} color={color} />
+    </TouchableOpacity>
+  </View>
+));
+
+// Main component with performance optimizations
+const HomeScreen = () => {
   // Use theme from context
   const { colors, isDarkMode } = useTheme();
   
@@ -21,10 +92,14 @@ export default function HomeScreen() {
   const statsOpacity = useSharedValue(0);
   const silhouetteScale = useSharedValue(0.95);
   
-  // Animate elements on component mount
+  // Animate elements on component mount - deferred for better startup performance
   useEffect(() => {
-    statsOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) });
-    silhouetteScale.value = withTiming(1, { duration: 1000, easing: Easing.elastic(1.2) });
+    const timer = setTimeout(() => {
+      statsOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) });
+      silhouetteScale.value = withTiming(1, { duration: 1000, easing: Easing.elastic(1.2) });
+    }, 100); // Short delay to prioritize UI rendering
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Function to toggle between front and back views with animation
@@ -41,86 +116,29 @@ export default function HomeScreen() {
     }, 400);
   };
 
-  // Animated styles
-  const rotateStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ rotateY: `${rotation.value}deg` }],
-    };
-  });
+  // Memoized animated styles
+  const rotateStyle = useAnimatedStyle(() => ({
+    transform: [{ rotateY: `${rotation.value}deg` }],
+  }));
 
-  const statsAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: statsOpacity.value,
-      transform: [
-        { translateY: interpolate(statsOpacity.value, [0, 1], [-20, 0]) }
-      ]
-    };
-  });
-
-  const silhouetteAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { scale: silhouetteScale.value }
-      ]
-    };
-  });
+  const silhouetteAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: silhouetteScale.value }]
+  }));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>FITCORE</Text>
-        <TouchableOpacity style={styles.notificationButton}>
-          <Ionicons name="notifications-outline" size={26} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+      <Header title="FITCORE" color={colors.text} />
       
       {/* Stats Box */}
-      <Animated.View style={[
-        styles.statsContainer,
-        statsAnimatedStyle
-      ]}>
-        <LinearGradient
-          colors={['rgba(74, 144, 226, 0.6)', 'rgba(74, 144, 226, 0.2)']}
-          start={[0, 0]}
-          end={[1, 1]}
-          style={styles.statsGradient}
-        >
-          <View style={styles.statsBox}>
-            <View style={styles.statItem}>
-              <FontAwesome5 name="dumbbell" size={20} color="#fff" />
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Treinos</Text>
-            </View>
-            
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <FontAwesome5 name="weight" size={20} color="#fff" />
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Kgs Volume</Text>
-            </View>
-            
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Minutos</Text>
-            </View>
-          </View>
-        </LinearGradient>
-      </Animated.View>
+      <StatsContainer statsOpacity={statsOpacity} />
       
       {/* Silhouette Image */}
       <Animated.View style={[styles.silhouetteContainer, silhouetteAnimatedStyle]}>
         <Animated.Image
-          source={showFrontView 
-            ? require('../../assets/images/muscle-silhouette-front.png')
-            : require('../../assets/images/muscle-silhouette-back.png')
-          }
+          source={showFrontView ? FRONT_SILHOUETTE : BACK_SILHOUETTE}
           style={[styles.silhouette, rotateStyle]}
         />
       </Animated.View>
@@ -153,8 +171,9 @@ export default function HomeScreen() {
       </TouchableOpacity>
     </SafeAreaView>
   );
-}
+};
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -248,7 +267,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: screenWidth * 0.06,
-    marginBottom: screenWidth * 0.06,
+    paddingBottom: screenWidth * 0.05,
   },
   mainButton: {
     shadowColor: '#000',
@@ -270,4 +289,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-}); 
+});
+
+// Export as a memoized component to prevent unnecessary re-renders
+export default memo(HomeScreen); 

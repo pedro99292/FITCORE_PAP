@@ -45,6 +45,7 @@ interface AchievementItemProps {
 
 interface Achievement {
   id: number;
+  achievement_id?: number;
   title: string;
   description: string;
   date?: string;
@@ -81,6 +82,7 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
   const progressStyle = useAnimatedStyle(() => {
     return {
       width: `${progressWidth.value}%`,
+      transform: [],
     };
   });
 
@@ -100,6 +102,7 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
     return (
     <Animated.View 
       entering={FadeInDown.duration(400).delay(Math.random() * 300)}
+      layout={undefined}
       style={styles.achievementCard}
     >
       <LinearGradient
@@ -163,6 +166,7 @@ const TrophyCard = ({ color, title, unlocked }: { color: string, title: string, 
   return (
     <Animated.View 
       entering={FadeIn.duration(500).delay(Math.random() * 400)}
+      layout={undefined}
       style={[styles.trophyCard, { opacity: unlocked ? 1 : 0.5 }]}
     >
       <LinearGradient
@@ -376,6 +380,7 @@ const AchievementsPage = () => {
       {/* Header */}
       <Animated.View 
         entering={FadeIn.duration(600)}
+        layout={undefined}
         style={styles.header}
       >
         <LinearGradient
@@ -440,7 +445,7 @@ const AchievementsPage = () => {
                 <View style={styles.achievementsList}>
               {achievements.map((achievement) => (
                         <AchievementItem 
-                            key={achievement.id} 
+                            key={achievement.achievement_id || achievement.id} 
                             title={achievement.title} 
                             description={achievement.description} 
                   date={achievement.date || ''} 
@@ -595,10 +600,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   activeCategoryChip: {
-    shadowColor: '#4a90e2',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
+    boxShadow: '0px 2px 3px rgba(74, 144, 226, 0.3)',
     elevation: 4,
   },
   categoryGradient: {
@@ -655,10 +657,7 @@ const styles = StyleSheet.create({
   achievementCard: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.2)',
     elevation: 8,
   },
   cardGradient: {
@@ -794,10 +793,7 @@ const styles = StyleSheet.create({
     aspectRatio: 0.8,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.3)',
     elevation: 8,
     marginBottom: 10,
   },

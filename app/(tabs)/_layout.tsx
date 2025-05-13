@@ -1,39 +1,69 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, memo, useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
-import { ActivityIndicator, View, Platform, Dimensions } from 'react-native';
+import { ActivityIndicator, View, Platform, Dimensions, ViewStyle } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 
 import { Colors } from '@/constants/Colors';
 import HeaderStats from '@/components/HeaderStats';
 
-// Helper function to calculate icon size based on screen width - moderately increased
-function getIconSize() {
-  const { width } = Dimensions.get('window');
-  return Math.max(41, width * 0.09); // Moderately increased size - balanced approach
-}
+// Memoized TabIcon component to prevent unnecessary re-renders
+const TabIcon = memo(({ name, color, size }: { name: string, color: string, size: number }) => (
+  <FontAwesome name={name as any} size={size} color={color} />
+));
 
-export default function TabLayout() {
+// Helper function to calculate icon size based on screen width
+const getIconSize = () => {
+  const { width } = Dimensions.get('window');
+  return Math.max(41, width * 0.09);
+};
+
+// Precomputed icon size to avoid recalculation
+const ICON_SIZE = getIconSize();
+
+// Loading spinner component
+const LoadingIndicator = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <ActivityIndicator size="large" color="#FF4757" />
+  </View>
+);
+
+const TabLayout = () => {
   const { session, loading } = useAuth();
   const { isDarkMode, colors } = useTheme();
-  const iconSize = getIconSize();
 
   useEffect(() => {
     // If not loading and no session, redirect to login
     if (!loading && !session) {
-      router.replace('/(auth)/login');
+      // Use setTimeout to defer navigation until after initial render
+      const timer = setTimeout(() => {
+        router.replace('/(auth)/login');
+      }, 0);
+      
+      return () => clearTimeout(timer);
     }
   }, [session, loading]);
 
+  // Memoize tab styles to prevent recalculation on each render
+  const tabBarStyle = useMemo(() => ({
+    backgroundColor: isDarkMode ? '#2D2B3F' : '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+    height: 75,
+    paddingBottom: 12,
+    paddingTop: 12,
+  }), [isDarkMode]);
+
+  const tabBarItemStyle = useMemo((): ViewStyle => ({
+    paddingVertical: 8,
+    justifyContent: 'center' as const,
+  }), []);
+
   // While checking authentication state, show a loading indicator
   if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#FF4757" />
-      </View>
-    );
+    return <LoadingIndicator />;
   }
 
   // If user is not authenticated, don't render tabs
@@ -47,55 +77,40 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#888',
         header: () => <HeaderStats />,
-        tabBarStyle: {
-          backgroundColor: isDarkMode ? '#2D2B3F' : '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-          height: 75,
-          paddingBottom: 12,
-          paddingTop: 12,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 8,
-          justifyContent: 'center', // Center the icon vertically
-        },
+        tabBarStyle,
+        tabBarItemStyle,
         tabBarShowLabel: false, // Hide all labels
       }}>
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <FontAwesome name="home" size={iconSize} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="workout-builder"
-        options={{
-          title: 'Create Workout',
-          tabBarIcon: ({ color }) => <FontAwesome name="plus-circle" size={iconSize} color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="home" size={ICON_SIZE} color={color} />,
         }}
       />
       <Tabs.Screen
         name="achievements"
         options={{
           title: 'Conquistas',
-          tabBarIcon: ({ color }) => <FontAwesome name="trophy" size={iconSize} color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="trophy" size={ICON_SIZE} color={color} />,
         }}
       />
       <Tabs.Screen
         name="social"
         options={{
           title: 'Social',
-          tabBarIcon: ({ color }) => <FontAwesome name="users" size={iconSize} color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="users" size={ICON_SIZE} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color }) => <FontAwesome name="user" size={iconSize} color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="user" size={ICON_SIZE} color={color} />,
         }}
       />
     </Tabs>
   );
-}
+};
+
+export default memo(TabLayout);
