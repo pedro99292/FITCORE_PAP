@@ -4,8 +4,48 @@
   <meta charset="utf-8">
   <title>FITCORE</title>
   <link rel="icon" href="data:,">
+  <!-- Preloading font files to prevent slow network warnings -->
+  <link rel="preload" as="font" href="/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome.ttf" crossorigin="anonymous">
+  <link rel="preload" as="font" href="/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf" crossorigin="anonymous">
+  <link rel="preload" as="font" href="/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf" crossorigin="anonymous">
+  <link rel="preload" as="font" href="/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome5_Regular.ttf" crossorigin="anonymous">
+  <link rel="preload" as="font" href="/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome5_Solid.ttf" crossorigin="anonymous">
+  <link rel="preload" as="font" href="/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome5_Brands.ttf" crossorigin="anonymous">
+  <!-- Add style for fallback fonts -->
+  <style>
+    @font-face {
+      font-family: 'FontAwesome';
+      src: local('FontAwesome'), url('/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome.ttf') format('truetype');
+      font-display: block;
+    }
+    @font-face {
+      font-family: 'Ionicons';
+      src: local('Ionicons'), url('/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf') format('truetype');
+      font-display: block;
+    }
+    @font-face {
+      font-family: 'MaterialCommunityIcons';
+      src: local('MaterialCommunityIcons'), url('/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf') format('truetype');
+      font-display: block;
+    }
+  </style>
 </head>
 <body>
   <h1>FITCORE Development Server</h1>
+  <!-- Avoid network detection warning messages during dev -->
+  <script>
+    // Override browser's network detection capabilities to avoid warnings
+    if (typeof navigator !== 'undefined' && navigator.connection) {
+      Object.defineProperty(navigator.connection, 'effectiveType', {
+        get: function() { return '4g'; }
+      });
+      Object.defineProperty(navigator.connection, 'rtt', {
+        get: function() { return 50; }
+      });
+      Object.defineProperty(navigator.connection, 'downlink', {
+        get: function() { return 10; }
+      });
+    }
+  </script>
 </body>
 </html>

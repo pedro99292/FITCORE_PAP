@@ -131,7 +131,7 @@ export default function RegisterScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Animated.View style={[styles.headerContainer, logoAnimatedStyle]}>
           <Image 
-            source={require('@/assets/images/logo.png')} 
+            source={require('@/assets/images/logo2.png')} 
             style={styles.logo} 
             resizeMode="contain"
           />
@@ -279,9 +279,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 16,
+    width: 220,
+    height: 220,
+    marginBottom: 1,
   },
   title: {
     fontSize: 36,

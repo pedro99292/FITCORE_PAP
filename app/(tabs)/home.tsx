@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar } from 'react-native';
+import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -6,6 +6,8 @@ import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate } from 'react-native-reanimated';
+import { Image as ExpoImage } from 'expo-image';
+import { Asset } from 'expo-asset';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -79,6 +81,25 @@ const Header = memo(({ title, color }: { title: string, color: string }) => (
   </View>
 ));
 
+// Create a platform-optimized image component
+const OptimizedImage = ({ 
+  source, 
+  style, 
+  ...props 
+}: { 
+  source: any; 
+  style?: any; 
+  [key: string]: any 
+}) => {
+  // Use standard Image on web to avoid fetchPriority warning
+  if (Platform.OS === 'web') {
+    return <Image source={source} style={style} {...props} />;
+  }
+  
+  // Use ExpoImage on native platforms for better performance
+  return <ExpoImage source={source} style={style} {...props} />;
+};
+
 // Main component with performance optimizations
 const HomeScreen = () => {
   // Use theme from context
@@ -91,6 +112,20 @@ const HomeScreen = () => {
   const rotation = useSharedValue(0);
   const statsOpacity = useSharedValue(0);
   const silhouetteScale = useSharedValue(0.95);
+  
+  // Preload silhouette images
+  useEffect(() => {
+    const preloadImages = async () => {
+      try {
+        await Asset.loadAsync([FRONT_SILHOUETTE, BACK_SILHOUETTE]);
+        console.log('Silhouette images preloaded successfully');
+      } catch (error) {
+        console.error('Error preloading images:', error);
+      }
+    };
+    
+    preloadImages();
+  }, []);
   
   // Animate elements on component mount - deferred for better startup performance
   useEffect(() => {
@@ -135,12 +170,17 @@ const HomeScreen = () => {
       {/* Stats Box */}
       <StatsContainer statsOpacity={statsOpacity} />
       
-      {/* Silhouette Image */}
+      {/* Silhouette Image - Back to simple flip */}
       <Animated.View style={[styles.silhouetteContainer, silhouetteAnimatedStyle]}>
-        <Animated.Image
-          source={showFrontView ? FRONT_SILHOUETTE : BACK_SILHOUETTE}
-          style={[styles.silhouette, rotateStyle]}
-        />
+        <Animated.View style={[rotateStyle, styles.silhouetteWrapper]}>
+          <OptimizedImage
+            source={showFrontView ? FRONT_SILHOUETTE : BACK_SILHOUETTE}
+            placeholder={Platform.OS !== 'web' ? require('@/assets/images/muscle-silhouette-front.png') : undefined}
+            contentFit="contain"
+            transition={300}
+            style={styles.silhouette}
+          />
+        </Animated.View>
       </Animated.View>
       
       {/* Bottom Button - Only main button now */}
@@ -245,10 +285,17 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
   },
+  silhouetteWrapper: {
+    width: screenWidth * 0.75,
+    height: screenHeight * 0.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   silhouette: {
     width: screenWidth * 0.75,
     height: screenHeight * 0.5,
     resizeMode: 'contain',
+    alignSelf: 'center',
   },
   rotateButton: {
     position: 'absolute',

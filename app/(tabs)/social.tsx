@@ -627,6 +627,27 @@ const styles = StyleSheet.create({
     color: '#8e8e93',
     fontSize: 14,
   },
+  optionsModal: {
+    width: 280,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  optionText: {
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  cancelOption: {
+    justifyContent: 'center',
+    borderBottomWidth: 0,
+  },
 });
 
 export default function SocialScreen() {
@@ -643,6 +664,13 @@ export default function SocialScreen() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   
+  // Post options modal state
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showPostOptions, setShowPostOptions] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
   // Animation values
   const scrollY = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
@@ -650,6 +678,13 @@ export default function SocialScreen() {
   const fabPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    // Get the current user ID
+    const getCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setCurrentUserId(data.user?.id || null);
+    };
+    
+    getCurrentUser();
     fetchPosts();
     
     // Animate FAB in
@@ -687,9 +722,6 @@ export default function SocialScreen() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const { data: userData } = await supabase.auth.getUser();
-      const currentUserId = userData?.user?.id;
-
       const { data, error } = await supabase
         .from('social_posts')
         .select('*, profiles:user_id(username)')
@@ -809,10 +841,7 @@ export default function SocialScreen() {
         })
       ]).start();
       
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
-      
-      if (!userId) {
+      if (!currentUserId) {
         Alert.alert('Error', 'You must be logged in to like posts');
         return;
       }
@@ -827,7 +856,7 @@ export default function SocialScreen() {
           .from('post_reactions')
           .delete()
           .eq('post_id', postId)
-          .eq('user_id', userId)
+          .eq('user_id', currentUserId)
           .eq('reaction_type', 'like');
       } else {
         // Add the like
@@ -835,7 +864,7 @@ export default function SocialScreen() {
           .from('post_reactions')
           .insert({
             post_id: postId,
-            user_id: userId,
+            user_id: currentUserId,
             reaction_type: 'like',
           });
       }
@@ -921,10 +950,7 @@ export default function SocialScreen() {
 
     try {
       setUploading(true);
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
-      
-      if (!userId) {
+      if (!currentUserId) {
         Alert.alert('Error', 'You must be logged in to create posts');
         return;
       }
@@ -943,7 +969,7 @@ export default function SocialScreen() {
         const { error } = await supabase
           .from('social_posts')
           .insert({
-            user_id: userId,
+            user_id: currentUserId,
             content: newPost.trim(),
             image_url: imageUrl,
             created_at: new Date().toISOString(),
@@ -961,7 +987,7 @@ export default function SocialScreen() {
             const { data: recentPosts } = await supabase
               .from('social_posts')
               .select('*')
-              .eq('user_id', userId)
+              .eq('user_id', currentUserId)
               .order('created_at', { ascending: false })
               .limit(1);
               
@@ -1146,6 +1172,93 @@ export default function SocialScreen() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, showSearch]);
 
+  // Function to open post options modal
+  const handlePostOptions = (post: Post) => {
+    setSelectedPost(post);
+    setShowPostOptions(true);
+  };
+
+  // Function to edit post
+  const handleEditPost = () => {
+    if (selectedPost) {
+      setEditMode(true);
+      setEditContent(selectedPost.content);
+    }
+  };
+
+  // Function to update post content
+  const handleUpdatePost = async () => {
+    if (!selectedPost || !editContent.trim()) return;
+    
+    try {
+      const { error } = await supabase
+        .from('social_posts')
+        .update({ content: editContent.trim() })
+        .eq('post_id', selectedPost.id);
+      
+      if (error) throw error;
+      
+      // Update the post in the local state
+      setPosts(posts.map(post => 
+        post.id === selectedPost.id 
+          ? { ...post, content: editContent.trim() } 
+          : post
+      ));
+      
+      // Reset states
+      setEditMode(false);
+      setShowPostOptions(false);
+      setSelectedPost(null);
+      setEditContent('');
+      
+    } catch (error) {
+      console.error('Error updating post:', error);
+      Alert.alert('Error', 'Failed to update post. Please try again.');
+    }
+  };
+
+  // Function to delete post
+  const handleDeletePost = async () => {
+    if (!selectedPost) return;
+    
+    Alert.alert(
+      'Eliminar Post',
+      'Tem a certeza que quer eliminar este post?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: () => setShowPostOptions(false)
+        },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('posts')
+                .delete()
+                .eq('post_id', selectedPost.id);
+              
+              if (error) throw error;
+              
+              // Remove the post from the local state
+              setPosts(posts.filter(post => post.id !== selectedPost.id));
+              
+              // Reset states
+              setShowPostOptions(false);
+              setSelectedPost(null);
+              
+            } catch (error) {
+              console.error('Error deleting post:', error);
+              Alert.alert('Error', 'Failed to delete post. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
@@ -1305,11 +1418,16 @@ export default function SocialScreen() {
                     <Text style={[styles.timeAgo, { color: isDarkMode ? '#8e8e93' : '#666' }]}>{post.timeAgo}</Text>
                   </View>
                 </View>
-                <TouchableOpacity style={[styles.moreButton, { 
-                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' 
-                }]}>
-                  <Feather name="more-horizontal" size={20} color={isDarkMode ? "#8e8e93" : "#666"} />
-                </TouchableOpacity>
+                {post.user_id === currentUserId ? (
+                  <TouchableOpacity 
+                    style={[styles.moreButton, { 
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' 
+                    }]}
+                    onPress={() => handlePostOptions(post)}
+                  >
+                    <Feather name="more-horizontal" size={20} color={isDarkMode ? "#8e8e93" : "#666"} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               {post.image_url && (
@@ -1606,6 +1724,84 @@ export default function SocialScreen() {
               </ScrollView>
             )}
           </Animated.View>
+        </BlurView>
+      )}
+
+      {/* Post Options Modal */}
+      {showPostOptions && selectedPost && (
+        <BlurView intensity={80} style={styles.modalOverlay} tint={isDarkMode ? "dark" : "light"}>
+          <View 
+            style={[styles.optionsModal, {
+              backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff',
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+            }]}
+          >
+            {editMode ? (
+              <>
+                <View style={[styles.modalHeader, {
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                  borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+                }]}>
+                  <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>Editar Post</Text>
+                  <TouchableOpacity 
+                    style={[styles.closeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
+                    onPress={() => {
+                      setEditMode(false);
+                      setEditContent('');
+                    }}
+                  >
+                    <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.createPostContent}>
+                  <TextInput
+                    style={[styles.postInput, { color: isDarkMode ? '#fff' : '#000' }]}
+                    placeholder="Editar o teu post..."
+                    placeholderTextColor={isDarkMode ? '#8e8e93' : '#999'}
+                    multiline
+                    value={editContent}
+                    onChangeText={setEditContent}
+                  />
+                  
+                  <TouchableOpacity 
+                    style={[
+                      styles.publishButton,
+                      !editContent.trim() && styles.publishButtonDisabled
+                    ]}
+                    onPress={handleUpdatePost}
+                    disabled={!editContent.trim()}
+                  >
+                    <Text style={styles.publishButtonText}>Atualizar</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={handleEditPost}
+                >
+                  <Feather name="edit-2" size={22} color={isDarkMode ? "#fff" : "#000"} />
+                  <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#000' }]}>Editar Post</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={handleDeletePost}
+                >
+                  <Feather name="trash-2" size={22} color="#ff4757" />
+                  <Text style={[styles.optionText, { color: '#ff4757' }]}>Eliminar Post</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.optionItem, styles.cancelOption]}
+                  onPress={() => setShowPostOptions(false)}
+                >
+                  <Text style={[styles.optionText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Cancelar</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </BlurView>
       )}
     </View>
