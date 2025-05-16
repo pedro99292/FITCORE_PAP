@@ -20,8 +20,7 @@ export const addExerciseToWorkout = async (workoutExercise: Omit<WorkoutExercise
     .insert([{
       workout_id: workoutExercise.workoutId,
       exercise_id: workoutExercise.exerciseId,
-      order_index: workoutExercise.order,
-      notes: workoutExercise.notes
+      order: workoutExercise.order
     }])
     .select('*')
     .single();
@@ -36,11 +35,9 @@ export const addSetToExercise = async (workoutSet: Omit<WorkoutSet, 'id' | 'crea
     .from('workout_sets')
     .insert([{
       workout_exercise_id: workoutSet.exerciseId,
-      reps: workoutSet.reps,
-      weight: workoutSet.weight,
-      duration: workoutSet.duration,
-      distance: workoutSet.distance,
-      completed: workoutSet.completed || false
+      planned_reps: workoutSet.reps,
+      rest_time: workoutSet.duration,
+      set_order: workoutSet.setOrder || 0
     }])
     .select('*')
     .single();
@@ -77,7 +74,7 @@ export const getWorkout = async (workoutId: string) => {
     .from('workout_exercises')
     .select('*')
     .eq('workout_id', workoutId)
-    .order('order_index', { ascending: true });
+    .order('order', { ascending: true });
 
   if (exercisesError) throw exercisesError;
 
@@ -88,7 +85,7 @@ export const getWorkout = async (workoutId: string) => {
         .from('workout_sets')
         .select('*')
         .eq('workout_exercise_id', exercise.id)
-        .order('id', { ascending: true });
+        .order('set_order', { ascending: true });
 
       if (setsError) throw setsError;
 
@@ -96,16 +93,13 @@ export const getWorkout = async (workoutId: string) => {
         id: exercise.id,
         exerciseId: exercise.exercise_id,
         workoutId: exercise.workout_id,
-        order: exercise.order_index,
-        notes: exercise.notes,
+        order: exercise.order,
         sets: sets.map(set => ({
           id: set.id,
           exerciseId: set.workout_exercise_id,
-          reps: set.reps,
-          weight: set.weight,
-          duration: set.duration,
-          distance: set.distance,
-          completed: set.completed
+          reps: set.planned_reps,
+          duration: set.rest_time,
+          setOrder: set.set_order
         }))
       };
     })
@@ -153,8 +147,7 @@ export const updateWorkoutExercise = async (
     .from('workout_exercises')
     .update({
       exercise_id: exerciseData.exerciseId,
-      order_index: exerciseData.order,
-      notes: exerciseData.notes
+      order: exerciseData.order
     })
     .eq('id', exerciseId)
     .select('*')
@@ -183,11 +176,9 @@ export const updateWorkoutSet = async (
   const { data, error } = await supabase
     .from('workout_sets')
     .update({
-      reps: setData.reps,
-      weight: setData.weight,
-      duration: setData.duration,
-      distance: setData.distance,
-      completed: setData.completed
+      planned_reps: setData.reps,
+      rest_time: setData.duration,
+      set_order: setData.setOrder
     })
     .eq('id', setId)
     .select('*')

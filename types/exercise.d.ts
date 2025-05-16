@@ -17,7 +17,6 @@ export interface WorkoutExercise {
   workoutId: string;
   sets: WorkoutSet[];
   order: number;
-  notes?: string;
   exerciseDetails?: Exercise; // Store complete exercise details
 }
 
@@ -26,9 +25,8 @@ export interface WorkoutSet {
   exerciseId: string;
   reps?: number;
   weight?: number;
-  duration?: number; // For timed exercises (in seconds)
-  distance?: number; // For cardio exercises (in meters)
-  completed?: boolean;
+  duration?: number; // Maps to rest_time in database
+  setOrder?: number; // Maps to set_order in database
 }
 
 export interface Workout {
@@ -36,10 +34,7 @@ export interface Workout {
   user_id: string;
   title: string;
   description?: string;
-  experience_level?: string;
   created_at: string;
   updated_at: string;
   exercises: WorkoutExercise[];
-  duration?: number; // Total duration in minutes
-  category?: string; // e.g., "Strength", "Cardio", "Flexibility"
 } 

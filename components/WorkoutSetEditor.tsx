@@ -1,9 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WorkoutSet } from '@/types/exercise';
 import { useTheme } from '@/hooks/useTheme';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 type WorkoutSetEditorProps = {
   sets: WorkoutSet[];
@@ -67,55 +69,48 @@ const WorkoutSetEditor: React.FC<WorkoutSetEditorProps> = ({
         </View>
       ) : (
         <View style={styles.setsContainer}>
-          <LinearGradient 
-            colors={['rgba(74, 144, 226, 0.2)', 'rgba(74, 144, 226, 0.05)']} 
-            start={{x: 0, y: 0}} 
-            end={{x: 1, y: 0}}
-            style={styles.labelsRow}
-          >
-            <Text style={[styles.label, styles.setLabel]}>SET</Text>
-            
-            {exerciseType === 'weight_reps' && (
-              <Text style={[styles.label, styles.repsLabel]}>REPS</Text>
-            )}
-            
-            {exerciseType === 'time' && (
-              <Text style={[styles.label, styles.timeLabel]}>TIME (sec)</Text>
-            )}
-            
-            {exerciseType === 'distance' && (
-              <>
-                <Text style={[styles.label, styles.distanceLabel]}>DISTANCE (m)</Text>
-                <Text style={[styles.label, styles.timeLabel]}>TIME (sec)</Text>
-              </>
-            )}
-            
-            <View style={styles.actionLabelContainer}>
-              <Text style={[styles.label, styles.actionLabel]}></Text>
+          {/* Header Row */}
+          <View style={styles.labelsRow}>
+            <View style={styles.setLabelContainer}>
+              <Text style={styles.label}>SET</Text>
             </View>
-          </LinearGradient>
+            
+            <View style={styles.repsLabelContainer}>
+              <Text style={styles.label}>REPS</Text>
+            </View>
+            
+            <View style={styles.restLabelContainer}>
+              <Text style={styles.label}>REST (SEC)</Text>
+            </View>
+            
+            <View style={styles.actionLabelContainer} />
+          </View>
 
+          {/* Set Rows */}
           {sets.map((set, index) => (
             <View key={index} style={[
               styles.setRow,
               index === sets.length - 1 && styles.lastSetRow
             ]}>
+              {/* Set Number */}
               <View style={styles.setNumberContainer}>
                 <Text style={styles.setNumber}>{index + 1}</Text>
               </View>
               
-              {exerciseType === 'weight_reps' && (
+              {/* Reps Input */}
+              <View style={styles.repsContainer}>
                 <TextInput
-                  style={styles.inputWide}
+                  style={styles.input}
                   keyboardType="numeric"
                   value={set.reps?.toString() || ''}
                   onChangeText={(text) => onUpdateSet(index, { reps: text ? parseInt(text) : undefined })}
                   placeholder="10"
                   placeholderTextColor="rgba(255,255,255,0.3)"
                 />
-              )}
+              </View>
               
-              {exerciseType === 'time' && (
+              {/* Rest Time Input */}
+              <View style={styles.restContainer}>
                 <TextInput
                   style={styles.input}
                   keyboardType="numeric"
@@ -124,29 +119,9 @@ const WorkoutSetEditor: React.FC<WorkoutSetEditorProps> = ({
                   placeholder="60"
                   placeholderTextColor="rgba(255,255,255,0.3)"
                 />
-              )}
+              </View>
               
-              {exerciseType === 'distance' && (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={set.distance?.toString() || ''}
-                    onChangeText={(text) => onUpdateSet(index, { distance: text ? parseFloat(text) : undefined })}
-                    placeholder="0"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                  />
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={set.duration?.toString() || ''}
-                    onChangeText={(text) => onUpdateSet(index, { duration: text ? parseInt(text) : undefined })}
-                    placeholder="0"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                  />
-                </>
-              )}
-              
+              {/* Delete Button */}
               <TouchableOpacity 
                 style={styles.removeButton}
                 onPress={() => onRemoveSet(index)}
@@ -227,6 +202,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
+    backgroundColor: 'rgba(74, 144, 226, 0.15)',
   },
   label: {
     fontSize: 12,
@@ -234,34 +210,21 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
-  setLabel: {
+  setLabelContainer: {
     width: 40,
   },
-  repsLabel: {
-    flex: 1,
-    textAlign: 'center',
-    marginRight: 50,
+  repsLabelContainer: {
+    flex: 1.5,
+    alignItems: 'center',
   },
-  weightLabel: {
-    flex: 1,
-    textAlign: 'center',
-  },
-  timeLabel: {
-    flex: 2,
-    textAlign: 'center',
-  },
-  distanceLabel: {
-    flex: 1,
-    textAlign: 'center',
+  restLabelContainer: {
+    flex: 1.5,
+    alignItems: 'center',
   },
   actionLabelContainer: {
     width: 44,
-    alignItems: 'center',
-  },
-  actionLabel: {
-    width: 44,
-    textAlign: 'center',
   },
   setRow: {
     flexDirection: 'row',
@@ -288,28 +251,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4a90e2',
   },
-  input: {
-    flex: 1,
-    height: 46,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
+  repsContainer: {
+    flex: 1.5,
     marginHorizontal: 4,
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
   },
-  inputWide: {
-    flex: 1,
+  restContainer: {
+    flex: 1.5,
+    marginHorizontal: 4,
+  },
+  input: {
     height: 46,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
     backgroundColor: 'rgba(0,0,0,0.15)',
     borderRadius: 8,
     paddingHorizontal: 10,
-    marginRight: 10,
     fontSize: 16,
     color: '#fff',
     textAlign: 'center',
@@ -321,6 +277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 18,
     backgroundColor: 'rgba(255,0,0,0.1)',
+    marginLeft: 4,
   },
 });
 

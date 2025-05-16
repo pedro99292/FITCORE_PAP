@@ -61,7 +61,6 @@ export default function WorkoutBuilderScreen() {
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState<string>('beginner');
   const [selectedExercises, setSelectedExercises] = useState<WorkoutExercise[]>([]);
   
   // Enhanced state for exercise library
@@ -193,13 +192,19 @@ export default function WorkoutBuilderScreen() {
     const isSelected = selectedExercises.some(e => e.exerciseId === exercise.id);
     
     if (isSelected) {
-      setSelectedExercises(selectedExercises.filter(e => e.exerciseId !== exercise.id));
+      const updatedExercises = selectedExercises.filter(e => e.exerciseId !== exercise.id);
+      // Re-number the remaining exercises to maintain 1-based ordering
+      const reorderedExercises = updatedExercises.map((ex, idx) => ({
+        ...ex,
+        order: idx + 1
+      }));
+      setSelectedExercises(reorderedExercises);
     } else {
       const newWorkoutExercise: WorkoutExercise = {
         id: `temp-${Date.now()}-${exercise.id}`, // Temporary ID until saved to DB
         exerciseId: exercise.id,
         workoutId: '', // Will be set when workout is created
-        order: selectedExercises.length,
+        order: selectedExercises.length + 1, // 1-based ordering
         exerciseDetails: exercise, // Store the complete exercise details
         sets: [
           {
@@ -207,6 +212,8 @@ export default function WorkoutBuilderScreen() {
             exerciseId: `temp-${Date.now()}-${exercise.id}`, // Temporary parent ID
             reps: 10,
             weight: 0,
+            duration: 60, // Default rest time in seconds
+            setOrder: 1 // First set
           }
         ]
       };
@@ -225,6 +232,8 @@ export default function WorkoutBuilderScreen() {
       exerciseId: exercise.id,
       reps: 10, // Default values
       weight: 0,
+      duration: 60, // Default rest time in seconds
+      setOrder: exercise.sets.length + 1 // Set order based on position
     };
 
     // Add the new set to the exercise
@@ -277,10 +286,10 @@ export default function WorkoutBuilderScreen() {
   const removeExercise = (exerciseIndex: number) => {
     const updatedExercises = selectedExercises.filter((_, index) => index !== exerciseIndex);
     
-    // Update order indices
+    // Update order indices to be 1-based (1, 2, 3...)
     const reorderedExercises = updatedExercises.map((exercise, index) => ({
       ...exercise,
-      order: index
+      order: index + 1
     }));
     
     setSelectedExercises(reorderedExercises);
@@ -301,10 +310,10 @@ export default function WorkoutBuilderScreen() {
     [updatedExercises[exerciseIndex], updatedExercises[newIndex]] = 
     [updatedExercises[newIndex], updatedExercises[exerciseIndex]];
     
-    // Update order indices
+    // Update order indices - make sure they're 1-based (1, 2, 3...)
     const reorderedExercises = updatedExercises.map((exercise, index) => ({
       ...exercise,
-      order: index
+      order: index + 1
     }));
     
     setSelectedExercises(reorderedExercises);
@@ -334,8 +343,6 @@ export default function WorkoutBuilderScreen() {
         user_id: user.id,
         title,
         description,
-        experience_level: experienceLevel,
-        duration: 0 // Placeholder
       });
       
       // 2. Add exercises to the workout
@@ -344,8 +351,7 @@ export default function WorkoutBuilderScreen() {
           const savedExercise = await addExerciseToWorkout({
             workoutId: workout.id,
             exerciseId: exercise.exerciseId,
-            order: exercise.order,
-            notes: exercise.notes
+            order: exercise.order
           });
           
           // 3. Add sets to each exercise
@@ -355,8 +361,7 @@ export default function WorkoutBuilderScreen() {
                 exerciseId: savedExercise.id,
                 reps: set.reps,
                 weight: set.weight,
-                duration: set.duration,
-                distance: set.distance
+                duration: set.duration
               });
             })
           );
@@ -378,7 +383,6 @@ export default function WorkoutBuilderScreen() {
               // Clear form and navigate back to workouts list
               setTitle('');
               setDescription('');
-              setExperienceLevel('beginner');
               setSelectedExercises([]);
               router.replace('/home');
             }
