@@ -373,22 +373,20 @@ export default function WorkoutBuilderScreen() {
         })
       );
       
+      // Clear form data
+      setTitle('');
+      setDescription('');
+      setSelectedExercises([]);
+      
+      // Show success message
       Alert.alert(
         'Workout Saved',
         'Your workout has been saved successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Clear form and navigate back to workouts list
-              setTitle('');
-              setDescription('');
-              setSelectedExercises([]);
-              router.replace('/home');
-            }
-          }
-        ]
+        [{ text: 'OK' }]
       );
+      
+      // Navigate to profile page
+      router.push('/profile');
       
     } catch (error) {
       console.error('Error saving workout:', error);
@@ -400,6 +398,10 @@ export default function WorkoutBuilderScreen() {
 
   const goToProfile = () => {
     router.push('/profile');
+  };
+  
+  const goBack = () => {
+    router.push('/');
   };
   
   const closeExerciseLibrary = () => {
@@ -691,7 +693,7 @@ export default function WorkoutBuilderScreen() {
                 },
                 headerShadowVisible: false,
               headerLeft: () => (
-                <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
+                <TouchableOpacity onPress={goBack} style={{ marginLeft: 10 }}>
                     <Ionicons name="arrow-back" size={24} color={extendedColors.accent} />
                   </TouchableOpacity>
                 ),
@@ -844,16 +846,23 @@ export default function WorkoutBuilderScreen() {
             <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={goToProfile}
+            onPress={goBack}
             activeOpacity={0.7}
           >
-            <Ionicons name="person-circle" size={20} color="#fff" />
-            <Text style={styles.buttonText}>Profile</Text>
+            <Ionicons name="arrow-back-outline" size={20} color="#fff" />
+            <Text style={styles.buttonText}>Back</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.saveButton}
-            onPress={handleSaveWorkout}
+            onPress={() => {
+              handleSaveWorkout().then(() => {
+                // Additional fallback navigation if the one in handleSaveWorkout doesn't work
+                setTimeout(() => {
+                  router.push('/profile');
+                }, 500);
+              });
+            }}
             disabled={saving}
           >
             {saving ? (
