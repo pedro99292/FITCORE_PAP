@@ -5,7 +5,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate, Extrapolate } from 'react-native-reanimated';
 import { Image as ExpoImage } from 'expo-image';
 import { Asset } from 'expo-asset';
 
@@ -105,9 +105,6 @@ const HomeScreen = () => {
   // Use theme from context
   const { colors, isDarkMode } = useTheme();
   
-  // State to track which silhouette view is currently displayed
-  const [showFrontView, setShowFrontView] = useState(true);
-  
   // Animation values
   const rotation = useSharedValue(0);
   const statsOpacity = useSharedValue(0);
@@ -139,22 +136,24 @@ const HomeScreen = () => {
 
   // Function to toggle between front and back views with animation
   const toggleSilhouetteView = () => {
-    // Animate rotation
+    // Animate rotation - no need to swap images
     rotation.value = withTiming(rotation.value + 180, {
       duration: 800,
       easing: Easing.inOut(Easing.cubic),
     });
-    
-    // Wait for half of the animation to flip the image
-    setTimeout(() => {
-      setShowFrontView(!showFrontView);
-    }, 400);
   };
 
-  // Memoized animated styles
-  const rotateStyle = useAnimatedStyle(() => ({
-    transform: [{ rotateY: `${rotation.value}deg` }],
-  }));
+  // Memoized animated styles for front silhouette
+  const rotateStyle = useAnimatedStyle(() => {
+    // Calculate opacity manually to avoid interpolate issues
+    const currentAngle = rotation.value % 360;
+    const opacity = (currentAngle > 90 && currentAngle < 270) ? 0 : 1;
+    
+    return {
+      transform: [{ rotateY: `${rotation.value}deg` }],
+      opacity
+    };
+  });
 
   const silhouetteAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: silhouetteScale.value }]
@@ -170,14 +169,37 @@ const HomeScreen = () => {
       {/* Stats Box */}
       <StatsContainer statsOpacity={statsOpacity} />
       
-      {/* Silhouette Image - Back to simple flip */}
+      {/* Silhouette Image - True 3D flip with both images preloaded */}
       <Animated.View style={[styles.silhouetteContainer, silhouetteAnimatedStyle]}>
+        {/* Container for front view */}
         <Animated.View style={[rotateStyle, styles.silhouetteWrapper]}>
           <OptimizedImage
-            source={showFrontView ? FRONT_SILHOUETTE : BACK_SILHOUETTE}
-            placeholder={Platform.OS !== 'web' ? require('@/assets/images/muscle-silhouette-front.png') : undefined}
+            source={FRONT_SILHOUETTE}
             contentFit="contain"
-            transition={300}
+            style={styles.silhouette}
+          />
+        </Animated.View>
+        
+        {/* Container for back view - separate animated container rotated 180 degrees from front */}
+        <Animated.View
+          style={[
+            styles.silhouetteWrapper,
+            useAnimatedStyle(() => {
+              // Calculate opacity manually to avoid interpolate issues
+              const currentAngle = rotation.value % 360;
+              const opacity = (currentAngle > 90 && currentAngle < 270) ? 1 : 0;
+              
+              return {
+                position: 'absolute',
+                transform: [{ rotateY: `${rotation.value + 180}deg` }],
+                opacity
+              };
+            })
+          ]}
+        >
+          <OptimizedImage
+            source={BACK_SILHOUETTE}
+            contentFit="contain"
             style={styles.silhouette}
           />
         </Animated.View>
@@ -290,6 +312,8 @@ const styles = StyleSheet.create({
     height: screenHeight * 0.5,
     justifyContent: 'center',
     alignItems: 'center',
+    // Enable 3D transformations
+    perspective: '1000px',
   },
   silhouette: {
     width: screenWidth * 0.75,
