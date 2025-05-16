@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Exercise } from '@/types/exercise';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 type ExerciseCardProps = {
   exercise: Exercise;
@@ -11,6 +11,9 @@ type ExerciseCardProps = {
 
 const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onSelect, selected }) => {
   const [imageSource, setImageSource] = React.useState(require('@/assets/images/muscle-silhouette-front.png'));
+  
+  // Determine if the URL is a GIF (ExerciseDB) or an image (Wger)
+  const isGif = exercise.gifUrl?.toLowerCase().endsWith('.gif');
 
   return (
     <TouchableOpacity 
@@ -30,10 +33,33 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onSelect, selecte
             setImageSource(require('@/assets/images/muscle-silhouette-front.png'));
           }}
         />
+        
+        {/* Data source badge */}
+        <View style={[styles.sourceBadge, { 
+          backgroundColor: exercise.source === 'exercisedb' ? '#4f46e5' : '#10b981' 
+        }]}>
+          <Text style={styles.sourceBadgeText}>
+            {exercise.source === 'exercisedb' ? 'ExDB' : 'Wger'}
+          </Text>
+        </View>
+        
+        {/* Media type indicator */}
+        <View style={styles.mediaTypeBadge}>
+          <Ionicons 
+            name={isGif ? "videocam" : "image-outline"} 
+            size={14} 
+            color="#fff" 
+          />
+        </View>
       </View>
 
       <View style={styles.contentContainer}>
         <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
+        
+        <View style={styles.muscleGroups}>
+          <Text style={styles.muscleGroupTitle}>Primary Muscle:</Text>
+          <Text style={styles.muscleGroupValue}>{exercise.target}</Text>
+        </View>
         
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
@@ -41,13 +67,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onSelect, selecte
             <Text style={styles.infoText}>{exercise.bodyPart}</Text>
           </View>
           
-          <View style={styles.infoItem}>
-            <Ionicons name="fitness-outline" size={16} color="#6b7280" />
-            <Text style={styles.infoText}>{exercise.target}</Text>
-          </View>
-        </View>
-
-        <View style={styles.infoRow}>
           <View style={styles.infoItem}>
             <Ionicons name="barbell-outline" size={16} color="#6b7280" />
             <Text style={styles.infoText}>{exercise.equipment}</Text>
@@ -89,11 +108,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   image: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
+  },
+  sourceBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  sourceBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  mediaTypeBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 4,
+    padding: 4,
   },
   contentContainer: {
     padding: 16,
@@ -103,6 +144,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
     color: '#1f2937',
+  },
+  muscleGroups: {
+    marginBottom: 8,
+    backgroundColor: '#f9fafb',
+    padding: 8,
+    borderRadius: 4,
+  },
+  muscleGroupTitle: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  muscleGroupValue: {
+    fontSize: 14,
+    color: '#1f2937',
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   infoRow: {
     flexDirection: 'row',

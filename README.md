@@ -23,6 +23,7 @@ FitCore is a comprehensive fitness tracking application built with React Native 
 - **Navigation**: Expo Router
 - **Backend**: Supabase (Authentication, Database, Storage)
 - **Styling**: StyleSheet and Linear Gradients
+- **Exercise Data**: ExerciseDB (RapidAPI) and Wger API
 
 ## Getting Started
 
@@ -31,6 +32,7 @@ FitCore is a comprehensive fitness tracking application built with React Native 
 - Node.js (v16 or higher)
 - npm or yarn
 - Expo CLI
+- ExerciseDB API key (optional but recommended)
 
 ### Installation
 

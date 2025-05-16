@@ -8,6 +8,7 @@ export interface Exercise {
   gifUrl: string;       // Using wger muscle SVG URLs
   instructions?: string[]; // From wger description
   secondaryMuscles?: string[]; // From wger muscles_secondary
+  source?: 'exercisedb' | 'wger'; // Indicates which API provided this exercise
 }
 
 // Local workout types

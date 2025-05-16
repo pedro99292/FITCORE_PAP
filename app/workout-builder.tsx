@@ -18,7 +18,7 @@ import {
   Image,
   Animated
 } from 'react-native';
-import { useExercises } from '@/hooks/useExercises';
+import { useCombinedExercises, useCombinedBodyParts, useCombinedEquipment } from '@/hooks/useCombinedExercises';
 import { Ionicons } from '@expo/vector-icons';
 import { FontAwesome } from '@expo/vector-icons';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -64,8 +64,10 @@ export default function WorkoutBuilderScreen() {
   const [selectedExercises, setSelectedExercises] = useState<WorkoutExercise[]>([]);
   
   // Enhanced state for exercise library
-  const [activeTab, setActiveTab] = useState('bodyPart');
-  const [activeCategory, setActiveCategory] = useState('');
+  const [activeBodyPart, setActiveBodyPart] = useState('');
+  const [activeEquipment, setActiveEquipment] = useState('');
+  const [bodyPartDropdownOpen, setBodyPartDropdownOpen] = useState(false);
+  const [equipmentDropdownOpen, setEquipmentDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<{ bodyPart?: string; equipment?: string; target?: string; search?: string }>({});
   const [saving, setSaving] = useState(false);
@@ -80,10 +82,14 @@ export default function WorkoutBuilderScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const searchInputRef = useRef<TextInput>(null);
   
-  // Available categories based on active tab
-  const [categories, setCategories] = useState<string[]>([]);
-  
-  const { exercises, loading: loadingExercises, error: exercisesError, refetch: refetchExercises } = useExercises({
+  // Available categories based on filter type
+  const [bodyParts, setBodyParts] = useState<string[]>([]);
+  const [equipmentList, setEquipmentList] = useState<string[]>([]);
+
+  // Use the hook to fetch all equipment options
+  const { equipment: allEquipment, loading: loadingEquipment } = useCombinedEquipment();
+
+  const { exercises, loading: loadingExercises, error: exercisesError, isMissingApiKey, refetch: refetchExercises } = useCombinedExercises({
     bodyPart: filters.bodyPart,
     equipment: filters.equipment,
     name: filters.search,
@@ -125,25 +131,23 @@ export default function WorkoutBuilderScreen() {
     }
   }, [showExerciseSelection]);
   
-  // Update categories based on active tab
+  // Update body part categories based on loaded exercises
   useEffect(() => {
     if (!exercises || exercises.length === 0) return;
     
-    let uniqueCategories: string[] = [];
+    // Extract unique bodyParts
+    const uniqueBodyParts = [...new Set(exercises.map(ex => ex.bodyPart))].sort();
+    setBodyParts(uniqueBodyParts);
     
-    if (activeTab === 'bodyPart') {
-      uniqueCategories = [...new Set(exercises.map(ex => ex.bodyPart))];
-    } else if (activeTab === 'equipment') {
-      uniqueCategories = [...new Set(exercises.map(ex => ex.equipment))];
-    } else if (activeTab === 'target') {
-      uniqueCategories = [...new Set(exercises.map(ex => ex.target))];
+    // We no longer extract equipment from exercises as we get all equipment options from the hook
+  }, [exercises]);
+  
+  // Update equipment list when allEquipment changes
+  useEffect(() => {
+    if (allEquipment && allEquipment.length > 0) {
+      setEquipmentList(allEquipment);
     }
-    
-    setCategories(uniqueCategories.sort());
-    
-    // Reset active category when changing tabs
-    setActiveCategory('');
-  }, [activeTab, exercises]);
+  }, [allEquipment]);
   
   // Filter exercises when category changes
   useEffect(() => {
@@ -152,15 +156,14 @@ export default function WorkoutBuilderScreen() {
     // Clear previous filter values
     delete newFilters.bodyPart;
     delete newFilters.equipment;
-    delete newFilters.target;
     
-    // Set the appropriate filter based on active tab
-    if (activeTab === 'bodyPart' && activeCategory) {
-      newFilters.bodyPart = activeCategory;
-    } else if (activeTab === 'equipment' && activeCategory) {
-      newFilters.equipment = activeCategory;
-    } else if (activeTab === 'target' && activeCategory) {
-      newFilters.target = activeCategory;
+    // Set filters based on active selections
+    if (activeBodyPart) {
+      newFilters.bodyPart = activeBodyPart;
+    }
+    
+    if (activeEquipment) {
+      newFilters.equipment = activeEquipment;
     }
     
     // Set search query if any
@@ -171,7 +174,7 @@ export default function WorkoutBuilderScreen() {
     }
     
     setFilters(newFilters);
-  }, [activeCategory, activeTab, searchQuery]);
+  }, [activeBodyPart, activeEquipment, searchQuery]);
 
   const handleFilterChange = (newFilters: { bodyPart?: string; equipment?: string; target?: string; search?: string }) => {
     setFilters(newFilters);
@@ -436,27 +439,24 @@ export default function WorkoutBuilderScreen() {
     return 'dumbbell';
   };
 
-  // Enhanced exercise library component
-  const renderExerciseLibrary = () => {
-    // Filter exercises based on current filters
-    const filteredExercises = exercises.filter(exercise => {
-      if (activeTab === 'bodyPart' && activeCategory && exercise.bodyPart !== activeCategory) {
-        return false;
-      }
-      if (activeTab === 'equipment' && activeCategory && exercise.equipment !== activeCategory) {
-        return false;
-      }
-      if (activeTab === 'target' && activeCategory && exercise.target !== activeCategory) {
-        return false;
-      }
-      if (searchQuery && !exercise.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
-      }
-      return true;
-    });
+  // First, update the renderExerciseLibrary function with a simpler button approach
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [activeFilterType, setActiveFilterType] = useState<'bodyPart' | 'equipment' | null>(null);
+  
+  // Add this function to handle filter selection
+  const handleFilterSelect = (type: 'bodyPart' | 'equipment', value: string) => {
+    if (type === 'bodyPart') {
+      setActiveBodyPart(value);
+    } else {
+      setActiveEquipment(value);
+    }
+    setFilterModalVisible(false);
+  };
 
+  // Modify the renderExerciseLibrary function
+  const renderExerciseLibrary = () => {
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.libraryContainer,
           {
@@ -465,7 +465,6 @@ export default function WorkoutBuilderScreen() {
           }
         ]}
       >
-        {/* Header */}
         <LinearGradient
           colors={['#2e2e40', '#262635']}
           style={styles.libraryHeader}
@@ -481,176 +480,219 @@ export default function WorkoutBuilderScreen() {
             <Text style={styles.selectionCount}>
               {selectedExercises.length} selected
             </Text>
-        </View>
+          </View>
+          
+          {/* Display API key warning if missing */}
+          {isMissingApiKey && (
+            <View style={styles.apiKeyWarning}>
+              <Ionicons name="warning" size={16} color="#FFA500" />
+              <Text style={styles.apiKeyWarningText}>
+                ExerciseDB API key missing. Using Wger API only.
+              </Text>
+            </View>
+          )}
         </LinearGradient>
         
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
-          <TextInput
-            ref={searchInputRef}
-            style={styles.searchInput}
-            placeholder="Search exercises..."
-            placeholderTextColor="#9ca3af"
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={clearSearch} style={styles.clearSearch}>
-              <Ionicons name="close-circle" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-        
-        {/* Tab Navigation */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'bodyPart' && styles.activeTab]}
-            onPress={() => setActiveTab('bodyPart')}
-          >
-            <Text 
-              style={[styles.tabText, activeTab === 'bodyPart' && styles.activeTabText]}
-            >
-              Body Part
-            </Text>
-            {activeTab === 'bodyPart' && <View style={styles.activeTabIndicator} />}
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'equipment' && styles.activeTab]}
-            onPress={() => setActiveTab('equipment')}
-          >
-            <Text 
-              style={[styles.tabText, activeTab === 'equipment' && styles.activeTabText]}
-            >
-              Equipment
-            </Text>
-            {activeTab === 'equipment' && <View style={styles.activeTabIndicator} />}
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'target' && styles.activeTab]}
-            onPress={() => setActiveTab('target')}
-          >
-            <Text 
-              style={[styles.tabText, activeTab === 'target' && styles.activeTabText]}
-            >
-              Target
-            </Text>
-            {activeTab === 'target' && <View style={styles.activeTabIndicator} />}
-          </TouchableOpacity>
-        </View>
-        
-        {/* Categories */}
-        {loadingExercises ? (
-          <View style={styles.libraryLoadingContainer}>
-            <ActivityIndicator size="large" color="#4a90e2" style={styles.loadingSpinner} />
-            <Text style={styles.libraryLoadingText}>Loading exercises...</Text>
-          </View>
-        ) : categories.length > 0 ? (
-          <View style={styles.contentContainer}>
-            {/* Category Pills */}
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              style={styles.categoriesContainer}
-              contentContainerStyle={styles.categoriesContent}
-            >
-              <TouchableOpacity 
-                key="all"
-                style={[
-                  styles.categoryPill, 
-                  activeCategory === '' && styles.activeCategoryPill
-                ]}
-                onPress={() => setActiveCategory('')}
-              >
-                <Text 
-                  style={[
-                    styles.categoryPillText, 
-                    activeCategory === '' && styles.activeCategoryPillText
-                  ]}
-                >
-                  All
-                </Text>
+        <View style={styles.libraryContent}>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder="Search exercises..."
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={clearSearch} style={styles.clearSearch}>
+                <Ionicons name="close-circle" size={20} color="#9ca3af" />
               </TouchableOpacity>
-              
-              {categories.map((category, index) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={[
-                    styles.categoryPill, 
-                    activeCategory === category && styles.activeCategoryPill
-                  ]}
-                  onPress={() => setActiveCategory(category)}
-                >
-                  <Text 
-                    style={[
-                      styles.categoryPillText, 
-                      activeCategory === category && styles.activeCategoryPillText
-                    ]}
-                  >
-                    {category}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            ) : null}
+          </View>
+          
+          {/* Filter Buttons - Simplified */}
+          <View style={styles.filterButtonsContainer}>
+            {/* Body Part Filter Button */}
+            <TouchableOpacity 
+              style={[
+                styles.simpleFilterButton,
+                activeBodyPart ? styles.activeSimpleFilterButton : null
+              ]}
+              onPress={() => {
+                setActiveFilterType('bodyPart');
+                setFilterModalVisible(true);
+              }}
+            >
+              <Ionicons name="body-outline" size={18} color="#fff" style={styles.filterButtonIcon} />
+              <Text style={styles.filterButtonText}>
+                {activeBodyPart || 'Body Part'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="#fff" />
+            </TouchableOpacity>
             
-            {/* Exercise List */}
-            {filteredExercises.length > 0 ? (
-              <FlatList
-                data={filteredExercises}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={[
-                      styles.exerciseListItem,
-                      selectedExercises.some(e => e.exerciseId === item.id) && styles.selectedExerciseItem
-                    ]}
-                    onPress={() => toggleExerciseSelection(item)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.exerciseIconContainer}>
-                      <Ionicons name="fitness" size={24} color="#4a90e2" />
-                    </View>
-                    <View style={styles.exerciseItemContent}>
-                      <Text style={styles.exerciseItemName}>{item.name}</Text>
-                      <Text style={styles.exerciseItemDetail}>{item.bodyPart} • {item.equipment}</Text>
-                    </View>
-                    <View style={styles.exerciseItemRight}>
-                      {selectedExercises.some(e => e.exerciseId === item.id) ? (
-                        <View style={styles.checkboxChecked}>
-                          <Ionicons name="checkmark" size={18} color="#fff" />
-                        </View>
-                      ) : (
-                        <View style={styles.checkboxUnchecked} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                )}
-                contentContainerStyle={styles.exercisesList}
-              />
-            ) : (
-              <View style={styles.emptyResultsContainer}>
-                <Ionicons name="fitness-outline" size={60} color="rgba(255,255,255,0.2)" />
-                <Text style={styles.emptyResultsText}>No exercises found</Text>
-                <Text style={styles.emptyResultsSubtext}>Try a different search or category</Text>
-              </View>
+            {/* Equipment Filter Button */}
+            <TouchableOpacity 
+              style={[
+                styles.simpleFilterButton,
+                activeEquipment ? styles.activeSimpleFilterButton : null
+              ]}
+              onPress={() => {
+                setActiveFilterType('equipment');
+                setFilterModalVisible(true);
+              }}
+            >
+              <Ionicons name="barbell-outline" size={18} color="#fff" style={styles.filterButtonIcon} />
+              <Text style={styles.filterButtonText}>
+                {activeEquipment || 'Equipment'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="#fff" />
+            </TouchableOpacity>
+            
+            {/* Clear Filters Button */}
+            {(activeBodyPart || activeEquipment) && (
+              <TouchableOpacity 
+                style={styles.clearFiltersButton}
+                onPress={() => {
+                  setActiveBodyPart('');
+                  setActiveEquipment('');
+                }}
+              >
+                <Text style={styles.clearFiltersText}>Clear</Text>
+                <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.8)" />
+              </TouchableOpacity>
             )}
           </View>
-        ) : exercisesError ? (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-            <Text style={styles.errorText}>Error loading exercises</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={refetchExercises}>
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="fitness-outline" size={48} color="#9ca3af" />
-            <Text style={styles.emptyText}>No exercises available</Text>
-            <Text style={styles.emptySubtext}>Try again later</Text>
-          </View>
+          
+          {/* Exercise List */}
+          {loadingExercises ? (
+            <View style={styles.libraryLoadingContainer}>
+              <ActivityIndicator size="large" color="#4a90e2" style={styles.loadingSpinner} />
+              <Text style={styles.libraryLoadingText}>Loading exercises...</Text>
+            </View>
+          ) : (
+            <View style={styles.exerciseListContainer}>
+              {exercises.length > 0 ? (
+                <FlatList
+                  data={exercises}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={[
+                        styles.exerciseListItem,
+                        selectedExercises.some(e => e.exerciseId === item.id) && styles.selectedExerciseItem
+                      ]}
+                      onPress={() => toggleExerciseSelection(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.exerciseIconContainer}>
+                        <Ionicons name="fitness" size={24} color="#4a90e2" />
+                      </View>
+                      <View style={styles.exerciseItemContent}>
+                        <Text style={styles.exerciseItemName}>{item.name}</Text>
+                        <Text style={styles.exerciseItemDetail}>{item.bodyPart} • {item.equipment}</Text>
+                      </View>
+                      <View style={styles.exerciseItemRight}>
+                        {selectedExercises.some(e => e.exerciseId === item.id) ? (
+                          <View style={styles.checkboxChecked}>
+                            <Ionicons name="checkmark" size={18} color="#fff" />
+                          </View>
+                        ) : (
+                          <View style={styles.checkboxUnchecked} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  contentContainerStyle={styles.exercisesList}
+                  showsVerticalScrollIndicator={false}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={10}
+                  windowSize={11}
+                  removeClippedSubviews={true}
+                  getItemLayout={(data, index) => (
+                    {length: 88, offset: 88 * index, index}
+                  )}
+                  ListFooterComponent={() => (
+                    <View style={styles.listFooter}>
+                      <Text style={styles.listFooterText}>
+                        {exercises.length} exercises found
+                      </Text>
+                    </View>
+                  )}
+                />
+              ) : (
+                <View style={styles.emptyResultsContainer}>
+                  <Ionicons name="fitness-outline" size={60} color="rgba(255,255,255,0.2)" />
+                  <Text style={styles.emptyResultsText}>No exercises found</Text>
+                  <Text style={styles.emptyResultsSubtext}>Try a different search or filter</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+        
+        {/* Filter Selection Modal */}
+        {filterModalVisible && (
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setFilterModalVisible(false)}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  Select {activeFilterType === 'bodyPart' ? 'Body Part' : 'Equipment'}
+                </Text>
+                <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.modalScrollView}>
+                <TouchableOpacity 
+                  style={styles.modalItem}
+                  onPress={() => handleFilterSelect(
+                    activeFilterType === 'bodyPart' ? 'bodyPart' : 'equipment', 
+                    ''
+                  )}
+                >
+                  <Text style={styles.modalItemText}>All</Text>
+                  {(activeFilterType === 'bodyPart' && activeBodyPart === '') || 
+                   (activeFilterType === 'equipment' && activeEquipment === '') ? (
+                    <Ionicons name="checkmark-circle" size={20} color="#4a90e2" />
+                  ) : null}
+                </TouchableOpacity>
+                
+                {activeFilterType === 'bodyPart' ? 
+                  bodyParts.map((item, index) => (
+                    <TouchableOpacity 
+                      key={index}
+                      style={styles.modalItem}
+                      onPress={() => handleFilterSelect('bodyPart', item)}
+                    >
+                      <Text style={styles.modalItemText}>{item}</Text>
+                      {activeBodyPart === item && (
+                        <Ionicons name="checkmark-circle" size={20} color="#4a90e2" />
+                      )}
+                    </TouchableOpacity>
+                  )) : 
+                  allEquipment.map((item, index) => (
+                    <TouchableOpacity 
+                      key={index}
+                      style={styles.modalItem}
+                      onPress={() => handleFilterSelect('equipment', item)}
+                    >
+                      <Text style={styles.modalItemText}>{item}</Text>
+                      {activeEquipment === item && (
+                        <Ionicons name="checkmark-circle" size={20} color="#4a90e2" />
+                      )}
+                    </TouchableOpacity>
+                  ))
+                }
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
         )}
         
         {/* Done Button - Fixed at the bottom */}
@@ -663,7 +705,7 @@ export default function WorkoutBuilderScreen() {
               Done{selectedExercises.length > 0 ? ` (${selectedExercises.length})` : ''}
             </Text>
           </TouchableOpacity>
-      </View>
+        </View>
       </Animated.View>
     );
   };
@@ -1150,72 +1192,47 @@ const styles = StyleSheet.create({
     clearSearch: {
     padding: 4,
   },
-    tabContainer: {
+    filterButtonsContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      alignItems: 'center',
+      flexWrap: 'wrap',
+    },
+    simpleFilterButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      marginBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255,255,255,0.1)',
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      marginRight: 10,
+      marginBottom: 8,
     },
-    tab: {
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      marginRight: 8,
-      position: 'relative',
+    activeSimpleFilterButton: {
+      backgroundColor: 'rgba(74, 144, 226, 0.3)',
+      borderColor: '#4a90e2',
+      borderWidth: 1,
     },
-    activeTab: {
-      backgroundColor: 'transparent',
-    },
-    tabText: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: 'rgba(255,255,255,0.6)',
-    },
-    activeTabText: {
-      color: '#4a90e2',
-      fontWeight: '600',
-    },
-    activeTabIndicator: {
-      position: 'absolute',
-      bottom: -1,
-      left: 0,
-      right: 0,
-      height: 3,
-      backgroundColor: '#4a90e2',
-      borderRadius: 3,
-    },
-    categoriesContainer: {
-      marginTop: 8,
-      marginBottom: 16,
-    },
-    categoriesContent: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-    },
-    categoryPill: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-      backgroundColor: 'rgba(255,255,255,0.1)',
+    filterButtonIcon: {
       marginRight: 8,
     },
-    categoryPillText: {
+    filterButtonText: {
+      color: '#fff',
       fontSize: 14,
       fontWeight: '500',
-      color: 'rgba(255,255,255,0.7)',
+      flex: 1,
     },
-    activeCategoryPill: {
-      backgroundColor: '#4a90e2',
+    libraryContent: {
+      flex: 1,
     },
-    activeCategoryPillText: {
-      color: '#fff',
-      fontWeight: '600',
+    exerciseListContainer: {
+      flex: 1,
     },
-  exercisesList: {
+    exercisesList: {
       paddingHorizontal: 16,
-    paddingBottom: 100,
-  },
+      paddingBottom: 100,
+    },
     exerciseListItem: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1351,6 +1368,122 @@ const styles = StyleSheet.create({
     fontSize: 14,
       color: extendedColors.textMuted,
       marginTop: 6,
+  },
+  apiKeyWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginHorizontal: 10,
+    padding: 8,
+    backgroundColor: 'rgba(255, 165, 0, 0.2)',
+    borderRadius: 4,
+  },
+  apiKeyWarningText: {
+    fontSize: 12,
+    color: '#fff',
+    marginLeft: 4,
+  },
+  categoriesContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  categoriesContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  categoryPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginRight: 8,
+  },
+  categoryPillText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.7)',
+  },
+  activeCategoryPill: {
+    backgroundColor: '#4a90e2',
+  },
+  activeCategoryPillText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  listFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listFooterText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  modalContent: {
+    width: '80%',
+    maxHeight: '70%',
+    backgroundColor: '#2e2e40',
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  modalScrollView: {
+    maxHeight: 400,
+  },
+  modalItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: '#fff',
+    textTransform: 'capitalize',
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  clearFiltersText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginRight: 6,
   },
 }); 
 
