@@ -23,6 +23,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
+import * as Location from 'expo-location';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -377,11 +378,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     bottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
   },
   fabGradient: {
     width: 60,
@@ -648,6 +644,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderBottomWidth: 0,
   },
+  locationTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+  locationText: {
+    marginLeft: 8,
+    marginRight: 8,
+  },
 });
 
 export default function SocialScreen() {
@@ -676,6 +683,13 @@ export default function SocialScreen() {
   const likeScale = useRef(new Animated.Value(1)).current;
   const fabAnimation = useRef(new Animated.Value(0)).current;
   const fabPulse = useRef(new Animated.Value(1)).current;
+
+  // Emoji picker state
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
+  
+  // Location state
+  const [location, setLocation] = useState<string | null>(null);
 
   useEffect(() => {
     // Get the current user ID
@@ -903,6 +917,130 @@ export default function SocialScreen() {
     }
   };
 
+  const takePhoto = async () => {
+    // Request camera permissions
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permissão Negada', 'Precisamos de permissão para acessar sua câmera');
+      return;
+    }
+    
+    // Launch camera
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+  
+  const getLocationAsync = async () => {
+    // Request location permissions
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permissão Negada', 'Precisamos de permissão para acessar sua localização');
+      return;
+    }
+    
+    try {
+      // Get current location coordinates
+      const location = await Location.getCurrentPositionAsync({});
+      
+      // Instead of using reverseGeocodeAsync (deprecated), we'll use a manual approach
+      // or suggest a manual location entry
+      Alert.alert(
+        'Adicionar Localização',
+        'Como deseja adicionar sua localização?',
+        [
+          {
+            text: 'Digitar manualmente',
+            onPress: () => {
+              // Use a cross-platform approach instead of Alert.prompt (which is iOS-only)
+              if (Platform.OS === 'ios') {
+                Alert.prompt(
+                  'Localização',
+                  'Digite sua localização atual (ex: Lisboa, Portugal)',
+                  [
+                    {
+                      text: 'Cancelar',
+                      style: 'cancel'
+                    },
+                    {
+                      text: 'Adicionar',
+                      onPress: (locationText) => {
+                        if (locationText && locationText.trim()) {
+                          setLocation(locationText.trim());
+                        }
+                      }
+                    }
+                  ]
+                );
+              } else {
+                // For Android, use a simple location list
+                Alert.alert(
+                  'Escolha uma Localização',
+                  'Selecione uma localização:',
+                  [
+                    { text: 'Lisboa, Portugal', onPress: () => setLocation('Lisboa, Portugal') },
+                    { text: 'Porto, Portugal', onPress: () => setLocation('Porto, Portugal') },
+                    { text: 'Braga, Portugal', onPress: () => setLocation('Braga, Portugal') },
+                    { text: 'Coimbra, Portugal', onPress: () => setLocation('Coimbra, Portugal') },
+                    { text: 'Faro, Portugal', onPress: () => setLocation('Faro, Portugal') },
+                    { text: 'Cancelar', style: 'cancel' }
+                  ]
+                );
+              }
+            }
+          },
+          {
+            text: 'Usar coordenadas',
+            onPress: () => {
+              // Use the coordinates in a simple format
+              const locationString = `${location.coords.latitude.toFixed(2)}, ${location.coords.longitude.toFixed(2)}`;
+              setLocation(locationString);
+            }
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel'
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert('Erro', 'Não foi possível obter sua localização');
+    }
+  };
+  
+  const handleEmojiSelect = () => {
+    // We'll use a simple approach with some predefined emojis
+    // In a full implementation, you'd use a proper emoji picker library
+    const commonEmojis = ['😊', '👍', '❤️', '🔥', '😂', '🎉', '💪', '🏋️'];
+    
+    Alert.alert(
+      'Escolha um Emoji',
+      'Selecione um emoji para adicionar:',
+      [
+        ...commonEmojis.map(emoji => ({
+          text: emoji,
+          onPress: () => {
+            setNewPost(prev => prev + emoji);
+          }
+        })),
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
   const uploadImage = async () => {
     if (!image) return null;
     
@@ -961,16 +1099,18 @@ export default function SocialScreen() {
         imageUrl = await uploadImage();
       }
 
-      // Create a single post with both text and image
-      // Assuming the database has been modified to either:
-      // 1. Have a larger varchar size for content
-      // 2. Have a separate image_url column
+      // Create post content with location if available
+      let finalContent = newPost.trim();
+      if (location) {
+        finalContent += location ? `\n\n📍 ${location}` : '';
+      }
+
       try {
         const { error } = await supabase
           .from('social_posts')
           .insert({
             user_id: currentUserId,
-            content: newPost.trim(),
+            content: finalContent,
             image_url: imageUrl,
             created_at: new Date().toISOString(),
           });
@@ -1008,8 +1148,9 @@ export default function SocialScreen() {
       fetchPosts();
       
       // Reset post creation form
-    setNewPost('');
+      setNewPost('');
       setImage(null);
+      setLocation(null);
     } catch (error) {
       console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to create post');
@@ -1075,8 +1216,7 @@ export default function SocialScreen() {
                 // Filter out current user and filter by query
                 const filteredUsers = rpcUsers.filter((user: { id: string; username?: string; email?: string }) => 
                   user.id !== currentUserId && 
-                  (user.username?.toLowerCase().includes(query.toLowerCase()) || 
-                   user.email?.toLowerCase().includes(query.toLowerCase()))
+                  user.username?.toLowerCase().includes(query.toLowerCase())
                 );
                 
                 setSearchResults(filteredUsers);
@@ -1105,7 +1245,7 @@ export default function SocialScreen() {
           } else {
             // We found users in auth.users
             const filteredAuthUsers = authUsersData?.filter(user => 
-              user.id !== currentUserId && user.email?.toLowerCase().includes(query.toLowerCase())
+              user.id !== currentUserId && user.username?.toLowerCase().includes(query.toLowerCase())
             ) || [];
             
             console.log('Found users in auth.users:', filteredAuthUsers.length);
@@ -1122,8 +1262,7 @@ export default function SocialScreen() {
             // Filter results by username or email containing search query
             const filteredUsers = usersData.filter(user => 
               user.id !== currentUserId && 
-              (user.username?.toLowerCase().includes(query.toLowerCase()) || 
-               user.email?.toLowerCase().includes(query.toLowerCase()))
+              user.username?.toLowerCase().includes(query.toLowerCase())
             );
             
             console.log('Filtered users count:', filteredUsers.length);
@@ -1142,8 +1281,7 @@ export default function SocialScreen() {
           // Filter results
           const filteredUsers = allUsers.filter(user => 
             user.id !== currentUserId && 
-            (user.username?.toLowerCase().includes(query.toLowerCase()) || 
-             user.email?.toLowerCase().includes(query.toLowerCase()))
+            user.username?.toLowerCase().includes(query.toLowerCase())
           );
           
           console.log('Filtered users count:', filteredUsers.length);
@@ -1550,7 +1688,11 @@ export default function SocialScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.createPostContent}>
+            <ScrollView 
+              style={styles.createPostContent}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
               <View style={styles.userRow}>
                 <LinearGradient
                   colors={['#f2709c', '#ff9472']}
@@ -1600,18 +1742,39 @@ export default function SocialScreen() {
                     <Feather name="image" size={22} color="#4a90e2" />
                   </TouchableOpacity>
                   
-                  <TouchableOpacity style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                  <TouchableOpacity 
+                    style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+                    onPress={takePhoto}
+                  >
                     <Feather name="camera" size={22} color="#4a90e2" />
                   </TouchableOpacity>
                   
-                  <TouchableOpacity style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                  <TouchableOpacity 
+                    style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+                    onPress={handleEmojiSelect}
+                  >
                     <MaterialCommunityIcons name="emoticon-outline" size={22} color="#4a90e2" />
                   </TouchableOpacity>
                   
-                  <TouchableOpacity style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                  <TouchableOpacity 
+                    style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+                    onPress={getLocationAsync}
+                  >
                     <MaterialCommunityIcons name="map-marker-outline" size={22} color="#4a90e2" />
                   </TouchableOpacity>
                 </View>
+                
+                {location && (
+                  <View style={[styles.locationTag, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                    <MaterialCommunityIcons name="map-marker" size={16} color="#4a90e2" />
+                    <Text style={[styles.locationText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                      {location}
+                    </Text>
+                    <TouchableOpacity onPress={() => setLocation(null)}>
+                      <Feather name="x" size={16} color={isDarkMode ? "#8e8e93" : "#666"} />
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
               
               <TouchableOpacity 
@@ -1631,7 +1794,7 @@ export default function SocialScreen() {
                   <Text style={styles.publishButtonText}>Publicar</Text>
                 )}
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </Animated.View>
         </BlurView>
       )}
@@ -1753,7 +1916,11 @@ export default function SocialScreen() {
                     <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
                   </TouchableOpacity>
                 </View>
-                <View style={styles.createPostContent}>
+                <ScrollView 
+                  style={styles.createPostContent}
+                  showsVerticalScrollIndicator={true}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                >
                   <TextInput
                     style={[styles.postInput, { color: isDarkMode ? '#fff' : '#000' }]}
                     placeholder="Editar o teu post..."
@@ -1773,7 +1940,7 @@ export default function SocialScreen() {
                   >
                     <Text style={styles.publishButtonText}>Atualizar</Text>
                   </TouchableOpacity>
-                </View>
+                </ScrollView>
               </>
             ) : (
               <>
