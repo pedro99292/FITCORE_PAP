@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FontAwesome } from '@expo/vector-icons';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Exercise, WorkoutExercise, WorkoutSet } from '@/types/exercise';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/utils/supabase';
 import ExerciseCard from '@/components/ExerciseCard';
 import ExerciseFilters from '@/components/ExerciseFilters';
@@ -44,6 +44,14 @@ const categoryIcons = {
   'shoulders': 'arm-flex',
   'cardio': 'run'
 };
+
+// Define types for our exercise groups
+interface ExerciseGroup {
+  exerciseId: string;
+  order: number;
+  sets: WorkoutSet[];
+  exerciseDetails: Exercise;
+}
 
 export default function WorkoutBuilderScreen() {
   const { colors, isDarkMode } = useTheme();
@@ -322,6 +330,134 @@ export default function WorkoutBuilderScreen() {
     setSelectedExercises(reorderedExercises);
   };
 
+  // State for edit mode and workout ID
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [workoutId, setWorkoutId] = useState<string | null>(null);
+  const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
+
+  // Add useLocalSearchParams to get the workoutId from URL
+  const params = useLocalSearchParams();
+
+  // First, let's add a flag to prevent infinite retrying
+  const [fetchAttempted, setFetchAttempted] = useState(false);
+
+  // Then modify the useEffect that checks for workoutId
+  useEffect(() => {
+    const id = params?.workoutId;
+    if (id && !fetchAttempted) {
+      setIsEditMode(true);
+      setWorkoutId(id.toString());
+      setFetchAttempted(true);
+      fetchWorkoutDetails(id.toString());
+    }
+  }, [params, fetchAttempted]);
+
+  // Modify the fetch function to use exercise details from workout_sets table
+  const fetchWorkoutDetails = async (id: string) => {
+    try {
+      setIsLoadingWorkout(true);
+      
+      // Fetch workout details
+      const { data: workout, error: workoutError } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('workout_id', id)
+        .single();
+      
+      if (workoutError) {
+        console.error('Error fetching workout details:', workoutError);
+        Alert.alert('Error', 'Failed to load workout details');
+        return;
+      }
+      
+      if (!workout) {
+        Alert.alert('Error', 'Workout not found');
+        return;
+      }
+      
+      // Set basic workout info
+      setTitle(workout.title);
+      setDescription(workout.description || '');
+      
+      // Fetch workout sets
+      const { data: sets, error: setsError } = await supabase
+        .from('workout_sets')
+        .select('*')
+        .eq('workout_id', id)
+        .order('set_order', { ascending: true });
+      
+      if (setsError) {
+        console.error('Error fetching workout sets:', setsError);
+        return;
+      }
+      
+      if (!sets || sets.length === 0) {
+        setSelectedExercises([]);
+        return;
+      }
+      
+      // Group sets by exercise first
+      const exerciseGroups: Record<string, ExerciseGroup> = {};
+      
+      for (const set of sets) {
+        const exerciseId = set.exercise_id;
+        const exerciseOrder = Math.floor(set.set_order / 100);
+        const setOrder = set.set_order % 100;
+        
+        if (!exerciseGroups[exerciseId]) {
+          exerciseGroups[exerciseId] = {
+            exerciseId,
+            order: exerciseOrder,
+            // Create object with exercise details from the workout_sets table
+            exerciseDetails: {
+              id: exerciseId,
+              name: set.exercise_name || `Exercise ${exerciseOrder}`,
+              bodyPart: set.exercise_bodypart || 'General',
+              target: set.exercise_target || 'Muscle',
+              equipment: set.exercise_equipment || 'Body weight',
+              gifUrl: '', // Required by type but not used in display
+              instructions: []
+            },
+            sets: []
+          };
+        }
+        
+        exerciseGroups[exerciseId].sets.push({
+          id: set.id,
+          exerciseId: `workout-${id}-exercise-${exerciseId}`,
+          reps: set.planned_reps || 0,
+          weight: set.weight || 0,
+          duration: set.rest_time || 60,
+          setOrder: setOrder
+        });
+      }
+      
+      // Now create the workout exercises with data from the workout_sets table
+      const workoutExercises: WorkoutExercise[] = Object.values(exerciseGroups).map((group) => {
+        const { exerciseId, order, exerciseDetails, sets } = group;
+        
+        return {
+          id: `workout-${id}-exercise-${exerciseId}`,
+          exerciseId: exerciseId,
+          workoutId: id,
+          order: order,
+          exerciseDetails: exerciseDetails,
+          sets: sets
+        };
+      });
+      
+      // Sort by order
+      workoutExercises.sort((a, b) => a.order - b.order);
+      
+      setSelectedExercises(workoutExercises);
+    } catch (error) {
+      console.error('Error loading workout details:', error);
+      Alert.alert('Error', 'Failed to load workout');
+    } finally {
+      setIsLoadingWorkout(false);
+    }
+  };
+  
   const handleSaveWorkout = async () => {
     try {
       if (!title.trim()) {
@@ -341,70 +477,136 @@ export default function WorkoutBuilderScreen() {
       
       setSaving(true);
       
-      // 1. Create the workout
-      const workout = await createWorkout({
-        user_id: user.id,
-        title,
-        description,
-      });
+      let workoutData;
       
-      // 2. Add exercises to the workout
-      const savedExercises = await Promise.all(
-        selectedExercises.map(async (exercise) => {
-          const savedExercise = await addExerciseToWorkout({
-            workoutId: workout.id,
-            exerciseId: exercise.exerciseId,
-            order: exercise.order
-          });
-          
-          // 3. Add sets to each exercise
-          const savedSets = await Promise.all(
-            exercise.sets.map(async (set) => {
-              return await addSetToExercise({
-                exerciseId: savedExercise.id,
-                reps: set.reps,
-                weight: set.weight,
-                duration: set.duration
-              });
-            })
-          );
-          
-          return {
-            ...savedExercise,
-            sets: savedSets
+      if (isEditMode && workoutId) {
+        // Update existing workout
+        const { data: updatedWorkout, error: updateError } = await supabase
+          .from('workouts')
+          .update({
+            title: title,
+            description: description || null,
+          })
+          .eq('workout_id', workoutId)
+          .select()
+          .single();
+        
+        if (updateError) {
+          console.error('Error updating workout:', updateError);
+          throw new Error(`Failed to update workout: ${updateError.message}`);
+        }
+        
+        workoutData = updatedWorkout;
+        
+        // Delete existing sets to replace them
+        const { error: deleteError } = await supabase
+          .from('workout_sets')
+          .delete()
+          .eq('workout_id', workoutId);
+        
+        if (deleteError) {
+          console.error('Error deleting existing sets:', deleteError);
+        }
+      } else {
+        // Create new workout
+        const { data: newWorkout, error: workoutError } = await supabase
+          .from('workouts')
+          .insert({
+            user_id: user.id,
+            title: title,
+            description: description || null,
+          })
+          .select()
+          .single();
+        
+        // Log any workout creation errors
+        if (workoutError) {
+          console.error('Supabase workout creation error:', workoutError);
+          throw new Error(`Failed to create workout: ${workoutError.message}`);
+        }
+        
+        if (!newWorkout) {
+          console.error('No workout data returned');
+          throw new Error('Failed to create workout: No data returned');
+        }
+        
+        workoutData = newWorkout;
+      }
+      
+      if (!workoutData) {
+        console.error('No workout data returned');
+        throw new Error('Failed to create workout: No data returned');
+      }
+      
+      console.log('Created workout:', workoutData);
+      
+      // 2. Add workout sets directly
+      try {
+        for (const exercise of selectedExercises) {
+          // Get exercise details to store in workout_sets
+          const exerciseDetails = exercise.exerciseDetails || {
+            name: 'Unknown Exercise',
+            bodyPart: 'General',
+            target: 'Muscle',
+            equipment: 'Body weight'
           };
-        })
-      );
-      
-      // Clear form data
-      setTitle('');
-      setDescription('');
-      setSelectedExercises([]);
-      
-      // Show success message
-      Alert.alert(
-        'Workout Saved',
-        'Your workout has been saved successfully!',
-        [{ text: 'OK' }]
-      );
-      
-      // Navigate to profile page
-      router.push('/profile');
-      
+          
+          for (const set of exercise.sets) {
+            const { data: setData, error: setError } = await supabase
+              .from('workout_sets')
+              .insert({
+                workout_id: workoutData.workout_id, // Use the workout_id from the created workout
+                exercise_id: exercise.exerciseId,
+                planned_reps: set.reps || 0,
+                rest_time: set.duration || 60,
+                set_order: (exercise.order * 100) + (set.setOrder || 1),
+                // Add exercise details directly to the workout_sets table
+                exercise_name: exerciseDetails.name,
+                exercise_bodypart: exerciseDetails.bodyPart,
+                exercise_target: exerciseDetails.target,
+                exercise_equipment: exerciseDetails.equipment
+              });
+            
+            if (setError) {
+              console.error('Error saving set:', setError);
+              throw new Error(`Failed to save set: ${setError.message}`);
+            }
+          }
+        }
+        
+        // Clear form data
+        setTitle('');
+        setDescription('');
+        setSelectedExercises([]);
+        
+        // Show success message
+        Alert.alert(
+          'Workout Saved',
+          'Your workout has been saved successfully!',
+          [{ text: 'OK' }]
+        );
+        
+        // Navigate to workouts page
+        router.push('/workouts');
+        
+      } catch (error) {
+        console.error('Error saving workout details:', error);
+        Alert.alert('Error', 'There was an error saving your workout details. Please try again.');
+      }
     } catch (error) {
       console.error('Error saving workout:', error);
-      Alert.alert('Error', 'There was an error saving your workout. Please try again.');
+      Alert.alert('Error', `There was an error saving your workout: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
   };
 
   const goToProfile = () => {
-    router.push('/profile');
+    router.push('/(tabs)/profile');
   };
   
   const goBack = () => {
-    router.push('/');
+    router.push('/workouts');
   };
   
   const closeExerciseLibrary = () => {
@@ -888,7 +1090,7 @@ export default function WorkoutBuilderScreen() {
             <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={goBack}
+            onPress={() => router.push('/(tabs)/profile')}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-back-outline" size={20} color="#fff" />
@@ -897,14 +1099,7 @@ export default function WorkoutBuilderScreen() {
 
           <TouchableOpacity
             style={styles.saveButton}
-            onPress={() => {
-              handleSaveWorkout().then(() => {
-                // Additional fallback navigation if the one in handleSaveWorkout doesn't work
-                setTimeout(() => {
-                  router.push('/profile');
-                }, 500);
-              });
-            }}
+            onPress={handleSaveWorkout}
             disabled={saving}
           >
             {saving ? (

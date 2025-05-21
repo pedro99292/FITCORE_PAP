@@ -170,7 +170,7 @@ export default function ProfileScreen() {
             
             <TouchableOpacity 
               style={styles.actionItem}
-              onPress={() => router.push('/workout-builder')}
+              onPress={() => router.push('/workouts')}
             >
               <LinearGradient
                 colors={['#3E64FF', '#5A7BFF']}

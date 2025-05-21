@@ -110,6 +110,9 @@ const HomeScreen = () => {
   const statsOpacity = useSharedValue(0);
   const silhouetteScale = useSharedValue(0.95);
   
+  // Add state for button cooldown
+  const [isFlipCooldown, setIsFlipCooldown] = useState(false);
+  
   // Preload silhouette images
   useEffect(() => {
     const preloadImages = async () => {
@@ -136,11 +139,22 @@ const HomeScreen = () => {
 
   // Function to toggle between front and back views with animation
   const toggleSilhouetteView = () => {
+    // Prevent rotation if cooldown is active
+    if (isFlipCooldown) return;
+    
+    // Set cooldown
+    setIsFlipCooldown(true);
+    
     // Animate rotation - no need to swap images
     rotation.value = withTiming(rotation.value + 180, {
       duration: 800,
       easing: Easing.inOut(Easing.cubic),
     });
+    
+    // Reset cooldown after 2 seconds
+    setTimeout(() => {
+      setIsFlipCooldown(false);
+    }, 1000);
   };
 
   // Memoized animated styles for front silhouette
@@ -221,11 +235,17 @@ const HomeScreen = () => {
       
       {/* Rotate Button - Now positioned at bottom right of screen */}
       <TouchableOpacity 
-        style={styles.rotateButton}
+        style={[
+          styles.rotateButton,
+          isFlipCooldown && styles.disabledRotateButton
+        ]}
         onPress={toggleSilhouetteView}
+        disabled={isFlipCooldown}
       >
         <LinearGradient
-          colors={['rgba(74, 144, 226, 0.9)', 'rgba(53, 112, 178, 0.9)']}
+          colors={isFlipCooldown 
+            ? ['rgba(150, 150, 150, 0.9)', 'rgba(120, 120, 120, 0.9)'] 
+            : ['rgba(74, 144, 226, 0.9)', 'rgba(53, 112, 178, 0.9)']}
           style={styles.rotateButtonGradient}
         >
           <MaterialCommunityIcons name="rotate-3d-variant" size={26} color="#fff" />
@@ -326,6 +346,9 @@ const styles = StyleSheet.create({
     bottom: screenWidth * 0.06,
     right: screenWidth * 0.06,
     zIndex: 10,
+  },
+  disabledRotateButton: {
+    opacity: 0.5,
   },
   rotateButtonGradient: {
     width: 50,
