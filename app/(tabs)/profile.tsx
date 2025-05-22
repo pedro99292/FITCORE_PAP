@@ -18,7 +18,8 @@ export default function ProfileScreen() {
     username: user?.email?.split('@')[0] || 'USERNAME_123',
     name: user?.user_metadata?.full_name || 'Utilizador',
     bio: '',
-    avatar: require('../../assets/images/default-avatar.png'),
+    avatar: null,
+    avatarUrl: null,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -51,7 +52,7 @@ export default function ProfileScreen() {
 
       const { data, error } = await supabase
         .from('users')
-        .select('username, full_name, bio')
+        .select('username, full_name, bio, avatar_url')
         .eq('id', user.id)
         .single();
 
@@ -74,6 +75,7 @@ export default function ProfileScreen() {
           name: data.full_name || user?.user_metadata?.full_name || 'Utilizador',
           bio: data.bio || 'Sem biografia disponível.',
           avatar: require('../../assets/images/default-avatar.png'),
+          avatarUrl: data.avatar_url,
         });
       }
     } catch (error) {
@@ -127,7 +129,10 @@ export default function ProfileScreen() {
             >
               <View style={styles.profileHeader}>
                 <View style={styles.avatarContainer}>
-                  <Image source={userData.avatar} style={styles.avatar} />
+                  <Image 
+                    source={userData.avatarUrl ? { uri: userData.avatarUrl } : userData.avatar} 
+                    style={styles.avatar} 
+                  />
                   <TouchableOpacity 
                     style={styles.editAvatarButton}
                     onPress={handleEditProfile}

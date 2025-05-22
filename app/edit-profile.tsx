@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, SafeAreaView, ScrollView, Image, StatusBar, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, SafeAreaView, ScrollView, Image, StatusBar, Alert, ActivityIndicator, Dimensions, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase';
+
+const { width } = Dimensions.get('window');
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -14,6 +18,8 @@ export default function EditProfileScreen() {
   const [email, setEmail] = useState(user?.email || '');
   const [age, setAge] = useState('');
   const [bio, setBio] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingProfile, setIsFetchingProfile] = useState(true);
 
@@ -41,7 +47,7 @@ export default function EditProfileScreen() {
 
       const { data, error } = await supabase
         .from('users')
-        .select('username, full_name, age, bio')
+        .select('username, full_name, age, bio, avatar_url')
         .eq('id', user.id)
         .single();
 
@@ -53,11 +59,100 @@ export default function EditProfileScreen() {
         setName(data.full_name || user?.user_metadata?.full_name || '');
         setAge(data.age ? data.age.toString() : '');
         setBio(data.bio || '');
+        setAvatarUrl(data.avatar_url);
       }
     } catch (error) {
       console.error('Erro ao buscar perfil do utilizador:', error);
     } finally {
       setIsFetchingProfile(false);
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      // Request permission
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permissão negada', 'Precisamos de permissão para aceder às suas fotos');
+        return;
+      }
+      
+      // Use the deprecated MediaTypeOptions since that's what's available in the current version
+      // This can be updated when expo-image-picker is updated to a version that uses MediaType
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        
+        if (asset.base64) {
+          await uploadImage(asset.base64);
+        } else {
+          Alert.alert('Erro', 'Não foi possível carregar a imagem');
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar imagem:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+    }
+  };
+
+  const uploadImage = async (base64Image: string) => {
+    if (!user) return;
+    
+    try {
+      setUploading(true);
+      
+      // Create a simple file name without folders
+      const fileName = `avatar_${Date.now()}.jpg`;
+      
+      // Convert base64 to ArrayBuffer
+      const arrayBuffer = decode(base64Image);
+      
+      // Set public access for the file
+      const { data, error } = await supabase.storage
+        .from('useravatars')
+        .upload(fileName, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+      
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+      
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('useravatars')
+        .getPublicUrl(fileName);
+      
+      if (publicUrlData?.publicUrl) {
+        setAvatarUrl(publicUrlData.publicUrl);
+        
+        // Update profile immediately with new avatar URL
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ avatar_url: publicUrlData.publicUrl })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error('Error updating profile with avatar URL:', updateError);
+        }
+        
+        Alert.alert('Sucesso', 'Imagem de perfil atualizada');
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar imagem:', error);
+      Alert.alert('Erro', error.message || 'Falha ao carregar imagem de perfil');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -91,6 +186,7 @@ export default function EditProfileScreen() {
           full_name: name.trim(),
           age: age ? parseInt(age) : null,
           bio: bio.trim(),
+          avatar_url: avatarUrl,
           updated_at: new Date()
         })
         .eq('id', user.id);
@@ -127,112 +223,152 @@ export default function EditProfileScreen() {
       
       <Stack.Screen 
         options={{
-          title: 'Editar Perfil',
+          headerTitle: () => (
+            <View style={styles.headerContainer}>
+              <FontAwesome name="arrow-left" size={20} color="#fff" style={{marginRight: 10}} />
+              <Text style={styles.headerTitle}>Editar Perfil</Text>
+            </View>
+          ),
           headerStyle: {
-            backgroundColor: '#2c2c3e',
+            backgroundColor: '#262c3a',
           },
           headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={handleBackNavigation}
-              style={{ marginLeft: 16 }}
-            >
-              <FontAwesome name="arrow-left" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => null,
           headerShadowVisible: false,
         }} 
       />
       
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileImageContainer}>
-          <Image 
-            source={require('@/assets/images/default-avatar.png')} 
-            style={styles.profileImage} 
-          />
-          <TouchableOpacity style={styles.changePhotoButton}>
-            <Text style={styles.changePhotoText}>
-              Alterar Foto
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.mainContainer}>
+          {/* Profile Image */}
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatarWrapper}>
+              <Image 
+                source={avatarUrl ? { uri: avatarUrl } : require('@/assets/images/default-avatar.png')} 
+                style={styles.profileImage} 
+              />
+              <TouchableOpacity 
+                style={styles.cameraButton}
+                onPress={pickImage}
+                disabled={uploading}
+              >
+                <Ionicons name="camera" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.avatarText}>
+              {uploading ? 'A carregar...' : 'Toque para alterar foto'}
             </Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Nome de Utilizador</Text>
-            <TextInput
-              style={styles.input}
-              value={username}
-              onChangeText={setUsername}
-              placeholder="O seu nome de utilizador"
-              placeholderTextColor="#888"
-              selectionColor="#4a90e2"
-            />
           </View>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Nome Completo</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="O seu nome completo"
-              placeholderTextColor="#888"
-              selectionColor="#4a90e2"
-            />
-          </View>
-          
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Idade</Text>
-            <TextInput
-              style={styles.input}
-              value={age}
-              onChangeText={setAge}
-              placeholder="A sua idade"
-              keyboardType="numeric"
-              maxLength={3}
-              placeholderTextColor="#888"
-              selectionColor="#4a90e2"
-            />
-          </View>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Biografia</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Fale-nos sobre si"
-              multiline
-              numberOfLines={4}
-              placeholderTextColor="#888"
-              selectionColor="#4a90e2"
-            />
+
+          {/* Form Fields */}
+          <View style={styles.formContainer}>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Nome de Utilizador</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color="#8e8ea0" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="Digite seu nome de utilizador"
+                  placeholderTextColor="#555"
+                  selectionColor="#4a90e2"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Nome Completo</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="id-card-outline" size={20} color="#8e8ea0" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Digite seu nome completo"
+                  placeholderTextColor="#555"
+                  selectionColor="#4a90e2"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Idade</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="calendar-outline" size={20} color="#8e8ea0" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={age}
+                  onChangeText={setAge}
+                  placeholder="Digite sua idade"
+                  keyboardType="numeric"
+                  maxLength={3}
+                  placeholderTextColor="#555"
+                  selectionColor="#4a90e2"
+                />
+              </View>
+            </View>
+
+            {/* Bio field if needed */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Biografia</Text>
+              <View style={[styles.inputContainer, styles.textAreaContainer]}>
+                <Ionicons name="create-outline" size={20} color="#8e8ea0" style={[styles.inputIcon, {alignSelf: 'flex-start', paddingTop: 12}]} />
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={bio}
+                  onChangeText={setBio}
+                  placeholder="Fale um pouco sobre você"
+                  multiline
+                  numberOfLines={4}
+                  placeholderTextColor="#555"
+                  selectionColor="#4a90e2"
+                  textAlignVertical="top"
+                  autoCapitalize="sentences"
+                />
+              </View>
+            </View>
           </View>
         </View>
       </ScrollView>
       
-      <TouchableOpacity 
-        style={[styles.saveButton, isLoading && { opacity: 0.7 }]} 
-        onPress={handleSave}
-        disabled={isLoading}
-      >
-        <LinearGradient
-          colors={['#4a90e2', '#3570b2']}
-          start={[0, 0]}
-          end={[1, 0]}
-          style={styles.gradientButton}>
-          {isLoading ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <Text style={styles.saveButtonText}>GUARDAR</Text>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
+      <View style={styles.footerContainer}>
+        <TouchableOpacity 
+          style={styles.saveButton} 
+          onPress={handleSave}
+          disabled={isLoading}
+        >
+          <LinearGradient
+            colors={['#4a90e2', '#357ad6']}
+            style={styles.saveButtonGradient}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={20} color="#fff" style={{marginRight: 8}} />
+                <Text style={styles.saveButtonText}>GUARDAR</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={handleBackNavigation}
+          disabled={isLoading}
+        >
+          <Text style={styles.cancelButtonText}>Cancelar</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -240,10 +376,22 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2c2c3e',
+    backgroundColor: '#262c3a',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   scrollView: {
     flex: 1,
+  },
+  mainContainer: {
+    padding: 16,
   },
   loadingContainer: {
     flex: 1,
@@ -255,82 +403,110 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
   },
-  profileImageContainer: {
+  avatarContainer: {
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
+    marginVertical: 20,
+    backgroundColor: '#2d3446',
+    paddingVertical: 24,
+    borderRadius: 12,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: '#4a90e2',
+    overflow: 'hidden',
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#4a90e2',
+    width: '100%',
+    height: '100%',
   },
-  changePhotoButton: {
-    marginTop: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(74, 144, 226, 0.8)',
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  changePhotoText: {
-    color: '#4a90e2',
-    fontSize: 16,
-    fontWeight: '500',
+  avatarText: {
+    marginTop: 12,
+    color: '#fff',
+    fontSize: 14,
   },
   formContainer: {
-    backgroundColor: '#3e3e50',
+    backgroundColor: '#2d3446',
     borderRadius: 12,
-    marginHorizontal: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    padding: 16,
   },
-  inputContainer: {
-    marginBottom: 24,
+  formGroup: {
+    marginBottom: 16,
   },
-  inputLabel: {
-    fontSize: 16,
-    color: '#fff',
+  label: {
+    fontSize: 14,
+    color: '#ffffff',
     marginBottom: 8,
     fontWeight: '500',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#555',
-    backgroundColor: '#2a2a38',
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1f2b',
     borderRadius: 8,
-    paddingHorizontal: 15,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#3a3f4c',
+  },
+  inputIcon: {
+    padding: 10,
+    marginLeft: 5,
+  },
+  input: {
+    flex: 1,
     paddingVertical: 12,
-    fontSize: 16,
-    color: '#fff',
+    paddingRight: 12,
+    fontSize: 14,
+    color: '#ffffff',
+    height: 'auto',
+  },
+  textAreaContainer: {
+    height: 120,
+    alignItems: 'flex-start',
   },
   textArea: {
-    height: 100,
+    height: 120,
     textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+  footerContainer: {
+    padding: 16,
   },
   saveButton: {
-    margin: 16,
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    marginBottom: 12,
   },
-  gradientButton: {
-    paddingVertical: 15,
-    alignItems: 'center',
+  saveButtonGradient: {
+    flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 14,
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
-    letterSpacing: 0.5,
+    fontSize: 16,
+  },
+  cancelButton: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  cancelButtonText: {
+    color: '#9da3b4',
+    fontSize: 14,
   },
 });
