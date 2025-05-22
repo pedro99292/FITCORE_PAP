@@ -146,52 +146,53 @@ export default function WorkoutsScreen() {
   };
 
   const handleDeleteWorkout = async (workout: Workout) => {
+    // Trigger haptic feedback
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      'Delete Workout',
-      `Are you sure you want to delete "${workout.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              
-              // First delete associated sets
-              const { error: setsError } = await supabase
-                .from('workout_sets')
-                .delete()
-                .eq('workout_id', workout.workout_id);
-              
-              if (setsError) {
-                throw new Error(`Failed to delete workout sets: ${setsError.message}`);
-              }
-              
-              // Then delete the workout
-              const { error: workoutError } = await supabase
-                .from('workouts')
-                .delete()
-                .eq('workout_id', workout.workout_id);
-              
-              if (workoutError) {
-                throw new Error(`Failed to delete workout: ${workoutError.message}`);
-              }
-              
-              // Update the UI
-              setWorkouts(workouts.filter(w => w.workout_id !== workout.workout_id));
-              Alert.alert('Success', 'Workout deleted successfully');
-            } catch (error) {
-              console.error('Error deleting workout:', error);
-              Alert.alert('Error', `Failed to delete workout: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+    
+    try {
+      // Show loading state
+      setLoading(true);
+      
+      // Step 1: First delete all associated workout sets
+      const { error: setsError } = await supabase
+        .from('workout_sets')
+        .delete()
+        .eq('workout_id', workout.workout_id);
+      
+      // Handle errors from deleting sets
+      if (setsError) {
+        console.error('Error deleting workout sets:', setsError);
+        throw new Error(`Failed to delete workout sets: ${setsError.message}`);
+      }
+      
+      // Step 2: Then delete the workout itself
+      const { error: workoutError } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('workout_id', workout.workout_id);
+      
+      // Handle errors from deleting workout
+      if (workoutError) {
+        console.error('Error deleting workout:', workoutError);
+        throw new Error(`Failed to delete workout: ${workoutError.message}`);
+      }
+      
+      // Step 3: Update the UI by removing the deleted workout
+      setWorkouts(workouts.filter(w => w.workout_id !== workout.workout_id));
+      
+      // Show success message
+      Alert.alert('Success', `"${workout.title}" has been deleted successfully`);
+    } catch (error) {
+      // Log and display any errors
+      console.error('Error in workout deletion process:', error);
+      Alert.alert(
+        'Error', 
+        `Failed to delete workout: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    } finally {
+      // Always clear loading state when done
+      setLoading(false);
+    }
   };
 
   const headerOpacity = scrollY.interpolate({
