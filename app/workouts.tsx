@@ -101,14 +101,22 @@ export default function WorkoutsScreen() {
       
       // For each workout, fetch the count of exercises
       const workoutsWithCounts = await Promise.all(data.map(async (workout) => {
-        const { count, error: countError } = await supabase
+        const { data: setData, error: setsError } = await supabase
           .from('workout_sets')
-          .select('*', { count: 'exact', head: true })
+          .select('exercise_id')
           .eq('workout_id', workout.workout_id);
+        
+        if (setsError) {
+          console.error('Error fetching workout sets:', setsError);
+          return { ...workout, exercise_count: 0 };
+        }
+        
+        // Count unique exercise IDs
+        const uniqueExerciseIds = new Set(setData?.map(set => set.exercise_id) || []);
         
         return {
           ...workout,
-          exercise_count: count || 0
+          exercise_count: uniqueExerciseIds.size
         };
       }));
       
@@ -135,6 +143,11 @@ export default function WorkoutsScreen() {
   const handleAddWorkout = () => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/workout-builder');
+  };
+
+  const handleViewWorkout = (workout: Workout) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/workout-preview/${workout.workout_id}`);
   };
 
   const handleEditWorkout = (workout: Workout) => {
@@ -227,7 +240,7 @@ export default function WorkoutsScreen() {
             backgroundColor: extendedColors.cardBackground,
             borderColor: extendedColors.cardBorder 
           }]}
-          onPress={() => handleEditWorkout(item)}
+          onPress={() => handleViewWorkout(item)}
           activeOpacity={0.9}
         >
           <View style={styles.cardContent}>
