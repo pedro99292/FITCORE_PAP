@@ -8,6 +8,7 @@ import { useTheme } from '@/hooks/useTheme';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate, Extrapolate } from 'react-native-reanimated';
 import { Image as ExpoImage } from 'expo-image';
 import { Asset } from 'expo-asset';
+import { router } from 'expo-router';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -157,6 +158,11 @@ const HomeScreen = () => {
     }, 1000);
   };
 
+  // Function to handle starting a workout
+  const handleStartWorkout = () => {
+    router.push('/workout-select');
+  };
+
   // Memoized animated styles for front silhouette
   const rotateStyle = useAnimatedStyle(() => {
     // Calculate opacity manually to avoid interpolate issues
@@ -221,7 +227,7 @@ const HomeScreen = () => {
       
       {/* Bottom Button - Only main button now */}
       <View style={styles.buttonsContainer}>
-        <TouchableOpacity style={styles.mainButton}>
+        <TouchableOpacity style={styles.mainButton} onPress={handleStartWorkout}>
           <LinearGradient
             colors={['#4a90e2', '#3570b2']}
             start={[0, 0]}
