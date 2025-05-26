@@ -13,7 +13,10 @@ import {
   Alert,
   RefreshControl,
   Animated,
-  StatusBar
+  StatusBar,
+  ViewStyle,
+  TextStyle,
+  StyleProp
 } from 'react-native';
 import { FontAwesome, Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -39,6 +42,17 @@ type Post = {
   comments: number;
   created_at: string;
   isLiked: boolean;
+  timeAgo?: string;
+  commentsList?: Comment[];
+};
+
+type Comment = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  username: string;
+  content: string;
+  created_at: string;
   timeAgo?: string;
 };
 
@@ -399,10 +413,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-  },
+    zIndex: 999,
+  } as ViewStyle,
   modalContent: {
     width: screenWidth - 30,
     maxHeight: 500,
@@ -655,6 +670,150 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginRight: 8,
   },
+  commentSection: {
+    padding: 15,
+    borderTopWidth: 1,
+  },
+  commentInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  commentTextInput: {
+    flex: 1,
+    height: 40,
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    marginRight: 10,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  commentsList: {
+    padding: 15,
+  } as ViewStyle,
+  commentItem: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    alignItems: 'flex-start',
+  } as ViewStyle,
+  commentAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 10,
+  },
+  commentContent: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 10,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  commentUsername: {
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  commentTime: {
+    fontSize: 12,
+  },
+  commentText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  showCommentsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+  },
+  showCommentsText: {
+    marginLeft: 5,
+  },
+  viewCommentsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderTopWidth: 1,
+  },
+  viewCommentsText: {
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  commentCount: {
+    fontSize: 14,
+    color: '#8e8e93',
+    marginLeft: 'auto',
+  },
+  commentsModal: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  } as ViewStyle,
+  commentsModalContent: {
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    backgroundColor: '#2c2c3e',
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  } as ViewStyle,
+  commentsListContainer: {
+    flex: 1,
+    maxHeight: Dimensions.get('window').height * 0.5,
+  } as ViewStyle,
+  commentsScrollView: {
+    maxHeight: Dimensions.get('window').height * 0.5,
+  } as ViewStyle,
+  commentInputContainer: {
+    padding: 15,
+    borderTopWidth: 1,
+  },
+  modalCloseButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  commentAvatarContainer: {
+    width: 30,
+    height: 30,
+    marginRight: 10,
+  } as ViewStyle,
+  commentAvatarGradient: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  commentAvatarInner: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
 });
 
 export default function SocialScreen() {
@@ -691,39 +850,62 @@ export default function SocialScreen() {
   // Location state
   const [location, setLocation] = useState<string | null>(null);
 
+  // Add new state for comments
+  const [showComments, setShowComments] = useState<{ [key: string]: boolean }>({});
+  const [commentText, setCommentText] = useState<{ [key: string]: string }>({});
+  const [loadingComments, setLoadingComments] = useState<{ [key: string]: boolean }>({});
+
+  // Add state for the comments modal
+  const [selectedPostForComments, setSelectedPostForComments] = useState<Post | null>(null);
+
   useEffect(() => {
+    let isMounted = true;
+
     // Get the current user ID
     const getCurrentUser = async () => {
       const { data } = await supabase.auth.getUser();
-      setCurrentUserId(data.user?.id || null);
+      if (isMounted) {
+        setCurrentUserId(data.user?.id || null);
+      }
     };
     
-    getCurrentUser();
-    fetchPosts();
-    
-    // Animate FAB in
-    Animated.spring(fabAnimation, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7
-    }).start();
-    
-    // Start pulsing animation for FAB
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(fabPulse, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fabPulse, {
+    const init = async () => {
+      await getCurrentUser();
+      if (isMounted) {
+        await fetchPosts();
+        
+        // Animate FAB in
+        Animated.spring(fabAnimation, {
           toValue: 1,
-          duration: 1000,
           useNativeDriver: true,
-        }),
-      ])
-    ).start();
+          tension: 50,
+          friction: 7
+        }).start();
+        
+        // Start pulsing animation for FAB
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(fabPulse, {
+              toValue: 1.1,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(fabPulse, {
+              toValue: 1,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
+      }
+    };
+
+    init();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const onRefresh = async () => {
@@ -884,19 +1066,17 @@ export default function SocialScreen() {
       }
 
       // Update state immediately for better UX
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-          isLiked: !post.isLiked,
-        };
-      }
-      return post;
-    }));
+      setPosts(posts.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            likes: post.isLiked ? post.likes - 1 : post.likes + 1,
+            isLiked: !post.isLiked,
+          };
+        }
+        return post;
+      }));
 
-      // Refresh posts to get updated counts
-      fetchPosts();
     } catch (error) {
       console.error('Error liking post:', error);
       Alert.alert('Error', 'Failed to like post');
@@ -1132,7 +1312,7 @@ export default function SocialScreen() {
               .limit(1);
               
             if (recentPosts && recentPosts.length > 0) {
-              const postId = recentPosts[0].id || recentPosts[0].post_id;
+              const postId = recentPosts[0].id;
               imagePostMapping[`post_${postId}`] = imageUrl;
               await AsyncStorage.setItem('imagePostMapping', JSON.stringify(imagePostMapping));
             }
@@ -1326,20 +1506,54 @@ export default function SocialScreen() {
 
   // Function to update post content
   const handleUpdatePost = async () => {
-    if (!selectedPost || !editContent.trim()) return;
+    if (!selectedPost || (!editContent.trim() && !image && selectedPost.image_url)) return;
     
     try {
+      setUploading(true);
+      
+      // Handle image update
+      let imageUrl = null;
+      if (image) {
+        // Upload new image if a new one is selected
+        if (image !== selectedPost.image_url) {
+          imageUrl = await uploadImage();
+        } else {
+          // Keep existing image if not changed
+          imageUrl = image;
+        }
+      }
+      // If image is null, it means we want to remove the image
+      
       const { error } = await supabase
         .from('social_posts')
-        .update({ content: editContent.trim() })
+        .update({ 
+          content: editContent.trim(),
+          image_url: imageUrl 
+        })
         .eq('post_id', selectedPost.id);
       
       if (error) throw error;
+
+      // If we had an old image and it was changed or removed, delete it from storage
+      if (selectedPost.image_url && selectedPost.image_url !== imageUrl) {
+        try {
+          // Extract the file name from the URL
+          const oldFileName = selectedPost.image_url.split('/').pop();
+          if (oldFileName) {
+            await supabase.storage
+              .from('post-images')
+              .remove([oldFileName]);
+          }
+        } catch (deleteError) {
+          console.error('Error deleting old image:', deleteError);
+          // Don't throw error here as the post update was successful
+        }
+      }
       
       // Update the post in the local state
       setPosts(posts.map(post => 
         post.id === selectedPost.id 
-          ? { ...post, content: editContent.trim() } 
+          ? { ...post, content: editContent.trim(), image_url: imageUrl } 
           : post
       ));
       
@@ -1348,10 +1562,13 @@ export default function SocialScreen() {
       setShowPostOptions(false);
       setSelectedPost(null);
       setEditContent('');
+      setImage(null);
       
     } catch (error) {
       console.error('Error updating post:', error);
       Alert.alert('Error', 'Failed to update post. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -1359,43 +1576,179 @@ export default function SocialScreen() {
   const handleDeletePost = async () => {
     if (!selectedPost) return;
     
-    Alert.alert(
-      'Eliminar Post',
-      'Tem a certeza que quer eliminar este post?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-          onPress: () => setShowPostOptions(false)
-        },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('posts')
-                .delete()
-                .eq('post_id', selectedPost.id);
-              
-              if (error) throw error;
-              
-              // Remove the post from the local state
-              setPosts(posts.filter(post => post.id !== selectedPost.id));
-              
-              // Reset states
-              setShowPostOptions(false);
-              setSelectedPost(null);
-              
-            } catch (error) {
-              console.error('Error deleting post:', error);
-              Alert.alert('Error', 'Failed to delete post. Please try again.');
-            }
-          }
-        }
-      ]
-    );
+    try {
+      // First delete all reactions for this post
+      const { error: reactionsError } = await supabase
+        .from('post_reactions')
+        .delete()
+        .eq('post_id', selectedPost.id);
+      
+      if (reactionsError) throw reactionsError;
+
+      // Then delete the post itself
+      const { error: postError } = await supabase
+        .from('social_posts')
+        .delete()
+        .eq('post_id', selectedPost.id);
+      
+      if (postError) throw postError;
+      
+      // Remove the post from the local state
+      setPosts(posts.filter(post => post.id !== selectedPost.id));
+      
+      // Reset states
+      setShowPostOptions(false);
+      setSelectedPost(null);
+      
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      Alert.alert('Error', 'Failed to delete post. Please try again.');
+    }
   };
+
+  // Add function to fetch comments for a post
+  const fetchComments = async (postId: string) => {
+    try {
+      setLoadingComments(prev => ({ ...prev, [postId]: true }));
+      
+      // Convert postId to integer since that's what our database expects
+      const postIdInt = parseInt(postId);
+      if (isNaN(postIdInt)) {
+        throw new Error('Invalid post ID');
+      }
+
+      const { data: comments, error } = await supabase
+        .from('post_comments')
+        .select(`
+          id,
+          post_id,
+          user_id,
+          content,
+          created_at
+        `)
+        .eq('post_id', postIdInt)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Get usernames for all user_ids
+      const userIds = [...new Set(comments.map(c => c.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .in('user_id', userIds);
+
+      // Create a map of user_id to username
+      const usernameMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.user_id] = profile.username;
+        return acc;
+      }, {} as { [key: string]: string });
+
+      const formattedComments = comments.map((comment: any) => ({
+        id: comment.id,
+        post_id: comment.post_id,
+        user_id: comment.user_id,
+        username: usernameMap[comment.user_id] || 'anonymous',
+        content: comment.content,
+        created_at: comment.created_at,
+        timeAgo: formatTimeAgo(new Date(comment.created_at))
+      }));
+
+      // Update the post with comments
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === postId 
+            ? { ...post, commentsList: formattedComments }
+            : post
+        )
+      );
+
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      Alert.alert('Error', 'Failed to load comments');
+    } finally {
+      setLoadingComments(prev => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  // Add function to handle adding a new comment
+  const handleAddComment = async (postId: string) => {
+    if (!commentText[postId]?.trim() || !currentUserId) return;
+
+    try {
+      // Convert postId to integer
+      const postIdInt = parseInt(postId);
+      if (isNaN(postIdInt)) {
+        throw new Error('Invalid post ID');
+      }
+
+      const { error } = await supabase
+        .from('post_comments')
+        .insert({
+          post_id: postIdInt,
+          user_id: currentUserId,
+          content: commentText[postId].trim(),
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      // Clear comment text
+      setCommentText(prev => ({ ...prev, [postId]: '' }));
+      
+      // Refresh comments
+      await fetchComments(postId);
+      
+      // Update comment count
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === postId
+            ? { ...post, comments: (post.comments || 0) + 1 }
+            : post
+        )
+      );
+
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      Alert.alert('Error', 'Failed to add comment');
+    }
+  };
+
+  // Add function to toggle comments visibility
+  const toggleComments = async (post: Post) => {
+    if (!post.commentsList) {
+      // Load comments if not already loaded
+      await fetchComments(post.id);
+    }
+    setSelectedPostForComments(post);
+  };
+
+  // Add function to close comments modal
+  const closeCommentsModal = () => {
+    setSelectedPostForComments(null);
+  };
+
+  // Add function to prevent background scrolling
+  useEffect(() => {
+    if (selectedPostForComments) {
+      // Disable scroll on main content when modal is open
+      if (Platform.OS === 'web') {
+        document.body.style.overflow = 'hidden';
+      }
+    } else {
+      // Re-enable scroll when modal is closed
+      if (Platform.OS === 'web') {
+        document.body.style.overflow = 'auto';
+      }
+    }
+    
+    return () => {
+      // Cleanup: re-enable scroll when component unmounts
+      if (Platform.OS === 'web') {
+        document.body.style.overflow = 'auto';
+      }
+    };
+  }, [selectedPostForComments]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -1551,10 +1904,10 @@ export default function SocialScreen() {
                       <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
                     </View>
                   </LinearGradient>
-                  <View>
+                  <TouchableOpacity onPress={() => router.push(`/${post.user_id}`)}>
                     <Text style={[styles.username, { color: isDarkMode ? '#fff' : '#000' }]}>{post.username}</Text>
                     <Text style={[styles.timeAgo, { color: isDarkMode ? '#8e8e93' : '#666' }]}>{post.timeAgo}</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
                 {post.user_id === currentUserId ? (
                   <TouchableOpacity 
@@ -1592,6 +1945,7 @@ export default function SocialScreen() {
                 </LinearGradient>
               )}
 
+              {/* Post Actions */}
               <View style={[styles.postActions, { 
                 borderTopColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)' 
               }]}>
@@ -1613,8 +1967,15 @@ export default function SocialScreen() {
                   <Text style={[styles.actionText, { color: isDarkMode ? '#fff' : '#000' }]}>{post.likes}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionButton}>
-                  <MaterialCommunityIcons name="comment-outline" size={26} color={isDarkMode ? "#fff" : "#000"} />
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => toggleComments(post)}
+                >
+                  <MaterialCommunityIcons 
+                    name={showComments[post.id] ? "comment" : "comment-outline"} 
+                    size={26} 
+                    color={isDarkMode ? "#fff" : "#000"} 
+                  />
                   <Text style={[styles.actionText, { color: isDarkMode ? '#fff' : '#000' }]}>{post.comments}</Text>
                 </TouchableOpacity>
 
@@ -1622,6 +1983,147 @@ export default function SocialScreen() {
                   <Feather name="share" size={24} color={isDarkMode ? "#fff" : "#000"} />
                 </TouchableOpacity>
               </View>
+
+              {/* View Comments Button */}
+              {post.comments > 0 && (
+                <TouchableOpacity
+                  style={[styles.viewCommentsButton, {
+                    borderTopColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)'
+                  }]}
+                  onPress={() => toggleComments(post)}
+                >
+                  <MaterialCommunityIcons
+                    name="comment-text-outline"
+                    size={20}
+                    color={isDarkMode ? "#fff" : "#000"}
+                  />
+                  <Text style={[styles.viewCommentsText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                    View Comments
+                  </Text>
+                  <Text style={styles.commentCount}>
+                    {post.comments} {post.comments === 1 ? 'comment' : 'comments'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Add the Comments Modal */}
+              {selectedPostForComments === post && (
+                <View style={styles.modalOverlay}>
+                  <BlurView intensity={80} style={styles.commentsModal} tint={isDarkMode ? "dark" : "light"}>
+                    <View style={[styles.commentsModalContent, {
+                      backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff',
+                      borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                    }]}>
+                      {/* Modal Header */}
+                      <View style={[styles.modalHeader, {
+                        borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+                      }]}>
+                        <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+                          Comments ({selectedPostForComments.comments})
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.closeButton}
+                          onPress={closeCommentsModal}
+                        >
+                          <Feather name="x" size={20} color={isDarkMode ? "#fff" : "#000"} />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Comments List */}
+                      <View style={styles.commentsListContainer}>
+                        <ScrollView 
+                          style={styles.commentsScrollView}
+                          showsVerticalScrollIndicator={true}
+                          nestedScrollEnabled={true}
+                        >
+                          {loadingComments[selectedPostForComments.id] ? (
+                            <ActivityIndicator size="small" color="#4a90e2" />
+                          ) : (
+                            selectedPostForComments.commentsList?.map((comment) => (
+                              <View key={comment.id} style={styles.commentItem}>
+                                <View style={styles.commentAvatarContainer}>
+                                  <LinearGradient
+                                    colors={['#f2709c', '#ff9472']}
+                                    style={styles.commentAvatarGradient as StyleProp<ViewStyle>}
+                                  >
+                                    <View style={[styles.commentAvatarInner, {
+                                      backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                                      borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0',
+                                      borderWidth: 2,
+                                    }]}>
+                                      <FontAwesome name="user" size={14} color={isDarkMode ? "#fff" : "#333"} />
+                                    </View>
+                                  </LinearGradient>
+                                </View>
+                                <View style={[styles.commentContent, {
+                                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+                                }]}>
+                                  <View style={styles.commentHeader}>
+                                    <Text style={[styles.commentUsername, { color: isDarkMode ? '#fff' : '#000' }]}>
+                                      {comment.username}
+                                    </Text>
+                                    <Text style={[styles.commentTime, { color: isDarkMode ? '#8e8e93' : '#666' }]}>
+                                      {comment.timeAgo}
+                                    </Text>
+                                  </View>
+                                  <Text style={[styles.commentText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                                    {comment.content}
+                                  </Text>
+                                </View>
+                              </View>
+                            ))
+                          )}
+                        </ScrollView>
+                      </View>
+
+                      {/* Comment Input */}
+                      <View style={[styles.commentSection, {
+                        borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+                      }]}>
+                        <View style={styles.commentInput}>
+                          <TextInput
+                            style={[
+                              styles.commentTextInput,
+                              {
+                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                                color: isDarkMode ? '#fff' : '#000'
+                              }
+                            ]}
+                            placeholder="Add a comment..."
+                            placeholderTextColor={isDarkMode ? '#8e8e93' : '#666'}
+                            value={commentText[selectedPostForComments.id] || ''}
+                            onChangeText={(text) => setCommentText(prev => ({ ...prev, [selectedPostForComments.id]: text }))}
+                          />
+                          <TouchableOpacity
+                            style={[
+                              styles.sendButton,
+                              {
+                                backgroundColor: commentText[selectedPostForComments.id]?.trim()
+                                  ? '#4a90e2'
+                                  : isDarkMode
+                                  ? 'rgba(255,255,255,0.1)'
+                                  : 'rgba(0,0,0,0.05)'
+                              }
+                            ]}
+                            onPress={() => {
+                              handleAddComment(selectedPostForComments.id);
+                            }}
+                            disabled={!commentText[selectedPostForComments.id]?.trim()}
+                          >
+                            <Feather
+                              name="send"
+                              size={20}
+                              color={commentText[selectedPostForComments.id]?.trim() ? '#fff' : isDarkMode ? '#8e8e93' : '#666'}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  </BlurView>
+                </View>
+              )}
             </View>
           ))
         )}
@@ -1718,14 +2220,29 @@ export default function SocialScreen() {
                 autoFocus
               />
 
-              {image && (
+              {/* Image Preview and Controls */}
+              {(image || selectedPost?.image_url) && (
                 <View style={[styles.selectedImageContainer, {
                   borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
                 }]}>
-                  <Image source={{ uri: image }} style={styles.selectedImage} />
+                  {(image || selectedPost?.image_url) && (
+                    <Image 
+                      source={{ uri: image || selectedPost?.image_url || '' }}
+                      style={styles.selectedImage} 
+                    />
+                  )}
                   <TouchableOpacity 
                     style={styles.removeImageButton}
-                    onPress={() => setImage(null)}
+                    onPress={() => {
+                      setImage(null);
+                      if (selectedPost) {
+                        // Create a new object with the same properties but null image_url
+                        setSelectedPost({
+                          ...selectedPost,
+                          image_url: null
+                        });
+                      }
+                    }}
                   >
                     <Feather name="x-circle" size={24} color="#fff" />
                   </TouchableOpacity>
@@ -1747,20 +2264,6 @@ export default function SocialScreen() {
                     onPress={takePhoto}
                   >
                     <Feather name="camera" size={22} color="#4a90e2" />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
-                    onPress={handleEmojiSelect}
-                  >
-                    <MaterialCommunityIcons name="emoticon-outline" size={22} color="#4a90e2" />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
-                    onPress={getLocationAsync}
-                  >
-                    <MaterialCommunityIcons name="map-marker-outline" size={22} color="#4a90e2" />
                   </TouchableOpacity>
                 </View>
                 
@@ -1911,6 +2414,7 @@ export default function SocialScreen() {
                     onPress={() => {
                       setEditMode(false);
                       setEditContent('');
+                      setImage(null);
                     }}
                   >
                     <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
@@ -1930,15 +2434,70 @@ export default function SocialScreen() {
                     onChangeText={setEditContent}
                   />
                   
+                  {/* Image Preview and Controls */}
+                  {(image || selectedPost?.image_url) && (
+                    <View style={[styles.selectedImageContainer, {
+                      borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
+                    }]}>
+                      {(image || selectedPost?.image_url) && (
+                        <Image 
+                          source={{ uri: image || selectedPost?.image_url || '' }}
+                          style={styles.selectedImage} 
+                        />
+                      )}
+                      <TouchableOpacity 
+                        style={styles.removeImageButton}
+                        onPress={() => {
+                          setImage(null);
+                          if (selectedPost) {
+                            // Create a new object with the same properties but null image_url
+                            setSelectedPost({
+                              ...selectedPost,
+                              image_url: null
+                            });
+                          }
+                        }}
+                      >
+                        <Feather name="x-circle" size={24} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Image Options */}
+                  <View style={styles.postOptions}>
+                    <Text style={[styles.addToPostText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>
+                      Alterar imagem:
+                    </Text>
+                    <View style={styles.postOptionsRow}>
+                      <TouchableOpacity 
+                        style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+                        onPress={pickImage}
+                      >
+                        <Feather name="image" size={22} color="#4a90e2" />
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+                        onPress={takePhoto}
+                      >
+                        <Feather name="camera" size={22} color="#4a90e2" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  
                   <TouchableOpacity 
                     style={[
                       styles.publishButton,
-                      !editContent.trim() && styles.publishButtonDisabled
+                      ((!editContent.trim() && !image) || uploading) && styles.publishButtonDisabled
                     ]}
                     onPress={handleUpdatePost}
-                    disabled={!editContent.trim()}
+                    disabled={(!editContent.trim() && !image) || uploading}
                   >
-                    <Text style={styles.publishButtonText}>Atualizar</Text>
+                    {uploading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.publishButtonText}>Atualizar</Text>
+                    )}
                   </TouchableOpacity>
                 </ScrollView>
               </>

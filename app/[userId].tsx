@@ -1,112 +1,242 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
-  ScrollView, 
   TouchableOpacity, 
-  Image, 
-  Dimensions, 
-  Platform, 
+  Image,
+  ScrollView,
   ActivityIndicator,
-  SafeAreaView,
-  StatusBar
+  Dimensions
 } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
-import { FontAwesome, Ionicons, Feather } from '@expo/vector-icons';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '@/utils/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '../utils/supabase';
+import { useTheme } from '@/hooks/useTheme';
+import { BlurView } from 'expo-blur';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const AVATAR_SIZE = screenWidth * 0.26;
+const { width: screenWidth } = Dimensions.get('window');
+
+type UserProfile = {
+  id: string;
+  username: string;
+  full_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  experience_level: string | null;
+  goals: string | null;
+  height: number | null;
+  weight: number | null;
+  gender: string | null;
+  days_per_week: number | null;
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 15,
+  },
+  avatarGradient: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#3e3e50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+  },
+  username: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '80%',
+    marginVertical: 20,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  statLabel: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    marginVertical: 20,
+  },
+  button: {
+    paddingHorizontal: 30,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginHorizontal: 10,
+  },
+  followButton: {
+    backgroundColor: '#4a90e2',
+  },
+  messageButton: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginVertical: 15,
+    marginHorizontal: 20,
+  },
+  infoCard: {
+    margin: 20,
+    padding: 20,
+    borderRadius: 15,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  infoLabel: {
+    fontSize: 16,
+    opacity: 0.7,
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    zIndex: 1,
+  },
+});
 
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams();
-  const { user } = useAuth();
-  const [profileData, setProfileData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [userStats, setUserStats] = useState({
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
+  const [stats, setStats] = useState({
     posts: 0,
-    following: 0,
-    followers: 0
+    followers: 0,
+    following: 0
   });
+  const { isDarkMode, colors } = useTheme();
 
   useEffect(() => {
-    if (userId) {
-      fetchUserProfile();
-      checkIfFollowing();
-      fetchUserStats();
-    }
+    fetchUserProfile();
+    fetchUserStats();
+    checkIfFollowing();
+    checkIfOwnProfile();
   }, [userId]);
 
-  const fetchUserProfile = async () => {
-    try {
-      setIsLoading(true);
-      
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-        
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return;
-      }
-      
-      setProfileData(data);
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const checkIfFollowing = async () => {
-    if (!user) return;
-    
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('user_followers')
         .select('*')
         .eq('follower_id', user.id)
-        .eq('following_id', userId)
+        .eq('followed_id', userId)
         .single();
-        
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found" error
+
+      if (error && error.code !== 'PGRST116') {
         console.error('Error checking follow status:', error);
         return;
       }
-      
+
       setIsFollowing(!!data);
     } catch (error) {
       console.error('Error in checkIfFollowing:', error);
     }
   };
 
+  const checkIfOwnProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setIsOwnProfile(user.id === userId);
+      }
+    } catch (error) {
+      console.error('Error checking own profile:', error);
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchUserStats = async () => {
     try {
-      // Get post count
+      // Get posts count
       const { count: postsCount } = await supabase
         .from('social_posts')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
-      
-      // Get followers count
+
+      // Get followers count (you'll need to implement this based on your schema)
+      // This is a placeholder implementation
       const { count: followersCount } = await supabase
         .from('user_followers')
         .select('*', { count: 'exact', head: true })
-        .eq('following_id', userId);
-      
+        .eq('followed_id', userId);
+
       // Get following count
       const { count: followingCount } = await supabase
         .from('user_followers')
         .select('*', { count: 'exact', head: true })
         .eq('follower_id', userId);
-      
-      setUserStats({
+
+      setStats({
         posts: postsCount || 0,
         followers: followersCount || 0,
         following: followingCount || 0
@@ -116,403 +246,223 @@ export default function UserProfileScreen() {
     }
   };
 
-  const handleFollowToggle = async () => {
-    if (!user) {
-      alert('You need to be logged in to follow users');
-      return;
-    }
-
+  const handleFollow = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert('You must be logged in to follow users');
+        return;
+      }
+
+      if (user.id === userId) {
+        alert('You cannot follow yourself');
+        return;
+      }
+
       if (isFollowing) {
         // Unfollow
-        await supabase
+        const { error } = await supabase
           .from('user_followers')
           .delete()
           .eq('follower_id', user.id)
-          .eq('following_id', userId);
+          .eq('followed_id', userId);
+
+        if (error) throw error;
+
+        // Update local state
+        setIsFollowing(false);
+        setStats(prev => ({
+          ...prev,
+          followers: Math.max(0, prev.followers - 1)
+        }));
       } else {
         // Follow
-        await supabase
+        const { error } = await supabase
           .from('user_followers')
           .insert({
             follower_id: user.id,
-            following_id: userId,
+            followed_id: userId,
             created_at: new Date().toISOString()
           });
-      }
 
-      // Update local state optimistically
-      setIsFollowing(!isFollowing);
-      setUserStats(prev => ({
-        ...prev,
-        followers: isFollowing ? prev.followers - 1 : prev.followers + 1
-      }));
-      
-      // Refresh stats from server
-      fetchUserStats();
+        if (error) throw error;
+
+        // Update local state
+        setIsFollowing(true);
+        setStats(prev => ({
+          ...prev,
+          followers: prev.followers + 1
+        }));
+      }
     } catch (error) {
       console.error('Error toggling follow:', error);
-      alert('Failed to update follow status');
+      alert('Failed to update follow status. Please try again.');
     }
   };
 
-  if (isLoading) {
+  const handleMessage = () => {
+    // Implement message functionality
+    console.log('Message button pressed');
+  };
+
+  if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" />
-        <ActivityIndicator size="large" color="#4a90e2" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
-      </SafeAreaView>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     );
   }
 
-  if (!profileData) {
+  if (!userProfile) {
     return (
-      <SafeAreaView style={styles.errorContainer}>
-        <StatusBar barStyle="light-content" />
-        <Text style={styles.errorText}>User not found</Text>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.text }}>User not found</Text>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
-      <Stack.Screen 
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Stack.Screen
         options={{
-          title: profileData.username || 'User Profile',
-          headerStyle: {
-            backgroundColor: '#1a1a2e',
-          },
-          headerTintColor: '#fff',
-          headerShadowVisible: false,
-          headerBackVisible: true,
+          headerShown: false,
         }}
       />
       
-      <ScrollView style={styles.scrollView}>
-        <LinearGradient
-          colors={['#2b2b45', '#1a1a2e']}
-          style={styles.profileHeader}
-        >
-          {/* Back Button */}
-          <TouchableOpacity 
-            style={styles.customBackButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          
-          {/* Profile Image */}
-          <LinearGradient
-            colors={['#f2709c', '#ff9472']}
-            style={styles.avatarGradient}
-          >
-            <View style={styles.avatarContainer}>
-              <FontAwesome name="user" size={AVATAR_SIZE * 0.5} color="#fff" />
-            </View>
-          </LinearGradient>
-          
-          {/* User Info */}
-          <Text style={styles.username}>@{profileData.username}</Text>
-          <Text style={styles.fullName}>{profileData.full_name}</Text>
-          
-          {/* User Bio */}
-          {profileData.bio && (
-            <Text style={styles.bio}>{profileData.bio}</Text>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            // Fallback to the social tab if can't go back
+            router.push('/(tabs)/social');
+          }
+        }}
+      >
+        <Ionicons name="arrow-back" size={24} color={colors.text} />
+      </TouchableOpacity>
+
+      <ScrollView>
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <LinearGradient
+              colors={['#f2709c', '#ff9472']}
+              style={styles.avatarGradient}
+            >
+              <View style={[styles.avatar, { borderColor: colors.background }]}>
+                {userProfile.avatar_url ? (
+                  <Image
+                    source={{ uri: userProfile.avatar_url }}
+                    style={{ width: '100%', height: '100%', borderRadius: 55 }}
+                  />
+                ) : (
+                  <FontAwesome name="user" size={40} color={colors.text} />
+                )}
+              </View>
+            </LinearGradient>
+          </View>
+
+          <Text style={[styles.username, { color: colors.text }]}>
+            @{userProfile.username}
+          </Text>
+          {userProfile.full_name && (
+            <Text style={{ color: colors.text, opacity: 0.7 }}>
+              {userProfile.full_name}
+            </Text>
           )}
-          
-          {/* Stats Row */}
+
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userStats.posts}</Text>
-              <Text style={styles.statLabel}>Posts</Text>
+              <Text style={[styles.statNumber, { color: colors.text }]}>{stats.posts}</Text>
+              <Text style={[styles.statLabel, { color: colors.text }]}>Posts</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userStats.followers}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
+              <Text style={[styles.statNumber, { color: colors.text }]}>{stats.followers}</Text>
+              <Text style={[styles.statLabel, { color: colors.text }]}>Followers</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userStats.following}</Text>
-              <Text style={styles.statLabel}>Following</Text>
+              <Text style={[styles.statNumber, { color: colors.text }]}>{stats.following}</Text>
+              <Text style={[styles.statLabel, { color: colors.text }]}>Following</Text>
             </View>
           </View>
-          
-          {/* Action Buttons */}
-          <View style={styles.actionContainer}>
-            {user?.id !== userId ? (
-              <TouchableOpacity 
-                style={[
-                  styles.followButton, 
-                  isFollowing && styles.followingButton
-                ]}
-                onPress={handleFollowToggle}
+
+          {!isOwnProfile && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.followButton]}
+                onPress={handleFollow}
               >
-                <Text style={styles.followButtonText}>
+                <Text style={[styles.buttonText, { color: '#fff' }]}>
                   {isFollowing ? 'Following' : 'Follow'}
                 </Text>
               </TouchableOpacity>
-            ) : null}
-            
-            <TouchableOpacity style={styles.messageButton}>
-              <Text style={styles.messageButtonText}>Message</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-        
-        {/* User Details */}
-        <View style={styles.detailsContainer}>
-          {/* Fitness Information */}
-          <Text style={styles.sectionTitle}>Fitness Information</Text>
-          
-          <View style={styles.detailsCard}>
-            {profileData.experience_level && (
-              <View style={styles.detailRow}>
-                <Ionicons name="fitness-outline" size={22} color="#4a90e2" />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Experience Level</Text>
-                  <Text style={styles.detailValue}>{profileData.experience_level}</Text>
-                </View>
-              </View>
-            )}
-            
-            {profileData.goals && (
-              <View style={styles.detailRow}>
-                <Ionicons name="flag-outline" size={22} color="#4a90e2" />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Fitness Goals</Text>
-                  <Text style={styles.detailValue}>{profileData.goals}</Text>
-                </View>
-              </View>
-            )}
-            
-            {profileData.days_per_week && (
-              <View style={styles.detailRow}>
-                <Ionicons name="calendar-outline" size={22} color="#4a90e2" />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Workout Days Per Week</Text>
-                  <Text style={styles.detailValue}>{profileData.days_per_week}</Text>
-                </View>
-              </View>
-            )}
-            
-            {(profileData.height || profileData.weight) && (
-              <View style={styles.detailRow}>
-                <Ionicons name="body-outline" size={22} color="#4a90e2" />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Physical Stats</Text>
-                  <Text style={styles.detailValue}>
-                    {profileData.height && `${profileData.height} cm`}
-                    {profileData.height && profileData.weight && " • "}
-                    {profileData.weight && `${profileData.weight} kg`}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
+              <TouchableOpacity
+                style={[styles.button, styles.messageButton]}
+                onPress={handleMessage}
+              >
+                <Text style={[styles.buttonText, { color: colors.text }]}>Message</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Fitness Information
+        </Text>
+
+        <BlurView
+          intensity={isDarkMode ? 40 : 60}
+          tint={isDarkMode ? 'dark' : 'light'}
+          style={styles.infoCard}
+        >
+          {userProfile.height && userProfile.weight && (
+            <View style={[styles.infoRow, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
+              <Text style={[styles.infoLabel, { color: colors.text }]}>Height / Weight</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {userProfile.height}cm / {userProfile.weight}kg
+              </Text>
+            </View>
+          )}
+
+          {userProfile.experience_level && (
+            <View style={[styles.infoRow, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
+              <Text style={[styles.infoLabel, { color: colors.text }]}>Experience Level</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {userProfile.experience_level}
+              </Text>
+            </View>
+          )}
+
+          {userProfile.days_per_week && (
+            <View style={[styles.infoRow, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
+              <Text style={[styles.infoLabel, { color: colors.text }]}>Training Days</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {userProfile.days_per_week} days/week
+              </Text>
+            </View>
+          )}
+
+          {userProfile.goals && (
+            <View style={[styles.infoRow, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
+              <Text style={[styles.infoLabel, { color: colors.text }]}>Goals</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {userProfile.goals}
+              </Text>
+            </View>
+          )}
+
+          {userProfile.bio && (
+            <View style={[styles.infoRow, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
+              <Text style={[styles.infoLabel, { color: colors.text }]}>Bio</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {userProfile.bio}
+              </Text>
+            </View>
+          )}
+        </BlurView>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-  },
-  loadingText: {
-    color: '#fff',
-    marginTop: 10,
-    fontSize: 16,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-  },
-  errorText: {
-    color: '#fff',
-    fontSize: 18,
-    marginBottom: 20,
-  },
-  backButton: {
-    backgroundColor: '#4a90e2',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  profileHeader: {
-    padding: 20,
-    alignItems: 'center',
-    paddingBottom: 30,
-  },
-  avatarGradient: {
-    width: AVATAR_SIZE + 10,
-    height: AVATAR_SIZE + 10,
-    borderRadius: (AVATAR_SIZE + 10) / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  avatarContainer: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#2c2c3e',
-  },
-  username: {
-    color: '#4a90e2',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  fullName: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 5,
-    marginBottom: 10,
-  },
-  bio: {
-    color: '#d1d1d6',
-    fontSize: 16,
-    textAlign: 'center',
-    marginHorizontal: 20,
-    marginBottom: 20,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-    minWidth: 70,
-  },
-  statNumber: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    color: '#8e8e93',
-    fontSize: 14,
-    marginTop: 5,
-  },
-  actionContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  followButton: {
-    backgroundColor: '#4a90e2',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 20,
-    marginHorizontal: 5,
-  },
-  followingButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  followButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  messageButton: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 20,
-    marginHorizontal: 5,
-  },
-  messageButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  detailsContainer: {
-    padding: 20,
-  },
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  detailsCard: {
-    backgroundColor: '#2c2c3e',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
-  detailContent: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  detailLabel: {
-    color: '#8e8e93',
-    fontSize: 14,
-  },
-  detailValue: {
-    color: '#fff',
-    fontSize: 16,
-    marginTop: 2,
-  },
-  customBackButton: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    zIndex: 10,
-  },
-  backText: {
-    color: '#fff',
-    fontSize: 16,
-    marginLeft: 5,
-    fontWeight: '500',
-  },
-});
