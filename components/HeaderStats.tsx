@@ -8,6 +8,20 @@ export default function HeaderStats() {
   const currencyCount = 350; // Example currency count
   const { isDarkMode, colors } = useTheme();
 
+  // Format value with K suffix if over 1000
+  const formatValue = (val: number): string => {
+    if (val >= 1000) {
+      if (val < 10000) {
+        // Format with one decimal place (like 1.2K)
+        return (val / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      } else {
+        // Format without decimal places (like 10K)
+        return Math.floor(val / 1000) + 'K';
+      }
+    }
+    return val.toString();
+  };
+
   return (
     <View style={[
       styles.container, 
@@ -37,7 +51,7 @@ export default function HeaderStats() {
           style={styles.icon} 
           resizeMode="contain"
         />
-        <Text style={[styles.counterText, { color: colors.text }]}>{currencyCount}</Text>
+        <Text style={[styles.counterText, { color: colors.text }]}>{formatValue(currencyCount)}</Text>
       </View>
     </View>
   );

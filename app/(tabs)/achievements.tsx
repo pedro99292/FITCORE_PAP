@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -301,7 +301,7 @@ const StatusFilter = ({
     );
 };
 
-// Componente principal da página
+// Memoized AchievementsPage component to improve performance
 const AchievementsPage = () => {
   const { colors } = useTheme();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -309,6 +309,29 @@ const AchievementsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [filter, setFilter] = useState('Todas');
   const [loading, setLoading] = useState(true);
+  
+  // For trophies section
+  const trophies = useMemo(() => [
+    { id: 1, title: 'Bronze', color: '#CD7F32', unlocked: achievements.length >= 5 },
+    { id: 2, title: 'Prata', color: '#C0C0C0', unlocked: achievements.length >= 10 },
+    { id: 3, title: 'Ouro', color: '#FFD700', unlocked: achievements.length >= 15 },
+    { id: 4, title: 'Platina', color: '#E5E4E2', unlocked: achievements.length >= 20 },
+    { id: 5, title: 'Diamante', color: '#B9F2FF', unlocked: achievements.length >= 25 },
+  ], [achievements]);
+  
+  // Format value with K suffix if over 1000
+  const formatValue = (val: number): string => {
+    if (val >= 1000) {
+      if (val < 10000) {
+        // Format with one decimal place (like 1.2K)
+        return (val / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      } else {
+        // Format without decimal places (like 10K)
+        return Math.floor(val / 1000) + 'K';
+      }
+    }
+    return val.toString();
+  };
   
   // Buscar todas as categorias ao iniciar
   useEffect(() => {
@@ -363,15 +386,6 @@ const AchievementsPage = () => {
   // Calcular conquistas concluídas e em progresso
   const completedAchievements = achievements.filter(achievement => achievement.progress === 100);
   const inProgressAchievements = achievements.filter(achievement => achievement.progress < 100);
-  
-  // Exemplo de troféus (seriam baseados nas conquistas)
-  const trophies = [
-    { id: 1, title: 'Bronze', color: '#CD7F32', unlocked: completedAchievements.length >= 5 },
-    { id: 2, title: 'Prata', color: '#C0C0C0', unlocked: completedAchievements.length >= 10 },
-    { id: 3, title: 'Ouro', color: '#FFD700', unlocked: completedAchievements.length >= 15 },
-    { id: 4, title: 'Platina', color: '#E5E4E2', unlocked: completedAchievements.length >= 20 },
-    { id: 5, title: 'Diamante', color: '#B9F2FF', unlocked: completedAchievements.length >= 25 },
-  ];
     
     return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -390,17 +404,17 @@ const AchievementsPage = () => {
           <Text style={styles.headerTitle}>Conquistas</Text>
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{completedAchievements.length}</Text>
+              <Text style={styles.statValue}>{formatValue(completedAchievements.length)}</Text>
               <Text style={styles.statLabel}>Concluídas</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{inProgressAchievements.length}</Text>
+              <Text style={styles.statValue}>{formatValue(inProgressAchievements.length)}</Text>
               <Text style={styles.statLabel}>Em Progresso</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{achievements.length}</Text>
+              <Text style={styles.statValue}>{formatValue(achievements.length)}</Text>
               <Text style={styles.statLabel}>Total</Text>
             </View>
                 </View>

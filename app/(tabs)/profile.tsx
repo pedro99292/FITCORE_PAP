@@ -104,11 +104,11 @@ export default function ProfileScreen() {
       
       const { data, error } = await supabase
         .from('sessions')
-        .select('date')
+        .select('start_time')
         .eq('user_id', user.id)
         .eq('status', 'completed')
-        .gte('date', startDate)
-        .lt('date', endDate);
+        .gte('start_time', startDate)
+        .lt('start_time', endDate);
       
       if (error) {
         console.error('Error fetching workout days:', error);
@@ -116,7 +116,7 @@ export default function ProfileScreen() {
       }
       
       const days = data.map(session => {
-        const sessionDate = new Date(session.date);
+        const sessionDate = new Date(session.start_time);
         return sessionDate.getDate();
       });
       

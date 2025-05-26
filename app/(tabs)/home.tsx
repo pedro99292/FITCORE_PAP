@@ -133,11 +133,25 @@ const StatItem = memo(({ icon, value, label, isLoading, isRefreshing }: {
     return () => clearInterval(id);
   }, []);
 
+  // Format the display value (add K suffix for values over 1000)
+  const formatValue = (val: number): string => {
+    if (val >= 1000) {
+      if (val < 10000) {
+        // Format with one decimal place (like 1.2K)
+        return (val / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      } else {
+        // Format without decimal places (like 10K)
+        return Math.floor(val / 1000) + 'K';
+      }
+    }
+    return val.toString();
+  };
+
   return (
     <View style={styles.statItem}>
       {icon}
       <Text style={styles.statValue}>
-        {isLoading || isRefreshing ? '-' : displayValue}
+        {isLoading || isRefreshing ? '-' : formatValue(displayValue)}
       </Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>

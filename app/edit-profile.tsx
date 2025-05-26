@@ -225,7 +225,9 @@ export default function EditProfileScreen() {
         options={{
           headerTitle: () => (
             <View style={styles.headerContainer}>
-              <FontAwesome name="arrow-left" size={20} color="#fff" style={{marginRight: 10}} />
+              <TouchableOpacity onPress={handleBackNavigation}>
+                <FontAwesome name="arrow-left" size={20} color="#fff" style={{marginRight: 10}} />
+              </TouchableOpacity>
               <Text style={styles.headerTitle}>Editar Perfil</Text>
             </View>
           ),
