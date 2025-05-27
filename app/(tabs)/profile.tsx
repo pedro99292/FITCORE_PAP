@@ -22,11 +22,13 @@ export default function ProfileScreen() {
     avatarUrl: null,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [workoutDays, setWorkoutDays] = useState([]);
 
   // Fetch user data from database when component mounts
   useEffect(() => {
     if (user) {
       fetchUserProfile();
+      fetchWorkoutDays();
     } else {
       setIsLoading(false);
     }
@@ -85,11 +87,66 @@ export default function ProfileScreen() {
     }
   };
 
-  // Generate an array of days for the calendar (example)
+  // Fetch days with workouts for the current month
+  const fetchWorkoutDays = async () => {
+    try {
+      if (!user) return;
+      
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1; // JS months are 0-indexed
+      
+      // Create date range for current month
+      const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+      const nextMonth = month === 12 ? 1 : month + 1;
+      const nextMonthYear = month === 12 ? year + 1 : year;
+      const endDate = `${nextMonthYear}-${nextMonth.toString().padStart(2, '0')}-01`;
+      
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('date')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .gte('date', startDate)
+        .lt('date', endDate);
+      
+      if (error) {
+        console.error('Error fetching workout days:', error);
+        return;
+      }
+      
+      const days = data.map(session => {
+        const sessionDate = new Date(session.date);
+        return sessionDate.getDate();
+      });
+      
+      setWorkoutDays(days);
+    } catch (error) {
+      console.error('Error fetching workout days:', error);
+    }
+  };
+
+  // Generate an array of days for the calendar preview (showing current week)
   const generateCalendarDays = () => {
+    const today = new Date();
+    const currentDay = today.getDate();
+    const daysToShow = 14; // Show two weeks
+    
+    // Start 3 days before today, or from day 1 if that would be negative
+    let startDay = Math.max(1, currentDay - 3);
+    
+    // Adjust if near the end of the month to always show 14 days
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    if (startDay + daysToShow > daysInMonth) {
+      startDay = Math.max(1, daysInMonth - daysToShow + 1);
+    }
+    
     const days = [];
-    for (let i = 1; i <= 14; i++) {
-      days.push(i);
+    for (let i = 0; i < daysToShow; i++) {
+      const day = startDay + i;
+      if (day <= daysInMonth) {
+        days.push(day);
+      }
     }
     return days;
   };
@@ -215,34 +272,37 @@ export default function ProfileScreen() {
 
           {/* Calendar Section */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Calendário</Text>
-          <View style={[styles.calendarSection, { backgroundColor: colors.surface }]}>
+          <TouchableOpacity 
+            style={[styles.calendarSection, { backgroundColor: colors.surface }]}
+            onPress={() => router.push('/calendar')}
+            activeOpacity={0.8}
+          >
             <View style={styles.calendarHeader}>
               <FontAwesome name="calendar" size={20} color="#4a90e2" />
-              <Text style={[styles.calendarTitle, { color: colors.text }]}>Janeiro 2024</Text>
-              <TouchableOpacity style={styles.calendarAction}>
-                <Text style={styles.calendarActionText}>Ver Tudo</Text>
-              </TouchableOpacity>
+              <Text style={[styles.calendarTitle, { color: colors.text }]}>
+                {new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
+              </Text>
             </View>
             <View style={styles.calendarGrid}>
               {calendarDays.map((day, index) => (
-                <TouchableOpacity 
+                <View 
                   key={index} 
                   style={[
                     styles.calendarDay,
                     { backgroundColor: colors.background },
-                    day === 8 && styles.calendarDayActive
+                    day === new Date().getDate() && styles.calendarDayActive
                   ]}
                 >
                   <Text style={[
                     styles.calendarDayText,
                     { color: colors.text },
-                    day === 8 && styles.calendarDayTextActive
+                    day === new Date().getDate() && styles.calendarDayTextActive
                   ]}>{day}</Text>
-                  {day === 8 && <View style={styles.calendarDayDot} />}
-                </TouchableOpacity>
+                  {workoutDays.includes(day) && <View style={styles.calendarDayDot} />}
+                </View>
               ))}
             </View>
-          </View>
+          </TouchableOpacity>
           
           {/* Achievements Section */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Conquistas Recentes</Text>
@@ -459,17 +519,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: screenWidth * 0.02,
     flex: 1,
-  },
-  calendarAction: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 50,
-    backgroundColor: 'rgba(74, 144, 226, 0.15)',
-  },
-  calendarActionText: {
-    color: '#4a90e2',
-    fontSize: 12,
-    fontWeight: '600',
   },
   calendarGrid: {
     flexDirection: 'row',
