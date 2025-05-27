@@ -14,9 +14,9 @@ import {
   RefreshControl,
   Animated,
   StatusBar,
-  ViewStyle,
-  TextStyle,
-  StyleProp
+  Modal,
+  Keyboard,
+  KeyboardAvoidingView
 } from 'react-native';
 import { FontAwesome, Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -60,762 +60,6 @@ type ImageMapping = {
   [key: string]: string;
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarGradientSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2c2c3e',
-  },
-  headerActions: {
-    flexDirection: 'row',
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  storiesContainer: {
-    height: 110,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  storiesContent: {
-    padding: 15,
-  },
-  storyItem: {
-    alignItems: 'center',
-    marginHorizontal: 8,
-  },
-  storyRing: {
-    width: 65,
-    height: 65,
-    borderRadius: 35,
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  storyInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#1a1a2e',
-  },
-  storyName: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 5,
-  },
-  storyAdd: {
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  storyAddIcon: {
-    width: 55,
-    height: 55,
-    borderRadius: 30,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#4a90e2',
-  },
-  storyAddText: {
-    color: '#4a90e2',
-    fontSize: 12,
-    marginTop: 5,
-  },
-  storyAddRing: {
-    width: 65,
-    height: 65,
-    borderRadius: 35,
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  feed: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  feedContent: {
-    paddingBottom: 80,
-    paddingTop: 5,
-  },
-  loadingContainer: {
-    padding: 15,
-  },
-  loadingCard: {
-    backgroundColor: '#2c2c3e',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  loadingHeader: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  loadingAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#3e3e50',
-    marginRight: 10,
-  },
-  loadingLines: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  loadingLine1: {
-    height: 12,
-    width: '60%',
-    backgroundColor: '#3e3e50',
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  loadingLine2: {
-    height: 10,
-    width: '40%',
-    backgroundColor: '#3e3e50',
-    borderRadius: 5,
-  },
-  loadingImage: {
-    height: 200,
-    borderRadius: 8,
-    backgroundColor: '#3e3e50',
-    marginBottom: 15,
-  },
-  loadingFooter: {
-    flexDirection: 'row',
-  },
-  loadingAction: {
-    height: 20,
-    width: 80,
-    backgroundColor: '#3e3e50',
-    borderRadius: 10,
-    marginRight: 15,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    minHeight: 400,
-  },
-  emptyText: {
-    color: '#fff',
-    marginTop: 15,
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  emptySubtext: {
-    color: '#8e8e93',
-    marginTop: 5,
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 25,
-  },
-  emptyButton: {
-    backgroundColor: '#4a90e2',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 25,
-  },
-  emptyButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  postCard: {
-    backgroundColor: '#2c2c3e',
-    borderRadius: 16,
-    marginHorizontal: 15,
-    marginTop: 15,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarGradient: {
-    width: 45,
-    height: 45,
-    borderRadius: 25,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2c2c3e',
-  },
-  username: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  timeAgo: {
-    color: '#8e8e93',
-    fontSize: 13,
-  },
-  moreButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageContainer: {
-    width: '100%',
-    position: 'relative',
-  },
-  postImage: {
-    width: '100%',
-    height: 350,
-    backgroundColor: '#3e3e50',
-  },
-  doubleTapArea: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    top: 0,
-    left: 0,
-  },
-  postContent: {
-    padding: 15,
-  },
-  postText: {
-    color: '#fff',
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  postActions: {
-    flexDirection: 'row',
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.03)',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  actionText: {
-    color: '#fff',
-    marginLeft: 5,
-    fontSize: 14,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-  },
-  fabGradient: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fabButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-  } as ViewStyle,
-  modalContent: {
-    width: screenWidth - 30,
-    maxHeight: 500,
-    borderRadius: 20,
-    backgroundColor: '#2c2c3e',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  modalHeader: {
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  modalTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  createPostContent: {
-    padding: 15,
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  createPostUsername: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  postInput: {
-    color: '#fff',
-    fontSize: 16,
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  selectedImageContainer: {
-    marginVertical: 15,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    position: 'relative',
-  },
-  selectedImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  postOptions: {
-    marginTop: 15,
-  },
-  addToPostText: {
-    color: '#8e8e93',
-    marginBottom: 10,
-  },
-  postOptionsRow: {
-    flexDirection: 'row',
-  },
-  postOptionButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  publishButton: {
-    backgroundColor: '#4a90e2',
-    padding: 14,
-    borderRadius: 25,
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  publishButtonDisabled: {
-    backgroundColor: 'rgba(74,144,226,0.5)',
-  },
-  publishButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  bottomPadding: {
-    height: 100,
-  },
-  searchModalContent: {
-    width: screenWidth - 30,
-    height: '80%',
-    borderRadius: 20,
-    backgroundColor: '#2c2c3e',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  searchHeader: {
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    height: 40,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#fff',
-    height: 40,
-  },
-  clearButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeSearchButton: {
-    marginLeft: 15,
-  },
-  cancelText: {
-    color: '#4a90e2',
-    fontSize: 16,
-  },
-  searchLoadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  noResultsContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  noResultsText: {
-    color: '#8e8e93',
-    fontSize: 16,
-    marginTop: 10,
-  },
-  searchResultsContainer: {
-    padding: 15,
-    flex: 1,
-  },
-  userResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
-  resultAvatarGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  resultAvatar: {
-    width: 35,
-    height: 35,
-    borderRadius: 18,
-    backgroundColor: '#3e3e50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2c2c3e',
-  },
-  userResultInfo: {
-    flex: 1,
-  },
-  userResultUsername: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  userResultName: {
-    color: '#8e8e93',
-    fontSize: 14,
-  },
-  optionsModal: {
-    width: 280,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  optionText: {
-    fontSize: 16,
-    marginLeft: 12,
-  },
-  cancelOption: {
-    justifyContent: 'center',
-    borderBottomWidth: 0,
-  },
-  locationTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  locationText: {
-    marginLeft: 8,
-    marginRight: 8,
-  },
-  commentSection: {
-    padding: 15,
-    borderTopWidth: 1,
-  },
-  commentInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  commentTextInput: {
-    flex: 1,
-    height: 40,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    marginRight: 10,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  commentsList: {
-    padding: 15,
-  } as ViewStyle,
-  commentItem: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    alignItems: 'flex-start',
-  } as ViewStyle,
-  commentAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    marginRight: 10,
-  },
-  commentContent: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 10,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  commentUsername: {
-    fontWeight: 'bold',
-    marginRight: 8,
-  },
-  commentTime: {
-    fontSize: 12,
-  },
-  commentText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  showCommentsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-  },
-  showCommentsText: {
-    marginLeft: 5,
-  },
-  viewCommentsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderTopWidth: 1,
-  },
-  viewCommentsText: {
-    marginLeft: 8,
-    fontSize: 14,
-  },
-  commentCount: {
-    fontSize: 14,
-    color: '#8e8e93',
-    marginLeft: 'auto',
-  },
-  commentsModal: {
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  } as ViewStyle,
-  commentsModalContent: {
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    backgroundColor: '#2c2c3e',
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  } as ViewStyle,
-  commentsListContainer: {
-    flex: 1,
-    maxHeight: Dimensions.get('window').height * 0.5,
-  } as ViewStyle,
-  commentsScrollView: {
-    maxHeight: Dimensions.get('window').height * 0.5,
-  } as ViewStyle,
-  commentInputContainer: {
-    padding: 15,
-    borderTopWidth: 1,
-  },
-  modalCloseButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  commentAvatarContainer: {
-    width: 30,
-    height: 30,
-    marginRight: 10,
-  } as ViewStyle,
-  commentAvatarGradient: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  } as ViewStyle,
-  commentAvatarInner: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
-  } as ViewStyle,
-});
-
 export default function SocialScreen() {
   const { isDarkMode, colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -855,8 +99,8 @@ export default function SocialScreen() {
   const [commentText, setCommentText] = useState<{ [key: string]: string }>({});
   const [loadingComments, setLoadingComments] = useState<{ [key: string]: boolean }>({});
 
-  // Add state for the comments modal
-  const [selectedPostForComments, setSelectedPostForComments] = useState<Post | null>(null);
+  // Add this new state for modal animation
+  const modalAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let isMounted = true;
@@ -981,11 +225,11 @@ export default function SocialScreen() {
         
         post.likes = likeCount || 0;
 
+        // Get comment count from post_comments table
         const { count: commentCount } = await supabase
-          .from('post_reactions')
+          .from('post_comments')
           .select('*', { count: 'exact', head: true })
-          .eq('post_id', post.id)
-          .not('comment', 'is', null);
+          .eq('post_id', post.id);
         
         post.comments = commentCount || 0;
       }
@@ -1617,6 +861,7 @@ export default function SocialScreen() {
         throw new Error('Invalid post ID');
       }
 
+      // First get the comments
       const { data: comments, error } = await supabase
         .from('post_comments')
         .select(`
@@ -1624,31 +869,19 @@ export default function SocialScreen() {
           post_id,
           user_id,
           content,
-          created_at
+          created_at,
+          users!user_id (username)
         `)
         .eq('post_id', postIdInt)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      // Get usernames for all user_ids
-      const userIds = [...new Set(comments.map(c => c.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, username')
-        .in('user_id', userIds);
-
-      // Create a map of user_id to username
-      const usernameMap = (profiles || []).reduce((acc, profile) => {
-        acc[profile.user_id] = profile.username;
-        return acc;
-      }, {} as { [key: string]: string });
-
       const formattedComments = comments.map((comment: any) => ({
         id: comment.id,
         post_id: comment.post_id,
         user_id: comment.user_id,
-        username: usernameMap[comment.user_id] || 'anonymous',
+        username: comment.users?.username || 'anonymous',
         content: comment.content,
         created_at: comment.created_at,
         timeAgo: formatTimeAgo(new Date(comment.created_at))
@@ -1681,6 +914,13 @@ export default function SocialScreen() {
       if (isNaN(postIdInt)) {
         throw new Error('Invalid post ID');
       }
+
+      // Get current user's username
+      const { data: userData } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', currentUserId)
+        .single();
 
       const { error } = await supabase
         .from('post_comments')
@@ -1715,40 +955,926 @@ export default function SocialScreen() {
   };
 
   // Add function to toggle comments visibility
-  const toggleComments = async (post: Post) => {
-    if (!post.commentsList) {
-      // Load comments if not already loaded
-      await fetchComments(post.id);
-    }
-    setSelectedPostForComments(post);
-  };
-
-  // Add function to close comments modal
-  const closeCommentsModal = () => {
-    setSelectedPostForComments(null);
-  };
-
-  // Add function to prevent background scrolling
-  useEffect(() => {
-    if (selectedPostForComments) {
-      // Disable scroll on main content when modal is open
-      if (Platform.OS === 'web') {
-        document.body.style.overflow = 'hidden';
-      }
-    } else {
-      // Re-enable scroll when modal is closed
-      if (Platform.OS === 'web') {
-        document.body.style.overflow = 'auto';
-      }
-    }
+  const toggleComments = async (postId: string) => {
+    const isVisible = showComments[postId];
+    setShowComments(prev => ({ ...prev, [postId]: !isVisible }));
     
-    return () => {
-      // Cleanup: re-enable scroll when component unmounts
-      if (Platform.OS === 'web') {
-        document.body.style.overflow = 'auto';
-      }
-    };
-  }, [selectedPostForComments]);
+    if (!isVisible && !posts.find(p => p.id === postId)?.commentsList) {
+      await fetchComments(postId);
+    }
+  };
+
+  // Add these functions for modal animation
+  const showCommentsModal = (postId: string) => {
+    setShowComments(prev => ({ ...prev, [postId]: true }));
+    fetchComments(postId);
+    Animated.spring(modalAnimation, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11
+    }).start();
+  };
+
+  const hideCommentsModal = (postId: string) => {
+    Animated.timing(modalAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true
+    }).start(() => {
+      setShowComments(prev => ({ ...prev, [postId]: false }));
+    });
+  };
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#1a1a2e',
+    },
+    header: {
+      paddingTop: Platform.OS === 'ios' ? 50 : 20,
+      paddingBottom: 15,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    profileButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatarGradientSmall: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatarSmall: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: '#3e3e50',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: '#2c2c3e',
+    },
+    headerActions: {
+      flexDirection: 'row',
+    },
+    iconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 10,
+    },
+    storiesContainer: {
+      height: 110,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.1)',
+    },
+    storiesContent: {
+      padding: 15,
+    },
+    storyItem: {
+      alignItems: 'center',
+      marginHorizontal: 8,
+    },
+    storyRing: {
+      width: 65,
+      height: 65,
+      borderRadius: 35,
+      padding: 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    storyInner: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: '#3e3e50',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: '#1a1a2e',
+    },
+    storyName: {
+      color: '#fff',
+      fontSize: 12,
+      marginTop: 5,
+    },
+    storyAdd: {
+      alignItems: 'center',
+      marginRight: 8,
+    },
+    storyAddIcon: {
+      width: 55,
+      height: 55,
+      borderRadius: 30,
+      backgroundColor: 'rgba(0,0,0,0.2)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: '#4a90e2',
+    },
+    storyAddText: {
+      color: '#4a90e2',
+      fontSize: 12,
+      marginTop: 5,
+    },
+    storyAddRing: {
+      width: 65,
+      height: 65,
+      borderRadius: 35,
+      padding: 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    feed: {
+      flex: 1,
+      backgroundColor: '#1a1a2e',
+    },
+    feedContent: {
+      paddingBottom: 80,
+      paddingTop: 5,
+    },
+    loadingContainer: {
+      padding: 15,
+    },
+    loadingCard: {
+      backgroundColor: '#2c2c3e',
+      borderRadius: 12,
+      padding: 15,
+      marginBottom: 15,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 3,
+        },
+      }),
+    },
+    loadingHeader: {
+      flexDirection: 'row',
+      marginBottom: 15,
+    },
+    loadingAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#3e3e50',
+      marginRight: 10,
+    },
+    loadingLines: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    loadingLine1: {
+      height: 12,
+      width: '60%',
+      backgroundColor: '#3e3e50',
+      borderRadius: 6,
+      marginBottom: 8,
+    },
+    loadingLine2: {
+      height: 10,
+      width: '40%',
+      backgroundColor: '#3e3e50',
+      borderRadius: 5,
+    },
+    loadingImage: {
+      height: 200,
+      borderRadius: 8,
+      backgroundColor: '#3e3e50',
+      marginBottom: 15,
+    },
+    loadingFooter: {
+      flexDirection: 'row',
+    },
+    loadingAction: {
+      height: 20,
+      width: 80,
+      backgroundColor: '#3e3e50',
+      borderRadius: 10,
+      marginRight: 15,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+      minHeight: 400,
+    },
+    emptyText: {
+      color: '#fff',
+      marginTop: 15,
+      fontSize: 20,
+      fontWeight: 'bold',
+    },
+    emptySubtext: {
+      color: '#8e8e93',
+      marginTop: 5,
+      fontSize: 16,
+      textAlign: 'center',
+      marginBottom: 25,
+    },
+    emptyButton: {
+      backgroundColor: '#4a90e2',
+      paddingVertical: 12,
+      paddingHorizontal: 25,
+      borderRadius: 25,
+    },
+    emptyButtonText: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 16,
+    },
+    postCard: {
+      backgroundColor: '#2c2c3e',
+      borderRadius: 16,
+      marginHorizontal: 15,
+      marginTop: 15,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.05)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 5,
+        },
+      }),
+    },
+    postHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.03)',
+    },
+    userInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    avatarGradient: {
+      width: 45,
+      height: 45,
+      borderRadius: 25,
+      marginRight: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#3e3e50',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: '#2c2c3e',
+    },
+    username: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 16,
+    },
+    timeAgo: {
+      color: '#8e8e93',
+      fontSize: 13,
+    },
+    moreButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    imageContainer: {
+      width: '100%',
+      position: 'relative',
+    },
+    postImage: {
+      width: '100%',
+      height: 350,
+      backgroundColor: '#3e3e50',
+    },
+    doubleTapArea: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      top: 0,
+      left: 0,
+    },
+    postContent: {
+      padding: 15,
+    },
+    postText: {
+      color: '#fff',
+      fontSize: 16,
+      lineHeight: 22,
+    },
+    postActions: {
+      flexDirection: 'row',
+      padding: 12,
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(255,255,255,0.03)',
+    },
+    actionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: 20,
+    },
+    actionText: {
+      color: '#fff',
+      marginLeft: 5,
+      fontSize: 14,
+    },
+    fab: {
+      position: 'absolute',
+      right: 20,
+      bottom: 20,
+    },
+    fabGradient: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fabButton: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.7)',
+    },
+    modalContent: {
+      width: screenWidth - 30,
+      maxHeight: 500,
+      borderRadius: 20,
+      backgroundColor: '#2c2c3e',
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
+    },
+    modalHeader: {
+      paddingVertical: 15,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.1)',
+      backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    modalTitle: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
+    closeButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    createPostContent: {
+      padding: 15,
+    },
+    userRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 15,
+    },
+    createPostUsername: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+    postInput: {
+      color: '#fff',
+      fontSize: 16,
+      minHeight: 100,
+      textAlignVertical: 'top',
+    },
+    selectedImageContainer: {
+      marginVertical: 15,
+      borderRadius: 12,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.2)',
+      position: 'relative',
+    },
+    selectedImage: {
+      width: '100%',
+      height: 200,
+      borderRadius: 12,
+    },
+    removeImageButton: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      borderRadius: 15,
+      width: 30,
+      height: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    postOptions: {
+      marginTop: 15,
+    },
+    addToPostText: {
+      color: '#8e8e93',
+      marginBottom: 10,
+    },
+    postOptionsRow: {
+      flexDirection: 'row',
+    },
+    postOptionButton: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 10,
+    },
+    publishButton: {
+      backgroundColor: '#4a90e2',
+      padding: 14,
+      borderRadius: 25,
+      marginTop: 20,
+      alignItems: 'center',
+    },
+    publishButtonDisabled: {
+      backgroundColor: 'rgba(74,144,226,0.5)',
+    },
+    publishButtonText: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 16,
+    },
+    bottomPadding: {
+      height: 100,
+    },
+    searchModalContent: {
+      width: screenWidth - 30,
+      height: '80%',
+      borderRadius: 20,
+      backgroundColor: '#2c2c3e',
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
+    },
+    searchHeader: {
+      paddingVertical: 15,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.1)',
+      backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    searchInputContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.2)',
+      borderRadius: 20,
+      paddingHorizontal: 15,
+      height: 40,
+    },
+    searchIcon: {
+      marginRight: 10,
+    },
+    searchInput: {
+      flex: 1,
+      color: '#fff',
+      height: 40,
+    },
+    clearButton: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeSearchButton: {
+      marginLeft: 15,
+    },
+    cancelText: {
+      color: '#4a90e2',
+      fontSize: 16,
+    },
+    searchLoadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    noResultsContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    noResultsText: {
+      color: '#8e8e93',
+      fontSize: 16,
+      marginTop: 10,
+    },
+    searchResultsContainer: {
+      padding: 15,
+      flex: 1,
+    },
+    userResultItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    resultAvatarGradient: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 15,
+    },
+    resultAvatar: {
+      width: 35,
+      height: 35,
+      borderRadius: 18,
+      backgroundColor: '#3e3e50',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: '#2c2c3e',
+    },
+    userResultInfo: {
+      flex: 1,
+    },
+    userResultUsername: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 16,
+    },
+    userResultName: {
+      color: '#8e8e93',
+      fontSize: 14,
+    },
+    optionsModal: {
+      width: 280,
+      borderRadius: 16,
+      overflow: 'hidden',
+      borderWidth: 1,
+    },
+    optionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.1)',
+    },
+    optionText: {
+      fontSize: 16,
+      marginLeft: 12,
+    },
+    cancelOption: {
+      justifyContent: 'center',
+      borderBottomWidth: 0,
+    },
+    locationTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 8,
+      borderRadius: 12,
+      marginTop: 10,
+    },
+    locationText: {
+      marginLeft: 8,
+      marginRight: 8,
+    },
+    commentSection: {
+      padding: 15,
+      borderTopWidth: 1,
+    },
+    commentInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    commentTextInput: {
+      flex: 1,
+      height: 40,
+      borderRadius: 20,
+      paddingHorizontal: 15,
+      marginRight: 10,
+    },
+    sendButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    commentsList: {
+      marginTop: 10,
+    },
+    commentItem: {
+      flexDirection: 'row',
+      marginBottom: 15,
+    },
+    commentAvatar: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      marginRight: 10,
+    },
+    commentContent: {
+      flex: 1,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      borderRadius: 12,
+      padding: 10,
+    },
+    commentHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 5,
+    },
+    commentUsername: {
+      fontWeight: 'bold',
+      marginRight: 8,
+    },
+    commentTime: {
+      fontSize: 12,
+    },
+    commentText: {
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    showCommentsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 10,
+    },
+    showCommentsText: {
+      marginLeft: 5,
+    },
+    viewCommentsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 15,
+      borderTopWidth: 1,
+    },
+    viewCommentsText: {
+      marginLeft: 8,
+      fontSize: 14,
+    },
+    commentCount: {
+      fontSize: 14,
+      color: '#8e8e93',
+      marginLeft: 'auto',
+    },
+    commentsModalContainer: {
+      margin: 0,
+      justifyContent: 'flex-end',
+    },
+    commentsModalContent: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      borderTopLeftRadius: 15,
+      borderTopRightRadius: 15,
+      maxHeight: Dimensions.get('window').height * 0.7,
+    },
+    commentsModalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: 'rgba(0,0,0,0.2)',
+      alignSelf: 'center',
+      marginVertical: 8,
+    },
+    commentsModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 15,
+      borderBottomWidth: 1,
+      position: 'relative',
+    },
+    commentsModalTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+    commentsCloseButton: {
+      position: 'absolute',
+      right: 15,
+      top: 15,
+    },
+    commentsListContainer: {
+      flex: 1,
+      padding: 15,
+    },
+    commentsInputContainer: {
+      borderTopWidth: 1,
+      padding: 15,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff', // Add background color
+      paddingBottom: Platform.OS === 'ios' ? 30 : 15, // Add extra padding for iOS
+    },
+    commentsInput: {
+      flex: 1,
+      borderRadius: 20,
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+      marginRight: 10,
+      fontSize: 16,
+    },
+    commentsSendButton: {
+      width: 35,
+      height: 35,
+      borderRadius: 17.5,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  });
+
+  // Place this before the return statement
+  const renderCommentsModal = (post: Post) => (
+    <Modal
+      key={`modal-${post.id}`}
+      visible={showComments[post.id] || false}
+      transparent
+      animationType="none"
+      onRequestClose={() => hideCommentsModal(post.id)}
+    >
+      <TouchableOpacity
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+        activeOpacity={1}
+        onPress={() => hideCommentsModal(post.id)}
+      >
+        <Animated.View
+          style={[
+            styles.commentsModalContent,
+            {
+              backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
+              transform: [{
+                translateY: modalAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [Dimensions.get('window').height, 0]
+                })
+              }]
+            }
+          ]}
+        >
+          <View style={{ maxHeight: Dimensions.get('window').height * 0.8 }}>
+            <TouchableOpacity activeOpacity={1} onPress={() => Keyboard.dismiss()}>
+              <View style={styles.commentsModalHandle} />
+              <View style={[styles.commentsModalHeader, {
+                borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+              }]}>
+                <Text style={[styles.commentsModalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+                  Comments
+                </Text>
+                <TouchableOpacity
+                  style={styles.commentsCloseButton}
+                  onPress={() => hideCommentsModal(post.id)}
+                >
+                  <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+
+            <ScrollView 
+              style={styles.commentsListContainer}
+              keyboardShouldPersistTaps="handled"
+            >
+              {loadingComments[post.id] ? (
+                <ActivityIndicator size="small" color="#4a90e2" style={{ marginTop: 20 }} />
+              ) : (
+                post.commentsList?.map((comment) => (
+                  <View key={comment.id} style={styles.commentItem}>
+                    <LinearGradient
+                      colors={['#f2709c', '#ff9472']}
+                      style={styles.commentAvatar}
+                    >
+                      <View style={[styles.avatar, {
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                        borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                      }]}>
+                        <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
+                      </View>
+                    </LinearGradient>
+                    <View style={[styles.commentContent, {
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+                    }]}>
+                      <View style={styles.commentHeader}>
+                        <Text style={[styles.commentUsername, { color: isDarkMode ? '#fff' : '#000' }]}>
+                          {comment.username}
+                        </Text>
+                        <Text style={[styles.commentTime, { color: isDarkMode ? '#8e8e93' : '#666' }]}>
+                          {comment.timeAgo}
+                        </Text>
+                      </View>
+                      <Text style={[styles.commentText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                        {comment.content}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )}
+              <View style={{ height: 15 }} />
+            </ScrollView>
+
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            >
+              <View style={[styles.commentsInputContainer, {
+                borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              }]}>
+                <TextInput
+                  style={[styles.commentsInput, {
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                    color: isDarkMode ? '#fff' : '#000'
+                  }]}
+                  placeholder="Add a comment..."
+                  placeholderTextColor={isDarkMode ? '#8e8e93' : '#666'}
+                  value={commentText[post.id] || ''}
+                  onChangeText={(text) => setCommentText(prev => ({ ...prev, [post.id]: text }))}
+                />
+                <TouchableOpacity
+                  style={[styles.commentsSendButton, {
+                    backgroundColor: commentText[post.id]?.trim()
+                      ? '#4a90e2'
+                      : isDarkMode
+                      ? 'rgba(255,255,255,0.1)'
+                      : 'rgba(0,0,0,0.05)'
+                  }]}
+                  onPress={() => handleAddComment(post.id)}
+                  disabled={!commentText[post.id]?.trim()}
+                >
+                  <Feather
+                    name="send"
+                    size={18}
+                    color={commentText[post.id]?.trim() ? '#fff' : isDarkMode ? '#8e8e93' : '#666'}
+                  />
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -1969,14 +2095,16 @@ export default function SocialScreen() {
 
                 <TouchableOpacity 
                   style={styles.actionButton}
-                  onPress={() => toggleComments(post)}
+                  onPress={() => showCommentsModal(post.id)}
                 >
                   <MaterialCommunityIcons 
-                    name={showComments[post.id] ? "comment" : "comment-outline"} 
+                    name="comment-outline"
                     size={26} 
                     color={isDarkMode ? "#fff" : "#000"} 
                   />
-                  <Text style={[styles.actionText, { color: isDarkMode ? '#fff' : '#000' }]}>{post.comments}</Text>
+                  <Text style={[styles.actionText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                    {post.comments}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionButton}>
@@ -1984,146 +2112,59 @@ export default function SocialScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* View Comments Button */}
-              {post.comments > 0 && (
+              {/* Comments Input Section */}
+              <View style={[styles.commentSection, {
+                borderTopColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)'
+              }]}>
+                <View style={styles.commentInput}>
+                  <TextInput
+                    style={[styles.commentTextInput, {
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                      color: isDarkMode ? '#fff' : '#000'
+                    }]}
+                    placeholder="Write a comment..."
+                    placeholderTextColor={isDarkMode ? '#8e8e93' : '#666'}
+                    value={commentText[post.id] || ''}
+                    onChangeText={(text) => setCommentText(prev => ({ ...prev, [post.id]: text }))}
+                  />
+                  <TouchableOpacity
+                    style={[styles.sendButton, {
+                      backgroundColor: commentText[post.id]?.trim() ? '#4a90e2' : isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
+                    }]}
+                    onPress={() => handleAddComment(post.id)}
+                    disabled={!commentText[post.id]?.trim()}
+                  >
+                    <Feather
+                      name="send"
+                      size={20}
+                      color={commentText[post.id]?.trim() ? '#fff' : isDarkMode ? '#8e8e93' : '#666'}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* View Comments Button */}
                 <TouchableOpacity
                   style={[styles.viewCommentsButton, {
                     borderTopColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)'
                   }]}
-                  onPress={() => toggleComments(post)}
+                  onPress={() => showCommentsModal(post.id)}
                 >
                   <MaterialCommunityIcons
                     name="comment-text-outline"
                     size={20}
-                    color={isDarkMode ? "#fff" : "#000"}
+                    color={isDarkMode ? '#8e8e93' : '#666'}
                   />
-                  <Text style={[styles.viewCommentsText, { color: isDarkMode ? '#fff' : '#000' }]}>
-                    View Comments
+                  <Text style={[styles.viewCommentsText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>
+                    View all comments
                   </Text>
-                  <Text style={styles.commentCount}>
-                    {post.comments} {post.comments === 1 ? 'comment' : 'comments'}
+                  <Text style={[styles.commentCount, { color: isDarkMode ? '#8e8e93' : '#666' }]}>
+                    {post.comments}
                   </Text>
                 </TouchableOpacity>
-              )}
+              </View>
 
-              {/* Add the Comments Modal */}
-              {selectedPostForComments === post && (
-                <View style={styles.modalOverlay}>
-                  <BlurView intensity={80} style={styles.commentsModal} tint={isDarkMode ? "dark" : "light"}>
-                    <View style={[styles.commentsModalContent, {
-                      backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff',
-                      borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                    }]}>
-                      {/* Modal Header */}
-                      <View style={[styles.modalHeader, {
-                        borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
-                      }]}>
-                        <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
-                          Comments ({selectedPostForComments.comments})
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.closeButton}
-                          onPress={closeCommentsModal}
-                        >
-                          <Feather name="x" size={20} color={isDarkMode ? "#fff" : "#000"} />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* Comments List */}
-                      <View style={styles.commentsListContainer}>
-                        <ScrollView 
-                          style={styles.commentsScrollView}
-                          showsVerticalScrollIndicator={true}
-                          nestedScrollEnabled={true}
-                        >
-                          {loadingComments[selectedPostForComments.id] ? (
-                            <ActivityIndicator size="small" color="#4a90e2" />
-                          ) : (
-                            selectedPostForComments.commentsList?.map((comment) => (
-                              <View key={comment.id} style={styles.commentItem}>
-                                <View style={styles.commentAvatarContainer}>
-                                  <LinearGradient
-                                    colors={['#f2709c', '#ff9472']}
-                                    style={styles.commentAvatarGradient as StyleProp<ViewStyle>}
-                                  >
-                                    <View style={[styles.commentAvatarInner, {
-                                      backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
-                                      borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0',
-                                      borderWidth: 2,
-                                    }]}>
-                                      <FontAwesome name="user" size={14} color={isDarkMode ? "#fff" : "#333"} />
-                                    </View>
-                                  </LinearGradient>
-                                </View>
-                                <View style={[styles.commentContent, {
-                                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
-                                }]}>
-                                  <View style={styles.commentHeader}>
-                                    <Text style={[styles.commentUsername, { color: isDarkMode ? '#fff' : '#000' }]}>
-                                      {comment.username}
-                                    </Text>
-                                    <Text style={[styles.commentTime, { color: isDarkMode ? '#8e8e93' : '#666' }]}>
-                                      {comment.timeAgo}
-                                    </Text>
-                                  </View>
-                                  <Text style={[styles.commentText, { color: isDarkMode ? '#fff' : '#000' }]}>
-                                    {comment.content}
-                                  </Text>
-                                </View>
-                              </View>
-                            ))
-                          )}
-                        </ScrollView>
-                      </View>
-
-                      {/* Comment Input */}
-                      <View style={[styles.commentSection, {
-                        borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
-                      }]}>
-                        <View style={styles.commentInput}>
-                          <TextInput
-                            style={[
-                              styles.commentTextInput,
-                              {
-                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                                color: isDarkMode ? '#fff' : '#000'
-                              }
-                            ]}
-                            placeholder="Add a comment..."
-                            placeholderTextColor={isDarkMode ? '#8e8e93' : '#666'}
-                            value={commentText[selectedPostForComments.id] || ''}
-                            onChangeText={(text) => setCommentText(prev => ({ ...prev, [selectedPostForComments.id]: text }))}
-                          />
-                          <TouchableOpacity
-                            style={[
-                              styles.sendButton,
-                              {
-                                backgroundColor: commentText[selectedPostForComments.id]?.trim()
-                                  ? '#4a90e2'
-                                  : isDarkMode
-                                  ? 'rgba(255,255,255,0.1)'
-                                  : 'rgba(0,0,0,0.05)'
-                              }
-                            ]}
-                            onPress={() => {
-                              handleAddComment(selectedPostForComments.id);
-                            }}
-                            disabled={!commentText[selectedPostForComments.id]?.trim()}
-                          >
-                            <Feather
-                              name="send"
-                              size={20}
-                              color={commentText[selectedPostForComments.id]?.trim() ? '#fff' : isDarkMode ? '#8e8e93' : '#666'}
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                  </BlurView>
-                </View>
-              )}
+              {/* Comments Modal */}
+              {renderCommentsModal(post)}
             </View>
           ))
         )}
@@ -2530,6 +2571,9 @@ export default function SocialScreen() {
           </View>
         </BlurView>
       )}
+
+      {/* Add this at the end of the return statement */}
+      {posts.map(post => renderCommentsModal(post))}
     </View>
   );
 } 

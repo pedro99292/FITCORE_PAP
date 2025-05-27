@@ -11,18 +11,27 @@ import { supabase } from '@/utils/supabase';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const AVATAR_SIZE = screenWidth * 0.26; 
 
+// Add these type definitions before the component
+interface UserData {
+  username: string;
+  name: string;
+  bio: string;
+  avatar: any; // Using any for the require() image type
+  avatarUrl: string | null;
+}
+
 export default function ProfileScreen() {
   const { user, loading } = useAuth();
   const { colors, isDarkMode } = useTheme();
-  const [userData, setUserData] = useState({
+  const [userData, setUserData] = useState<UserData>({
     username: user?.email?.split('@')[0] || 'USERNAME_123',
     name: user?.user_metadata?.full_name || 'Utilizador',
     bio: '',
-    avatar: null,
+    avatar: require('../../assets/images/default-avatar.png'),
     avatarUrl: null,
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [workoutDays, setWorkoutDays] = useState([]);
+  const [workoutDays, setWorkoutDays] = useState<number[]>([]);
 
   // Fetch user data from database when component mounts
   useEffect(() => {
