@@ -11,9 +11,13 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { Asset } from 'expo-asset';
 
-import { Colors } from '@/constants/Colors';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ThemeProvider, useTheme } from '@/hooks/useTheme';
+import { Colors } from '../constants/Colors';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { ThemeProvider, useTheme } from '../hooks/useTheme';
+import { SubscriptionProvider } from '../contexts/SubscriptionContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import SubscriptionModal from '../components/SubscriptionModal';
+import SurveyModal from '../components/SurveyModal';
 
 // Disable specific LogBox warnings
 LogBox.ignoreLogs([
@@ -125,36 +129,76 @@ const LoadingScreen = () => {
   );
 };
 
-const StackNavigator = memo(() => {
+const SubscriptionWrapper = () => {
+  const { user } = useAuth();
+  const { showSubscriptionModal, showSurveyModal, setShowSubscriptionModal, setShowSurveyModal, subscribe } = useSubscription();
+
+  // Only show subscription modals if user is authenticated
+  if (!user) return null;
+
+  const handleSubscribe = async (type: 'monthly' | 'annual' | 'lifetime') => {
+    await subscribe(type);
+  };
+
+  return (
+    <>
+      {showSubscriptionModal && (
+        <SubscriptionModal
+          isVisible={showSubscriptionModal}
+          onClose={() => setShowSubscriptionModal(false)}
+          onSubscribe={handleSubscribe}
+        />
+      )}
+      {showSurveyModal && (
+        <SurveyModal
+          isVisible={showSurveyModal}
+          onClose={() => setShowSurveyModal(false)}
+          onSubmit={(data) => {
+            // Handle survey submission
+            setShowSurveyModal(false);
+          }}
+        />
+      )}
+    </>
+  );
+};
+
+const MainLayout = () => {
   const { isDarkMode, colors } = useTheme();
-  
+  const { user } = useAuth();
+
   return (
     <>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      <Suspense fallback={<LoadingScreen />}>
-        <Stack
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: colors.background,
-            },
-            headerTintColor: colors.text,
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-            headerShown: false,
-          }}>
-          <Stack.Screen name="index" options={{ title: 'Home' }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerShown: false,
+        }}>
+        {/* Show auth screens when not logged in */}
+        {!user ? (
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: true }} />
-          <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile', headerShown: true }} />
-        </Stack>
-      </Suspense>
+        ) : (
+          <>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: true }} />
+            <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile', headerShown: true }} />
+          </>
+        )}
+      </Stack>
+      {/* Only render subscription components when user is logged in */}
+      {user && <SubscriptionWrapper />}
     </>
   );
-});
+};
 
-export default function RootLayout() {
+const RootLayout = () => {
   const [appIsReady, setAppIsReady] = React.useState(false);
 
   useEffect(() => {
@@ -190,8 +234,12 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <StackNavigator />
+        <SubscriptionProvider>
+          <MainLayout />
+        </SubscriptionProvider>
       </ThemeProvider>
     </AuthProvider>
   );
-}
+};
+
+export default RootLayout;

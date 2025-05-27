@@ -937,7 +937,7 @@ export default function WorkoutBuilderScreen() {
                 },
                 headerShadowVisible: false,
               headerLeft: () => (
-                <TouchableOpacity onPress={goBack} style={{ marginLeft: 10 }}>
+                <TouchableOpacity onPress={() => router.push('/workouts')} style={{ marginLeft: 10 }}>
                     <Ionicons name="arrow-back" size={24} color={extendedColors.accent} />
                   </TouchableOpacity>
                 ),
@@ -1090,7 +1090,7 @@ export default function WorkoutBuilderScreen() {
             <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => router.push('/(tabs)/profile')}
+            onPress={() => router.push('/workouts')}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-back-outline" size={20} color="#fff" />
