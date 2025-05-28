@@ -269,15 +269,6 @@ export const useCombinedExercises = (params?: FetchExercisesParams) => {
             exerciseImageUrl = wgerExercise.images[0].image;
           }
         }
-
-        // Get muscle image URL as fallback
-        let muscleImageUrl = 'https://wger.de/static/images/muscles/main/muscle-1.svg';
-        if (wgerExercise.muscles && wgerExercise.muscles.length > 0) {
-          const muscle = wgerExercise.muscles[0];
-          if (typeof muscle === 'object' && muscle.image_url_main) {
-            muscleImageUrl = `https://wger.de${muscle.image_url_main}`;
-          }
-        }
         
         return {
           id: wgerExercise.uuid,
@@ -285,9 +276,9 @@ export const useCombinedExercises = (params?: FetchExercisesParams) => {
           bodyPart: categoryName.toLowerCase(),
           target: primaryMuscle.toLowerCase(),
           equipment: equipmentName.toLowerCase(),
-          gifUrl: exerciseImageUrl || muscleImageUrl,
+          gifUrl: exerciseImageUrl,
           instructions: translation && translation.description ? [translation.description] : [],
-          source: 'wger' // Tag the source
+          source: 'wger'
         } as Exercise;
       });
       

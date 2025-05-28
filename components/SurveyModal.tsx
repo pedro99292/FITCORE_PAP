@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../hooks/useTheme';
 import { subscriptionService } from '../utils/subscriptionService';
 import { useAuth } from '../contexts/AuthContext';
+import HorizontalPicker from 'react-native-picker-horizontal';
 
 interface SurveyModalProps {
   isVisible: boolean;
@@ -57,28 +58,10 @@ const NumberPickerModal: React.FC<NumberPickerModalProps> = ({
   title,
 }) => {
   const { isDarkMode, colors } = useTheme();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const itemHeight = 56; // Height of each option item
-  const visibleItems = 5; // Number of visible items
   const selectedIndex = options.findIndex(value => String(value) === selectedValue);
 
-  useEffect(() => {
-    if (isVisible && scrollViewRef.current) {
-      // Calculate the offset to center the selected value
-      const centerOffset = Math.max(0, selectedIndex * itemHeight - (visibleItems * itemHeight - itemHeight) / 2);
-      
-      // Add a small delay to ensure the ScrollView is ready
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({
-          y: centerOffset,
-          animated: false,
-        });
-      }, 100);
-    }
-  }, [isVisible, selectedIndex, selectedValue]);
-
-  const handleOptionPress = (value: number) => {
-    onSelect(String(value));
+  const handleValueChange = (index: number) => {
+    onSelect(String(options[index]));
     onClose();
   };
 
@@ -104,43 +87,25 @@ const NumberPickerModal: React.FC<NumberPickerModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.pickerContainer}>
-            <View style={[
-              styles.selectionHighlight,
-              { borderColor: colors.primary }
-            ]} />
-
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.pickerScrollView}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingVertical: (itemHeight * visibleItems - itemHeight) / 2,
-              }}
-            >
-              {options.map((value) => (
-                <Pressable
-                  key={value}
-                  style={[
-                    styles.pickerOption,
-                    { height: itemHeight },
-                    selectedValue === String(value) && {
-                      backgroundColor: isDarkMode ? 'rgba(74, 144, 226, 0.1)' : 'rgba(74, 144, 226, 0.05)',
-                    }
-                  ]}
-                  onPress={() => handleOptionPress(value)}
-                >
-                  <Text
+          <View style={styles.horizontalPickerContainer}>
+            <HorizontalPicker
+              data={options}
+              renderItem={(item: number, index: number) => (
+                <View style={styles.horizontalPickerItem}>
+                  <Text 
                     style={[
-                      styles.pickerOptionText,
-                      { color: selectedValue === String(value) ? colors.primary : colors.text }
+                      styles.horizontalPickerText,
+                      { color: selectedValue === String(item) ? colors.primary : colors.text }
                     ]}
                   >
-                    {`${value} ${unit}`}
+                    {`${item} ${unit}`}
                   </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+                </View>
+              )}
+              itemWidth={80}
+              defaultIndex={selectedIndex}
+              onChange={handleValueChange}
+            />
           </View>
         </Pressable>
       </Pressable>
@@ -148,7 +113,7 @@ const NumberPickerModal: React.FC<NumberPickerModalProps> = ({
   );
 };
 
-const { width } = Dimensions.get('window');
+const ITEM_WIDTH = 100;
 
 // Generate arrays for height and weight options
 const heightOptions = Array.from({ length: 151 }, (_, i) => i + 100); // 100cm to 250cm
@@ -159,8 +124,10 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
   const [currentPage, setCurrentPage] = useState(0);
   const [slideAnim] = useState(new Animated.Value(0));
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showHeightPicker, setShowHeightPicker] = useState(false);
-  const [showWeightPicker, setShowWeightPicker] = useState(false);
+  const heightScrollRef = useRef<ScrollView>(null);
+  const weightScrollRef = useRef<ScrollView>(null);
+  const windowWidth = Dimensions.get('window').width;
+  const paddingHorizontal = (windowWidth - ITEM_WIDTH) / 2;
   
   const extendedColors = {
     ...colors,
@@ -175,15 +142,106 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
   
   const [formData, setFormData] = useState<SurveyData>({
     age: '',
-    height: '170', // Default height
-    weight: '70', // Default weight
+    height: '170',
+    weight: '70',
     experienceLevel: 'novice',
     availability: '3',
     goals: ['gain muscle'],
     gender: 'prefer not to say',
   });
 
+  const [selectedHeight, setSelectedHeight] = useState(formData.height);
+  const [selectedWeight, setSelectedWeight] = useState(formData.weight);
+  const [isScrolling, setIsScrolling] = useState(false);
+
   const { user } = useAuth();
+
+  // Calculate initial padding to center the first item
+  const initialPadding = (windowWidth - ITEM_WIDTH) / 2;
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const initializeScrollPosition = () => {
+      if (heightScrollRef.current && weightScrollRef.current) {
+        const heightIndex = heightOptions.findIndex(h => String(h) === formData.height);
+        const weightIndex = weightOptions.findIndex(w => String(w) === formData.weight);
+
+        // Calculate exact positions
+        const heightOffset = heightIndex * ITEM_WIDTH;
+        const weightOffset = weightIndex * ITEM_WIDTH;
+
+        // Use requestAnimationFrame for smooth initial positioning
+        requestAnimationFrame(() => {
+          heightScrollRef.current?.scrollTo({
+            x: heightOffset,
+            animated: false
+          });
+          weightScrollRef.current?.scrollTo({
+            x: weightOffset,
+            animated: false
+          });
+        });
+      }
+    };
+
+    // Initial positioning
+    initializeScrollPosition();
+
+    // Backup positioning after a short delay
+    const timer = setTimeout(initializeScrollPosition, 100);
+    return () => clearTimeout(timer);
+  }, [isVisible, formData.height, formData.weight]);
+
+  const handleScroll = (event: any, type: 'height' | 'weight') => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / ITEM_WIDTH);
+    const options = type === 'height' ? heightOptions : weightOptions;
+    
+    if (index >= 0 && index < options.length) {
+      const value = String(options[index]);
+      if (type === 'height') {
+        setSelectedHeight(value);
+        setFormData(prev => ({ ...prev, height: value }));
+      } else {
+        setSelectedWeight(value);
+        setFormData(prev => ({ ...prev, weight: value }));
+      }
+    }
+  };
+
+  const handleMomentumScrollEnd = (event: any, type: 'height' | 'weight') => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / ITEM_WIDTH);
+    const scrollRef = type === 'height' ? heightScrollRef : weightScrollRef;
+    
+    // Ensure perfect alignment
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({
+        x: index * ITEM_WIDTH,
+        animated: true
+      });
+    });
+  };
+
+  const renderPickerItem = (value: number, isSelected: boolean, unit: string) => (
+    <View key={value} style={[styles.pickerItem, { width: ITEM_WIDTH }]}>
+      <Text style={[
+        styles.pickerText,
+        isSelected ? styles.selectedText : styles.unselectedText,
+        { color: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)' }
+      ]}>
+        {value}
+      </Text>
+      <Text style={[
+        styles.unitText,
+        isSelected ? styles.selectedUnitText : styles.unselectedUnitText,
+        { color: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)' }
+      ]}>
+        {unit}
+      </Text>
+    </View>
+  );
 
   const pages = [
     {
@@ -237,54 +295,65 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
         <View style={styles.pageContent}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }]}>Height (cm)</Text>
-            <TouchableOpacity
-              style={[
-                styles.pickerButton,
-                { backgroundColor: isDarkMode ? colors.surface : '#f5f5f5' }
-              ]}
-              onPress={() => setShowHeightPicker(true)}
-            >
-              <Text style={[styles.pickerButtonText, { color: colors.text }]}>
-                {`${formData.height} cm`}
-              </Text>
-              <Ionicons name="chevron-down" size={24} color={colors.text} />
-            </TouchableOpacity>
+            <View style={[styles.pickerContainer, { backgroundColor: isDarkMode ? colors.surface : '#f5f5f5' }]}>
+              <ScrollView
+                ref={heightScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={ITEM_WIDTH}
+                decelerationRate="normal"
+                onScroll={(e) => handleScroll(e, 'height')}
+                onMomentumScrollEnd={(e) => handleMomentumScrollEnd(e, 'height')}
+                scrollEventThrottle={16}
+                contentContainerStyle={[
+                  styles.pickerContent,
+                  { paddingHorizontal: initialPadding }
+                ]}
+                snapToAlignment="center"
+                pagingEnabled={false}
+              >
+                {heightOptions.map(height => renderPickerItem(
+                  height,
+                  selectedHeight === String(height),
+                  'cm'
+                ))}
+              </ScrollView>
+              <View style={styles.pickerOverlay}>
+                <View style={[styles.pickerCenter, { borderColor: colors.primary, width: ITEM_WIDTH }]} />
+              </View>
+            </View>
           </View>
+
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }]}>Weight (kg)</Text>
-            <TouchableOpacity
-              style={[
-                styles.pickerButton,
-                { backgroundColor: isDarkMode ? colors.surface : '#f5f5f5' }
-              ]}
-              onPress={() => setShowWeightPicker(true)}
-            >
-              <Text style={[styles.pickerButtonText, { color: colors.text }]}>
-                {`${formData.weight} kg`}
-              </Text>
-              <Ionicons name="chevron-down" size={24} color={colors.text} />
-            </TouchableOpacity>
+            <View style={[styles.pickerContainer, { backgroundColor: isDarkMode ? colors.surface : '#f5f5f5' }]}>
+              <ScrollView
+                ref={weightScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={ITEM_WIDTH}
+                decelerationRate="normal"
+                onScroll={(e) => handleScroll(e, 'weight')}
+                onMomentumScrollEnd={(e) => handleMomentumScrollEnd(e, 'weight')}
+                scrollEventThrottle={16}
+                contentContainerStyle={[
+                  styles.pickerContent,
+                  { paddingHorizontal: initialPadding }
+                ]}
+                snapToAlignment="center"
+                pagingEnabled={false}
+              >
+                {weightOptions.map(weight => renderPickerItem(
+                  weight,
+                  selectedWeight === String(weight),
+                  'kg'
+                ))}
+              </ScrollView>
+              <View style={styles.pickerOverlay}>
+                <View style={[styles.pickerCenter, { borderColor: colors.primary, width: ITEM_WIDTH }]} />
+              </View>
+            </View>
           </View>
-
-          <NumberPickerModal
-            isVisible={showHeightPicker}
-            onClose={() => setShowHeightPicker(false)}
-            onSelect={(value) => setFormData(prev => ({ ...prev, height: value }))}
-            selectedValue={formData.height}
-            options={heightOptions}
-            unit="cm"
-            title="Select Height"
-          />
-
-          <NumberPickerModal
-            isVisible={showWeightPicker}
-            onClose={() => setShowWeightPicker(false)}
-            onSelect={(value) => setFormData(prev => ({ ...prev, weight: value }))}
-            selectedValue={formData.weight}
-            options={weightOptions}
-            unit="kg"
-            title="Select Weight"
-          />
         </View>
       )
     },
@@ -413,7 +482,7 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
   ];
 
   const navigateToPage = (pageIndex: number) => {
-    const toValue = -pageIndex * width;
+    const toValue = -pageIndex * windowWidth;
     Animated.spring(slideAnim, {
       toValue,
       useNativeDriver: true,
@@ -509,6 +578,26 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
     }
   };
 
+  const createStyles = (itemWidth: number) => ({
+    pickerItem: {
+      width: itemWidth,
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 4,
+    },
+    pickerCenter: {
+      height: 60,
+      borderWidth: 2,
+      borderRadius: 12,
+      backgroundColor: 'transparent',
+      width: itemWidth,
+    }
+  });
+
+  const dynamicStyles = createStyles(ITEM_WIDTH);
+
   return (
     <Modal
       animationType="slide"
@@ -550,12 +639,12 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
             styles.pagesContainer,
             {
               transform: [{ translateX: slideAnim }],
-              width: width * pages.length,
+              width: windowWidth * pages.length,
             }
           ]}
         >
           {pages.map((page, index) => (
-            <View key={index} style={[styles.page, { width }]}>
+            <View key={index} style={[styles.page, { width: windowWidth }]}>
               <Text style={[styles.pageTitle, { color: colors.text }]}>{page.title}</Text>
               <Text style={[styles.pageSubtitle, { color: extendedColors.textMuted }]}>{page.subtitle}</Text>
               <View style={[styles.pageContent, { backgroundColor: colors.surface }]}>
@@ -819,33 +908,98 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  pickerContainer: {
-    height: 280, // 5 items * 56px height
-    position: 'relative',
-  },
-  pickerScrollView: {
-    flex: 1,
-  },
-  selectionHighlight: {
-    position: 'absolute',
-    top: '50%',
-    left: 12,
-    right: 12,
-    height: 56,
-    borderRadius: 12,
-    borderWidth: 2,
-    transform: [{ translateY: -28 }],
-    zIndex: 1,
-  },
-  pickerOption: {
+  horizontalPickerContainer: {
+    height: 150,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 16,
+    marginTop: 8,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
-  pickerOptionText: {
+  horizontalPickerItem: {
+    width: 100,
+    height: 150,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  horizontalPickerText: {
+    fontWeight: '600',
+  },
+  selectedPickerText: {
+    fontSize: 32,
+    opacity: 1,
+  },
+  unselectedPickerText: {
     fontSize: 20,
+    opacity: 0.5,
+  },
+  pickerContainer: {
+    height: 120,
+    borderRadius: 16,
+    marginTop: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  pickerContent: {
+    alignItems: 'center',
+    height: '100%',
+  },
+  pickerItem: {
+    width: ITEM_WIDTH,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  pickerText: {
+    fontWeight: '600',
+  },
+  unitText: {
     fontWeight: '500',
+  },
+  selectedText: {
+    fontSize: 40,
+    opacity: 1,
+  },
+  unselectedText: {
+    fontSize: 24,
+    opacity: 0.5,
+  },
+  selectedUnitText: {
+    fontSize: 24,
+    opacity: 1,
+  },
+  unselectedUnitText: {
+    fontSize: 16,
+    opacity: 0.5,
+  },
+  pickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'none',
+  },
+  pickerCenter: {
+    height: 60,
+    borderWidth: 2,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+    width: ITEM_WIDTH,
   },
 });
 

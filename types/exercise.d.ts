@@ -1,14 +1,21 @@
 // ExerciseDB API types
 export interface Exercise {
-  id: string;           // Using uuid from wger API
-  name: string;         // From wger translation data
-  bodyPart: string;     // Mapped from wger category
-  target: string;       // Mapped from primary muscle
-  equipment: string;    // Mapped from wger equipment
-  gifUrl: string;       // Using wger muscle SVG URLs
-  instructions?: string[]; // From wger description
-  secondaryMuscles?: string[]; // From wger muscles_secondary
-  source?: 'exercisedb' | 'wger'; // Indicates which API provided this exercise
+  id: string;
+  name: string;
+  bodyPart: string;
+  target: string;
+  equipment: string;
+  gifUrl?: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  instructions?: string[];
+  secondaryMuscles?: string[];
+  overview?: string;
+  exerciseTips?: string[];
+  variations?: string[];
+  keywords?: string[];
+  exerciseType?: string;
+  source?: 'exercisedb' | 'wger';
 }
 
 // Local workout types

@@ -36,7 +36,8 @@ const ExerciseFilters: React.FC<ExerciseFiltersProps> = ({ onFilterChange }) => 
     onFilterChange({
       bodyPart: selectedBodyPart,
       equipment: selectedEquipment,
-      search: searchQuery || undefined
+      search: searchQuery || undefined,
+      target: undefined
     });
   }, [selectedBodyPart, selectedEquipment, searchQuery]);
 
@@ -45,6 +46,7 @@ const ExerciseFilters: React.FC<ExerciseFiltersProps> = ({ onFilterChange }) => 
       setSelectedBodyPart(undefined);
     } else {
       setSelectedBodyPart(value);
+      setSelectedEquipment(undefined);
     }
   };
 
@@ -53,6 +55,7 @@ const ExerciseFilters: React.FC<ExerciseFiltersProps> = ({ onFilterChange }) => 
       setSelectedEquipment(undefined);
     } else {
       setSelectedEquipment(value);
+      setSelectedBodyPart(undefined);
     }
   };
 

@@ -16,9 +16,11 @@ import {
   Dimensions,
   SafeAreaView,
   Image,
-  Animated
+  Animated,
+  Modal
 } from 'react-native';
-import { useCombinedExercises, useCombinedBodyParts, useCombinedEquipment } from '@/hooks/useCombinedExercises';
+import { Video, ResizeMode } from 'expo-av';
+import { useExerciseDB, useTargets, useEquipment } from '@/hooks/useExerciseDB';
 import { Ionicons } from '@expo/vector-icons';
 import { FontAwesome } from '@expo/vector-icons';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -72,15 +74,18 @@ export default function WorkoutBuilderScreen() {
   const [selectedExercises, setSelectedExercises] = useState<WorkoutExercise[]>([]);
   
   // Enhanced state for exercise library
-  const [activeBodyPart, setActiveBodyPart] = useState('');
+  const [activeTarget, setActiveTarget] = useState('');
   const [activeEquipment, setActiveEquipment] = useState('');
-  const [bodyPartDropdownOpen, setBodyPartDropdownOpen] = useState(false);
+  const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
   const [equipmentDropdownOpen, setEquipmentDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<{ bodyPart?: string; equipment?: string; target?: string; search?: string }>({});
+  const [filters, setFilters] = useState<{ target?: string; equipment?: string; search?: string }>({});
   const [saving, setSaving] = useState(false);
   const [showExerciseSelection, setShowExerciseSelection] = useState(false);
   const [currentEditingExerciseIndex, setCurrentEditingExerciseIndex] = useState<number | null>(null);
+  const [loadingMoreExercises, setLoadingMoreExercises] = useState(false);
+  const [displayedExercises, setDisplayedExercises] = useState<Exercise[]>([]);
+  const [displayLimit, setDisplayLimit] = useState(20);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -91,17 +96,17 @@ export default function WorkoutBuilderScreen() {
   const searchInputRef = useRef<TextInput>(null);
   
   // Available categories based on filter type
-  const [bodyParts, setBodyParts] = useState<string[]>([]);
+  const [targetMuscles, setTargetMuscles] = useState<string[]>([]);
   const [equipmentList, setEquipmentList] = useState<string[]>([]);
 
-  // Use the hook to fetch all equipment options
-  const { equipment: allEquipment, loading: loadingEquipment } = useCombinedEquipment();
+  // Use the hooks to fetch all options
+  const { equipment: allEquipment, loading: loadingEquipment } = useEquipment();
+  const { targets: allTargets, loading: loadingTargets } = useTargets();
 
-  const { exercises, loading: loadingExercises, error: exercisesError, isMissingApiKey, refetch: refetchExercises } = useCombinedExercises({
-    bodyPart: filters.bodyPart,
+  const { exercises, loading: loadingExercises, error: exercisesError, isMissingApiKey, refetch: refetchExercises } = useExerciseDB({
+    target: filters.target,
     equipment: filters.equipment,
-    name: filters.search,
-    target: filters.target
+    name: filters.search
   });
 
   // Get the current user
@@ -139,16 +144,12 @@ export default function WorkoutBuilderScreen() {
     }
   }, [showExerciseSelection]);
   
-  // Update body part categories based on loaded exercises
+  // Update target muscles and equipment categories based on loaded data
   useEffect(() => {
-    if (!exercises || exercises.length === 0) return;
-    
-    // Extract unique bodyParts
-    const uniqueBodyParts = [...new Set(exercises.map(ex => ex.bodyPart))].sort();
-    setBodyParts(uniqueBodyParts);
-    
-    // We no longer extract equipment from exercises as we get all equipment options from the hook
-  }, [exercises]);
+    if (allTargets && allTargets.length > 0) {
+      setTargetMuscles(allTargets);
+    }
+  }, [allTargets]);
   
   // Update equipment list when allEquipment changes
   useEffect(() => {
@@ -162,12 +163,12 @@ export default function WorkoutBuilderScreen() {
     const newFilters: any = { ...filters };
     
     // Clear previous filter values
-    delete newFilters.bodyPart;
+    delete newFilters.target;
     delete newFilters.equipment;
     
     // Set filters based on active selections
-    if (activeBodyPart) {
-      newFilters.bodyPart = activeBodyPart;
+    if (activeTarget) {
+      newFilters.target = activeTarget;
     }
     
     if (activeEquipment) {
@@ -182,9 +183,9 @@ export default function WorkoutBuilderScreen() {
     }
     
     setFilters(newFilters);
-  }, [activeBodyPart, activeEquipment, searchQuery]);
+  }, [activeTarget, activeEquipment, searchQuery]);
 
-  const handleFilterChange = (newFilters: { bodyPart?: string; equipment?: string; target?: string; search?: string }) => {
+  const handleFilterChange = (newFilters: { target?: string; equipment?: string; search?: string }) => {
     setFilters(newFilters);
   };
   
@@ -643,12 +644,12 @@ export default function WorkoutBuilderScreen() {
 
   // First, update the renderExerciseLibrary function with a simpler button approach
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [activeFilterType, setActiveFilterType] = useState<'bodyPart' | 'equipment' | null>(null);
+  const [activeFilterType, setActiveFilterType] = useState<'target' | 'equipment' | null>(null);
   
   // Add this function to handle filter selection
-  const handleFilterSelect = (type: 'bodyPart' | 'equipment', value: string) => {
-    if (type === 'bodyPart') {
-      setActiveBodyPart(value);
+  const handleFilterSelect = (type: 'target' | 'equipment', value: string) => {
+    if (type === 'target') {
+      setActiveTarget(value);
     } else {
       setActiveEquipment(value);
     }
@@ -667,6 +668,7 @@ export default function WorkoutBuilderScreen() {
           }
         ]}
       >
+        {/* Fixed Header */}
         <LinearGradient
           colors={['#2e2e40', '#262635']}
           style={styles.libraryHeader}
@@ -683,19 +685,10 @@ export default function WorkoutBuilderScreen() {
               {selectedExercises.length} selected
             </Text>
           </View>
-          
-          {/* Display API key warning if missing */}
-          {isMissingApiKey && (
-            <View style={styles.apiKeyWarning}>
-              <Ionicons name="warning" size={16} color="#FFA500" />
-              <Text style={styles.apiKeyWarningText}>
-                ExerciseDB API key missing. Using Wger API only.
-              </Text>
-            </View>
-          )}
         </LinearGradient>
         
-        <View style={styles.libraryContent}>
+        {/* Fixed Search and Filters */}
+        <View style={styles.fixedTopContent}>
           {/* Search Bar */}
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
@@ -714,27 +707,25 @@ export default function WorkoutBuilderScreen() {
             ) : null}
           </View>
           
-          {/* Filter Buttons - Simplified */}
+          {/* Filter Buttons */}
           <View style={styles.filterButtonsContainer}>
-            {/* Body Part Filter Button */}
             <TouchableOpacity 
               style={[
                 styles.simpleFilterButton,
-                activeBodyPart ? styles.activeSimpleFilterButton : null
+                activeTarget ? styles.activeSimpleFilterButton : null
               ]}
               onPress={() => {
-                setActiveFilterType('bodyPart');
+                setActiveFilterType('target');
                 setFilterModalVisible(true);
               }}
             >
-              <Ionicons name="body-outline" size={18} color="#fff" style={styles.filterButtonIcon} />
+              <Ionicons name="fitness-outline" size={18} color="#fff" style={styles.filterButtonIcon} />
               <Text style={styles.filterButtonText}>
-                {activeBodyPart || 'Body Part'}
+                {activeTarget || 'Target Muscle'}
               </Text>
               <Ionicons name="chevron-down" size={16} color="#fff" />
             </TouchableOpacity>
             
-            {/* Equipment Filter Button */}
             <TouchableOpacity 
               style={[
                 styles.simpleFilterButton,
@@ -752,12 +743,11 @@ export default function WorkoutBuilderScreen() {
               <Ionicons name="chevron-down" size={16} color="#fff" />
             </TouchableOpacity>
             
-            {/* Clear Filters Button */}
-            {(activeBodyPart || activeEquipment) && (
+            {(activeTarget || activeEquipment) && (
               <TouchableOpacity 
                 style={styles.clearFiltersButton}
                 onPress={() => {
-                  setActiveBodyPart('');
+                  setActiveTarget('');
                   setActiveEquipment('');
                 }}
               >
@@ -766,70 +756,107 @@ export default function WorkoutBuilderScreen() {
               </TouchableOpacity>
             )}
           </View>
-          
-          {/* Exercise List */}
+        </View>
+        
+        {/* Scrollable Exercise List */}
+        <View style={styles.exerciseListContainer}>
           {loadingExercises ? (
             <View style={styles.libraryLoadingContainer}>
               <ActivityIndicator size="large" color="#4a90e2" style={styles.loadingSpinner} />
               <Text style={styles.libraryLoadingText}>Loading exercises...</Text>
             </View>
-          ) : (
-            <View style={styles.exerciseListContainer}>
-              {exercises.length > 0 ? (
-                <FlatList
-                  data={exercises}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity 
-                      style={[
-                        styles.exerciseListItem,
-                        selectedExercises.some(e => e.exerciseId === item.id) && styles.selectedExerciseItem
-                      ]}
-                      onPress={() => toggleExerciseSelection(item)}
-                      activeOpacity={0.7}
+          ) : exercises.length > 0 ? (
+            <FlatList
+              data={displayedExercises}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[
+                    styles.exerciseListItem,
+                    selectedExercises.some(e => e.exerciseId === item.id) && styles.selectedExerciseItem
+                  ]}
+                  onPress={() => toggleExerciseSelection(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.exerciseImageWrapper}>
+                    {item.gifUrl ? (
+                      <Image
+                        source={{ uri: item.gifUrl }}
+                        style={styles.exerciseImage}
+                        resizeMode="cover"
+                        defaultSource={require('@/assets/images/muscle-silhouette-front.png')}
+                      />
+                    ) : (
+                      <View style={styles.noImageContainer}>
+                        <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.3)" />
+                        <Text style={styles.noImageText}>No image available</Text>
+                      </View>
+                    )}
+                  </View>
+                  
+                  <View style={styles.exerciseItemContent}>
+                    <Text style={styles.exerciseItemName}>{item.name}</Text>
+                    <Text style={styles.exerciseItemDetail}>{item.bodyPart} • {item.equipment}</Text>
+                  </View>
+
+                  <View style={styles.exerciseItemActions}>
+                    <TouchableOpacity
+                      style={styles.infoButton}
+                      onPress={() => setSelectedExerciseDetails(item)}
                     >
-                      <View style={styles.exerciseIconContainer}>
-                        <Ionicons name="fitness" size={24} color="#4a90e2" />
-                      </View>
-                      <View style={styles.exerciseItemContent}>
-                        <Text style={styles.exerciseItemName}>{item.name}</Text>
-                        <Text style={styles.exerciseItemDetail}>{item.bodyPart} • {item.equipment}</Text>
-                      </View>
-                      <View style={styles.exerciseItemRight}>
-                        {selectedExercises.some(e => e.exerciseId === item.id) ? (
-                          <View style={styles.checkboxChecked}>
-                            <Ionicons name="checkmark" size={18} color="#fff" />
-                          </View>
-                        ) : (
-                          <View style={styles.checkboxUnchecked} />
-                        )}
-                      </View>
+                      <Ionicons name="information-circle-outline" size={24} color="#4a90e2" />
+                    </TouchableOpacity>
+                    
+                    <View style={styles.exerciseItemRight}>
+                      {selectedExercises.some(e => e.exerciseId === item.id) ? (
+                        <View style={styles.checkboxChecked}>
+                          <Ionicons name="checkmark" size={18} color="#fff" />
+                        </View>
+                      ) : (
+                        <View style={styles.checkboxUnchecked} />
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={styles.exercisesList}
+              showsVerticalScrollIndicator={true}
+              initialNumToRender={20}
+              maxToRenderPerBatch={20}
+              windowSize={21}
+              removeClippedSubviews={true}
+              getItemLayout={(data, index) => (
+                { length: 100, offset: 100 * index, index }
+              )}
+              ListFooterComponent={() => (
+                <View style={styles.listFooter}>
+                  {displayedExercises.length < exercises.length && (
+                    <TouchableOpacity 
+                      style={styles.loadMoreButton}
+                      onPress={handleLoadMoreExercises}
+                      disabled={loadingMoreExercises}
+                    >
+                      {loadingMoreExercises ? (
+                        <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                      ) : (
+                        <Ionicons name="arrow-down-circle-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                      )}
+                      <Text style={styles.loadMoreButtonText}>
+                        {loadingMoreExercises ? 'Loading...' : 'Load More'}
+                      </Text>
                     </TouchableOpacity>
                   )}
-                  contentContainerStyle={styles.exercisesList}
-                  showsVerticalScrollIndicator={false}
-                  initialNumToRender={10}
-                  maxToRenderPerBatch={10}
-                  windowSize={11}
-                  removeClippedSubviews={true}
-                  getItemLayout={(data, index) => (
-                    {length: 88, offset: 88 * index, index}
-                  )}
-                  ListFooterComponent={() => (
-                    <View style={styles.listFooter}>
-                      <Text style={styles.listFooterText}>
-                        {exercises.length} exercises found
-                      </Text>
-                    </View>
-                  )}
-                />
-              ) : (
-                <View style={styles.emptyResultsContainer}>
-                  <Ionicons name="fitness-outline" size={60} color="rgba(255,255,255,0.2)" />
-                  <Text style={styles.emptyResultsText}>No exercises found</Text>
-                  <Text style={styles.emptyResultsSubtext}>Try a different search or filter</Text>
+                  <Text style={styles.listFooterText}>
+                    Showing {displayedExercises.length} of {exercises.length} exercises
+                  </Text>
                 </View>
               )}
+            />
+          ) : (
+            <View style={styles.emptyResultsContainer}>
+              <Ionicons name="fitness-outline" size={60} color="rgba(255,255,255,0.2)" />
+              <Text style={styles.emptyResultsText}>No exercises found</Text>
+              <Text style={styles.emptyResultsSubtext}>Try a different search or filter</Text>
             </View>
           )}
         </View>
@@ -844,7 +871,7 @@ export default function WorkoutBuilderScreen() {
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
-                  Select {activeFilterType === 'bodyPart' ? 'Body Part' : 'Equipment'}
+                  Select {activeFilterType === 'target' ? 'Target Muscle' : 'Equipment'}
                 </Text>
                 <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
                   <Ionicons name="close" size={24} color="#fff" />
@@ -855,26 +882,26 @@ export default function WorkoutBuilderScreen() {
                 <TouchableOpacity 
                   style={styles.modalItem}
                   onPress={() => handleFilterSelect(
-                    activeFilterType === 'bodyPart' ? 'bodyPart' : 'equipment', 
+                    activeFilterType === 'target' ? 'target' : 'equipment', 
                     ''
                   )}
                 >
                   <Text style={styles.modalItemText}>All</Text>
-                  {(activeFilterType === 'bodyPart' && activeBodyPart === '') || 
+                  {(activeFilterType === 'target' && activeTarget === '') || 
                    (activeFilterType === 'equipment' && activeEquipment === '') ? (
                     <Ionicons name="checkmark-circle" size={20} color="#4a90e2" />
                   ) : null}
                 </TouchableOpacity>
                 
-                {activeFilterType === 'bodyPart' ? 
-                  bodyParts.map((item, index) => (
+                {activeFilterType === 'target' ? 
+                  targetMuscles.map((item, index) => (
                     <TouchableOpacity 
                       key={index}
                       style={styles.modalItem}
-                      onPress={() => handleFilterSelect('bodyPart', item)}
+                      onPress={() => handleFilterSelect('target', item)}
                     >
                       <Text style={styles.modalItemText}>{item}</Text>
-                      {activeBodyPart === item && (
+                      {activeTarget === item && (
                         <Ionicons name="checkmark-circle" size={20} color="#4a90e2" />
                       )}
                     </TouchableOpacity>
@@ -897,7 +924,7 @@ export default function WorkoutBuilderScreen() {
           </TouchableOpacity>
         )}
         
-        {/* Done Button - Fixed at the bottom */}
+        {/* Fixed Bottom Button */}
         <View style={styles.doneButtonContainer}>
           <TouchableOpacity 
             style={styles.doneButton}
@@ -1017,51 +1044,56 @@ export default function WorkoutBuilderScreen() {
                 
                 return (
                   <View key={workoutExercise.id} style={styles.exerciseItem}>
-                      <LinearGradient
-                        colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.2)']}
-                        style={styles.exerciseHeader}
-                      >
-                        <View style={styles.exerciseIconContainer}>
-                          <Ionicons name="fitness" size={22} color="#4a90e2" />
-                        </View>
-                        
+                    <LinearGradient
+                      colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.2)']}
+                      style={styles.exerciseHeader}
+                    >
+                      <View style={styles.exerciseIconContainer}>
+                        <Ionicons name="fitness" size={22} color="#4a90e2" />
+                      </View>
+                      
                       <View style={styles.exerciseInfo}>
-                        <Text style={styles.exerciseName}>{exerciseToUse.name}</Text>
-                          <View style={styles.exerciseTagsRow}>
-                            <View style={styles.exerciseTag}>
-                              <Text style={styles.exerciseTagText}>{exerciseToUse.bodyPart}</Text>
-                            </View>
-                            <View style={styles.exerciseTag}>
-                              <Text style={styles.exerciseTagText}>{exerciseToUse.target}</Text>
-                            </View>
+                        <TouchableOpacity 
+                          onPress={() => setSelectedExerciseDetails(exerciseToUse)}
+                          style={styles.exerciseNameTouchable}
+                        >
+                          <Text style={styles.exerciseName}>{exerciseToUse.name}</Text>
+                        </TouchableOpacity>
+                        <View style={styles.exerciseTagsRow}>
+                          <View style={styles.exerciseTag}>
+                            <Text style={styles.exerciseTagText}>{exerciseToUse.bodyPart}</Text>
                           </View>
+                          <View style={styles.exerciseTag}>
+                            <Text style={styles.exerciseTagText}>{exerciseToUse.target}</Text>
+                          </View>
+                        </View>
                       </View>
                       
                       <View style={styles.exerciseActions}>
                         <TouchableOpacity
-                            style={[styles.exerciseActionButton, index === 0 && styles.disabledActionButton]}
+                          style={[styles.exerciseActionButton, index === 0 && styles.disabledActionButton]}
                           onPress={() => moveExercise(index, 'up')}
                           disabled={index === 0}
                         >
                           <Ionicons 
                             name="chevron-up" 
                             size={20} 
-                              color={index === 0 ? 'rgba(255,255,255,0.3)' : '#fff'} 
+                            color={index === 0 ? 'rgba(255,255,255,0.3)' : '#fff'} 
                           />
                         </TouchableOpacity>
                         
                         <TouchableOpacity
-                            style={[
-                              styles.exerciseActionButton, 
-                              index === selectedExercises.length - 1 && styles.disabledActionButton
-                            ]}
+                          style={[
+                            styles.exerciseActionButton, 
+                            index === selectedExercises.length - 1 && styles.disabledActionButton
+                          ]}
                           onPress={() => moveExercise(index, 'down')}
                           disabled={index === selectedExercises.length - 1}
                         >
                           <Ionicons 
                             name="chevron-down" 
                             size={20} 
-                              color={index === selectedExercises.length - 1 ? 'rgba(255,255,255,0.3)' : '#fff'} 
+                            color={index === selectedExercises.length - 1 ? 'rgba(255,255,255,0.3)' : '#fff'} 
                           />
                         </TouchableOpacity>
                         
@@ -1072,8 +1104,8 @@ export default function WorkoutBuilderScreen() {
                           <Ionicons name="trash-outline" size={20} color="#ef4444" />
                         </TouchableOpacity>
                       </View>
-                      </LinearGradient>
-                    
+                    </LinearGradient>
+                  
                     <WorkoutSetEditor
                       sets={workoutExercise.sets}
                       onAddSet={() => addSet(index)}
@@ -1116,6 +1148,179 @@ export default function WorkoutBuilderScreen() {
       </KeyboardAvoidingView>
       </SafeAreaView>
     );
+  };
+
+  // Add new state near other state declarations
+  const [selectedExerciseDetails, setSelectedExerciseDetails] = useState<Exercise | null>(null);
+
+  // Add the modal component before the return statement
+  const renderExerciseDetailsModal = () => {
+    if (!selectedExerciseDetails) return null;
+
+    return (
+      <Modal
+        visible={!!selectedExerciseDetails}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setSelectedExerciseDetails(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.exerciseModalContent}>
+            <ScrollView style={styles.modalScrollView}>
+              {/* Header with close button */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{selectedExerciseDetails.name}</Text>
+                <TouchableOpacity 
+                  onPress={() => setSelectedExerciseDetails(null)}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Exercise Image/Video */}
+              {selectedExerciseDetails.videoUrl ? (
+                <View style={styles.modalImageContainer}>
+                  <Video
+                    source={{ uri: selectedExerciseDetails.videoUrl }}
+                    style={styles.modalVideo}
+                    resizeMode={ResizeMode.CONTAIN}
+                    useNativeControls
+                    shouldPlay={false}
+                    isLooping={false}
+                  />
+                </View>
+              ) : selectedExerciseDetails.imageUrl ? (
+                <View style={styles.modalImageContainer}>
+                  <Image
+                    source={{ uri: selectedExerciseDetails.imageUrl }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : selectedExerciseDetails.gifUrl ? (
+                <View style={styles.modalImageContainer}>
+                  <Image
+                    source={{ uri: selectedExerciseDetails.gifUrl }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : (
+                <View style={styles.modalNoImageContainer}>
+                  <Ionicons name="image-outline" size={48} color="rgba(255,255,255,0.3)" />
+                  <Text style={styles.modalNoImageText}>No media available</Text>
+                </View>
+              )}
+
+              {/* Exercise Details */}
+              <View style={styles.modalDetailsContainer}>
+                {/* Overview */}
+                {selectedExerciseDetails.overview && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.sectionTitle}>Overview</Text>
+                    <Text style={styles.overviewText}>{selectedExerciseDetails.overview}</Text>
+                  </View>
+                )}
+
+                {/* Category and Equipment */}
+                <View style={styles.detailSection}>
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="body-outline" size={20} color="#4a90e2" />
+                      <Text style={styles.detailLabel}>Body Part:</Text>
+                      <Text style={styles.detailValue}>{selectedExerciseDetails.bodyPart}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="barbell-outline" size={20} color="#4a90e2" />
+                      <Text style={styles.detailLabel}>Equipment:</Text>
+                      <Text style={styles.detailValue}>{selectedExerciseDetails.equipment}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Target Muscles */}
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Target Muscles</Text>
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="fitness-outline" size={20} color="#4a90e2" />
+                      <Text style={styles.detailLabel}>Primary:</Text>
+                      <Text style={styles.detailValue}>{selectedExerciseDetails.target}</Text>
+                    </View>
+                  </View>
+                  {selectedExerciseDetails.secondaryMuscles && selectedExerciseDetails.secondaryMuscles.length > 0 && (
+                    <View style={styles.secondaryMusclesContainer}>
+                      <Text style={styles.detailLabel}>Secondary Muscles:</Text>
+                      {selectedExerciseDetails.secondaryMuscles.map((muscle, index) => (
+                        <Text key={index} style={styles.secondaryMuscleText}>• {muscle}</Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Instructions */}
+                {selectedExerciseDetails.instructions && selectedExerciseDetails.instructions.length > 0 && (
+                  <View style={styles.instructionsSection}>
+                    <Text style={styles.sectionTitle}>Instructions</Text>
+                    {selectedExerciseDetails.instructions.map((instruction, index) => (
+                      <View key={index} style={styles.instructionItem}>
+                        <Text style={styles.instructionNumber}>{index + 1}.</Text>
+                        <Text style={styles.instructionText}>{instruction}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Exercise Tips */}
+                {selectedExerciseDetails.exerciseTips && selectedExerciseDetails.exerciseTips.length > 0 && (
+                  <View style={styles.tipsSection}>
+                    <Text style={styles.sectionTitle}>Tips</Text>
+                    {selectedExerciseDetails.exerciseTips.map((tip, index) => (
+                      <View key={index} style={styles.tipItem}>
+                        <Ionicons name="bulb-outline" size={20} color="#4a90e2" />
+                        <Text style={styles.tipText}>{tip}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Variations */}
+                {selectedExerciseDetails.variations && selectedExerciseDetails.variations.length > 0 && (
+                  <View style={styles.variationsSection}>
+                    <Text style={styles.sectionTitle}>Variations</Text>
+                    {selectedExerciseDetails.variations.map((variation, index) => (
+                      <View key={index} style={styles.variationItem}>
+                        <Text style={styles.variationText}>• {variation}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  // Use effect to control how many exercises are displayed
+  useEffect(() => {
+    if (exercises.length > 0) {
+      setDisplayedExercises(exercises.slice(0, displayLimit));
+    }
+  }, [exercises, displayLimit]);
+
+  // Modify the handleLoadMoreExercises function
+  const handleLoadMoreExercises = () => {
+    setLoadingMoreExercises(true);
+    
+    // Simulate a short delay for better UX
+    setTimeout(() => {
+      // Load next batch of exercises
+      setDisplayLimit(prevLimit => prevLimit + 20);
+      setLoadingMoreExercises(false);
+    }, 500);
   };
 
   // Define styles using the extendedColors object
@@ -1254,6 +1459,11 @@ const styles = StyleSheet.create({
       color: '#fff',
       marginBottom: 4,
     },
+    exerciseNameTouchable: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
     exerciseTagsRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1329,22 +1539,24 @@ const styles = StyleSheet.create({
   },
   libraryContainer: {
     flex: 1,
-      backgroundColor: '#2c2c3e',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 999,
+    backgroundColor: '#2c2c3e',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
   },
   libraryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-      paddingVertical: 16,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#2c2c3e',
+    zIndex: 2,
   },
   libraryTitle: {
       fontSize: 20,
@@ -1390,7 +1602,7 @@ const styles = StyleSheet.create({
     filterButtonsContainer: {
       flexDirection: 'row',
       paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingBottom: 16,
       alignItems: 'center',
       flexWrap: 'wrap',
     },
@@ -1426,17 +1638,18 @@ const styles = StyleSheet.create({
     },
     exercisesList: {
       paddingHorizontal: 16,
-      paddingBottom: 100,
+      paddingBottom: 80,
     },
     exerciseListItem: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: 'rgba(0,0,0,0.2)',
       borderRadius: 12,
-      padding: 16,
+      padding: 12,
       marginBottom: 12,
       borderWidth: 1,
       borderColor: 'rgba(255,255,255,0.1)',
+      height: 100,
     },
     selectedExerciseItem: {
       borderColor: '#4a90e2',
@@ -1444,6 +1657,7 @@ const styles = StyleSheet.create({
     },
     exerciseItemContent: {
       flex: 1,
+      marginRight: 8,
     },
     exerciseItemName: {
       fontSize: 16,
@@ -1454,6 +1668,16 @@ const styles = StyleSheet.create({
     exerciseItemDetail: {
       fontSize: 14,
       color: 'rgba(255,255,255,0.6)',
+    },
+    exerciseItemActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    infoButton: {
+      padding: 8,
+      marginRight: 8,
+      borderRadius: 20,
+      backgroundColor: 'rgba(74, 144, 226, 0.1)',
     },
     exerciseItemRight: {
       paddingLeft: 8,
@@ -1508,9 +1732,10 @@ const styles = StyleSheet.create({
       left: 0,
       right: 0,
       padding: 16,
-      backgroundColor: 'rgba(46, 46, 64, 0.9)',
+      backgroundColor: 'rgba(46, 46, 64, 0.95)',
       borderTopWidth: 1,
       borderTopColor: 'rgba(255,255,255,0.1)',
+      zIndex: 2,
     },
     doneButton: {
       backgroundColor: '#4a90e2',
@@ -1564,20 +1789,6 @@ const styles = StyleSheet.create({
       color: extendedColors.textMuted,
       marginTop: 6,
   },
-  apiKeyWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    marginHorizontal: 10,
-    padding: 8,
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-    borderRadius: 4,
-  },
-  apiKeyWarningText: {
-    fontSize: 12,
-    color: '#fff',
-    marginLeft: 4,
-  },
   categoriesContainer: {
     marginTop: 8,
     marginBottom: 16,
@@ -1620,16 +1831,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 9999,
+    zIndex: 3,
   },
-  modalContent: {
-    width: '80%',
-    maxHeight: '70%',
-    backgroundColor: '#2e2e40',
-    borderRadius: 12,
+  exerciseModalContent: {
+    width: '90%',
+    maxHeight: '90%',
+    backgroundColor: '#2c2c3e',
+    borderRadius: 20,
     overflow: 'hidden',
     elevation: 5,
     shadowColor: '#000',
@@ -1646,25 +1857,63 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#fff',
+    flex: 1,
   },
-  modalScrollView: {
-    maxHeight: 400,
+  modalImageContainer: {
+    width: '100%',
+    height: 300,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    position: 'relative',
   },
-  modalItem: {
+  modalImage: {
+    width: '100%',
+    height: '100%',
+  },
+  modalDetailsContainer: {
+    padding: 16,
+  },
+  detailSection: {
+    marginBottom: 16,
+  },
+  detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    flexWrap: 'wrap',
   },
-  modalItemText: {
-    fontSize: 16,
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginRight: 16,
+  },
+  detailLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    marginLeft: 8,
+    marginRight: 4,
+  },
+  detailValue: {
     color: '#fff',
+    fontWeight: '500',
     textTransform: 'capitalize',
+  },
+  instructionsSection: {
+    marginTop: 16,
+  },
+  instructionItem: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  instructionText: {
+    color: '#fff',
+    lineHeight: 20,
+  },
+  modalScrollView: {
+    maxHeight: '100%',
   },
   clearFiltersButton: {
     flexDirection: 'row',
@@ -1680,12 +1929,157 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginRight: 6,
   },
+  exerciseImageWrapper: {
+    width: 76,
+    height: 76,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    marginRight: 12,
+    position: 'relative',
+  },
+  exerciseImage: {
+    width: '100%',
+    height: '100%',
+  },
+  noImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    width: '100%',
+    height: '100%',
+  },
+  noImageText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  modalContent: {
+    width: '80%',
+    maxHeight: '70%',
+    backgroundColor: '#2e2e40',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: '#fff',
+    textTransform: 'capitalize',
+  },
+  modalNoImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    width: '100%',
+    height: '100%',
+  },
+  modalNoImageText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  modalVideo: {
+    width: '100%',
+    height: 300,
+  },
+  overviewText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  secondaryMusclesContainer: {
+    marginTop: 12,
+  },
+  secondaryMuscleText: {
+    color: '#fff',
+    fontSize: 14,
+    marginLeft: 16,
+    marginTop: 4,
+  },
+  instructionNumber: {
+    color: '#4a90e2',
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: 8,
+    minWidth: 24,
+  },
+  tipsSection: {
+    marginTop: 24,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  tipText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+    marginLeft: 12,
+  },
+  variationsSection: {
+    marginTop: 24,
+  },
+  variationItem: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  variationText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  fixedTopContent: {
+    backgroundColor: '#2c2c3e',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    zIndex: 1,
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4a90e2',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginVertical: 16,
+    width: '80%',
+    alignSelf: 'center',
+  },
+  loadMoreButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingMoreIndicator: {
+    marginVertical: 16,
+    alignItems: 'center',
+  },
 }); 
 
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#2c2c3e" />
       {showExerciseSelection ? renderExerciseLibrary() : renderWorkoutBuilder()}
+      {renderExerciseDetailsModal()}
     </>
   );
 } 
