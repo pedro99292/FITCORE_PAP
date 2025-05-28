@@ -28,6 +28,12 @@ import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import * as Location from 'expo-location';
 
+// Add Story related imports
+import StoryRing from '@/components/StoryRing';
+import StoryViewer from '@/components/StoryViewer';
+import StoryCreator from '@/components/StoryCreator';
+import { fetchActiveStories, UserWithStories } from '@/utils/storyService';
+
 const { width: screenWidth } = Dimensions.get('window');
 
 const DEFAULT_USERNAME = 'user_fitcore';
@@ -36,6 +42,7 @@ type Post = {
   id: string;
   user_id: string;
   username: string;
+  avatar_url: string | null;
   content: string;
   image_url?: string | null;
   likes: number;
@@ -51,6 +58,7 @@ type Comment = {
   post_id: string;
   user_id: string;
   username: string;
+  avatar_url?: string | null;
   content: string;
   created_at: string;
   timeAgo?: string;
@@ -102,6 +110,17 @@ export default function SocialScreen() {
   // Add this new state for modal animation
   const modalAnimation = useRef(new Animated.Value(0)).current;
 
+  // Add story related state
+  const [stories, setStories] = useState<UserWithStories[]>([]);
+  const [loadingStories, setLoadingStories] = useState(false);
+  const [selectedUserStories, setSelectedUserStories] = useState<UserWithStories | null>(null);
+  const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [showStoryCreator, setShowStoryCreator] = useState(false);
+  const [initialStoryIndex, setInitialStoryIndex] = useState(0);
+
+  // Add state for current user avatar
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null);
+  
   useEffect(() => {
     let isMounted = true;
 
@@ -110,6 +129,23 @@ export default function SocialScreen() {
       const { data } = await supabase.auth.getUser();
       if (isMounted) {
         setCurrentUserId(data.user?.id || null);
+        
+        // If we have a user ID, fetch their avatar
+        if (data.user?.id) {
+          try {
+            const { data: userData, error } = await supabase
+              .from('users')
+              .select('avatar_url')
+              .eq('id', data.user.id)
+              .single();
+              
+            if (!error && userData && isMounted) {
+              setCurrentUserAvatar(userData.avatar_url);
+            }
+          } catch (error) {
+            console.error('Error fetching user avatar:', error);
+          }
+        }
       }
     };
     
@@ -152,6 +188,13 @@ export default function SocialScreen() {
     };
   }, []);
 
+  // Add a useEffect to fetch stories
+  useEffect(() => {
+    if (currentUserId) {
+      fetchStories();
+    }
+  }, [currentUserId]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchPosts();
@@ -164,7 +207,7 @@ export default function SocialScreen() {
       setLoading(true);
       const { data, error } = await supabase
         .from('social_posts')
-        .select('*, profiles:user_id(username)')
+        .select('*, profiles:user_id(username, avatar_url)')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -205,6 +248,7 @@ export default function SocialScreen() {
           id: postId,
           user_id: post.user_id,
           username: post.profiles?.username || 'anonymous',
+          avatar_url: post.profiles?.avatar_url || null,
           content: post.content,
           image_url: imageUrl,
           likes: 0, // We'll get the count from a different query
@@ -239,6 +283,19 @@ export default function SocialScreen() {
       console.error('Error in fetchPosts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add function to fetch stories
+  const fetchStories = async () => {
+    try {
+      setLoadingStories(true);
+      const storiesData = await fetchActiveStories(currentUserId);
+      setStories(storiesData);
+    } catch (error) {
+      console.error('Error fetching stories:', error);
+    } finally {
+      setLoadingStories(false);
     }
   };
 
@@ -597,122 +654,33 @@ export default function SocialScreen() {
     
     try {
       setSearchLoading(true);
-      console.log('Searching for:', query);
       
       // Get current user ID
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData?.user?.id;
-      console.log('Current user ID:', currentUserId);
       
-      // After seeing the screenshots, we know the table exists but with a different name
-      // Let's try without specifying a schema name (default public schema)
-      const { data: allUsers, error: allUsersError } = await supabase
-        .from('user')  // Try "user" instead of "users" or "profiles"
-        .select('*')
+      // Try the users table - include avatar_url in the query
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, full_name, avatar_url')
+        .ilike('username', `%${query}%`)
         .limit(10);
-      
-      if (allUsersError) {
-        console.log('Error with "user" table, trying "users"');
-        // Try the original "users" table again
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('*')
-          .limit(10);
           
-        if (usersError) {
-          console.log('Error with both "user" and "users" tables, trying "auth.users"');
-          // Try auth schema
-          const { data: authUsersData, error: authUsersError } = await supabase
-            .from('auth.users')
-            .select('*')
-            .limit(10);
-            
-          if (authUsersError) {
-            console.log('All known user table attempts failed. Using RPC call as last resort');
-            
-            // Try a direct SQL query using RPC (if you have a function set up)
-            // This is a last resort attempt
-            try {
-              const { data: rpcUsers } = await supabase.rpc('get_all_users');
-              
-              if (rpcUsers && rpcUsers.length > 0) {
-                console.log('Found users through RPC call');
-                // Filter out current user and filter by query
-                const filteredUsers = rpcUsers.filter((user: { id: string; username?: string; email?: string }) => 
-                  user.id !== currentUserId && 
-                  user.username?.toLowerCase().includes(query.toLowerCase())
-                );
-                
-                setSearchResults(filteredUsers);
-                console.log('Found users:', filteredUsers.length);
-              } else {
-                setSearchResults([]);
-              }
-            } catch (rpcError) {
-              console.error('RPC call failed:', rpcError);
-              
-              // Last option: Try a direct query using Supabase Functions
-              Alert.alert(
-                'Database Issue', 
-                'Unable to search for users. The database structure may need to be reconfigured.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      setSearchLoading(false);
-                      setSearchResults([]);
-                    }
-                  }
-                ]
-              );
-            }
-          } else {
-            // We found users in auth.users
-            const filteredAuthUsers = authUsersData?.filter(user => 
-              user.id !== currentUserId && user.username?.toLowerCase().includes(query.toLowerCase())
-            ) || [];
-            
-            console.log('Found users in auth.users:', filteredAuthUsers.length);
-            setSearchResults(filteredAuthUsers);
-          }
-        } else {
-          // We found users in the users table
-          console.log('Found users in users table:', usersData?.length || 0);
-          
-          // Check if the structure matches what we see in the screenshot
-          if (usersData && usersData.length > 0) {
-            console.log('User fields available:', Object.keys(usersData[0]).join(', '));
-            
-            // Filter results by username or email containing search query
-            const filteredUsers = usersData.filter(user => 
-              user.id !== currentUserId && 
-              user.username?.toLowerCase().includes(query.toLowerCase())
-            );
-            
-            console.log('Filtered users count:', filteredUsers.length);
-            setSearchResults(filteredUsers);
-          } else {
-            setSearchResults([]);
-          }
-        }
+      if (usersError || !usersData || usersData.length === 0) {
+        console.log('Error with "users" table or no results found');
+        setSearchResults([]);
       } else {
-        // We found users in the "user" table
-        console.log('Found users in user table:', allUsers?.length || 0);
+        // We found users in the users table
+        console.log('Found users:', usersData.length);
         
-        if (allUsers && allUsers.length > 0) {
-          console.log('User fields available:', Object.keys(allUsers[0]).join(', '));
-          
-          // Filter results
-          const filteredUsers = allUsers.filter(user => 
-            user.id !== currentUserId && 
-            user.username?.toLowerCase().includes(query.toLowerCase())
-          );
-          
-          console.log('Filtered users count:', filteredUsers.length);
-          setSearchResults(filteredUsers);
-        } else {
-          setSearchResults([]);
-        }
+        // Filter results by username containing search query
+        const filteredUsers = usersData.filter((user: { id: string, username: string }) => 
+          user.id !== currentUserId && 
+          user.username?.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        console.log('Filtered users count:', filteredUsers.length);
+        setSearchResults(filteredUsers);
       }
     } catch (error) {
       console.error('Error in searchUsers:', error);
@@ -870,7 +838,7 @@ export default function SocialScreen() {
           user_id,
           content,
           created_at,
-          users!user_id (username)
+          users!user_id (username, avatar_url)
         `)
         .eq('post_id', postIdInt)
         .order('created_at', { ascending: true });
@@ -882,6 +850,7 @@ export default function SocialScreen() {
         post_id: comment.post_id,
         user_id: comment.user_id,
         username: comment.users?.username || 'anonymous',
+        avatar_url: comment.users?.avatar_url || null,
         content: comment.content,
         created_at: comment.created_at,
         timeAgo: formatTimeAgo(new Date(comment.created_at))
@@ -984,6 +953,34 @@ export default function SocialScreen() {
     }).start(() => {
       setShowComments(prev => ({ ...prev, [postId]: false }));
     });
+  };
+
+  // Add story related handlers
+  const handleOpenStory = (userWithStories: UserWithStories, index = 0) => {
+    // Show the story viewer immediately
+    setSelectedUserStories(userWithStories);
+    setInitialStoryIndex(index);
+    setShowStoryViewer(true);
+  };
+
+  const handleCloseStoryViewer = () => {
+    setShowStoryViewer(false);
+    setSelectedUserStories(null);
+  };
+
+  const handleStoryComplete = () => {
+    setShowStoryViewer(false);
+    setSelectedUserStories(null);
+    // Optionally, you might want to navigate to the next user's stories
+  };
+
+  const handleCreateStory = () => {
+    setShowStoryCreator(true);
+  };
+
+  const handleStoryCreated = () => {
+    setShowStoryCreator(false);
+    fetchStories(); // Refresh stories after creating a new one
   };
 
   const styles = StyleSheet.create({
@@ -1742,6 +1739,21 @@ export default function SocialScreen() {
       justifyContent: 'center',
       alignItems: 'center',
     },
+    storyNamePlaceholder: {
+      width: 40,
+      height: 10,
+      borderRadius: 5,
+      marginTop: 8,
+    },
+    noStoriesContainer: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      minWidth: 120,
+    },
+    noStoriesText: {
+      fontSize: 14,
+      marginTop: 10,
+    },
   });
 
   // Place this before the return statement
@@ -1803,15 +1815,27 @@ export default function SocialScreen() {
                       colors={['#f2709c', '#ff9472']}
                       style={styles.commentAvatar}
                     >
-                      <View style={[styles.avatar, {
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
-                        borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
-                      }]}>
-                        <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
-                      </View>
+                      {comment.avatar_url ? (
+                        <Image
+                          source={{ uri: comment.avatar_url }}
+                          style={[styles.avatar, {
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                          }]}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.avatar, {
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                          borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                        }]}>
+                          <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
+                        </View>
+                      )}
                     </LinearGradient>
                     <View style={[styles.commentContent, {
                       backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
@@ -1876,6 +1900,99 @@ export default function SocialScreen() {
     </Modal>
   );
 
+  // Modify the Stories Section 
+  const renderStoriesSection = () => {
+    return (
+    <View style={[styles.storiesContainer, { 
+      borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' 
+    }]}>
+      <ScrollView 
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.storiesContent}
+      >
+        <TouchableOpacity style={styles.storyAdd} onPress={handleCreateStory}>
+          <LinearGradient
+            colors={['rgba(74,144,226,0.2)', 'rgba(74,144,226,0.1)']}
+            style={styles.storyAddRing}
+          >
+            <View style={[styles.storyAddIcon, {
+              backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)'
+            }]}>
+              <Feather name="plus" size={20} color="#4a90e2" />
+            </View>
+          </LinearGradient>
+          <Text style={[styles.storyAddText, { color: '#4a90e2' }]}>Add</Text>
+        </TouchableOpacity>
+        
+        {loadingStories ? (
+          // Show placeholders while loading
+          Array.from({ length: 5 }).map((_, index) => (
+            <View key={`placeholder-${index}`} style={styles.storyItem}>
+              <View style={[styles.storyRing, { opacity: 0.5 }]}>
+                <View style={[styles.storyInner, { 
+                  backgroundColor: isDarkMode ? '#3e3e50' : '#f0f0f0'
+                }]} />
+              </View>
+              <View style={[styles.storyNamePlaceholder, {
+                backgroundColor: isDarkMode ? '#3e3e50' : '#f0f0f0',
+              }]} />
+            </View>
+          ))
+        ) : stories.length > 0 ? (
+          // Show actual stories
+          stories.map((userStories) => (
+            <TouchableOpacity 
+              key={userStories.id} 
+              style={styles.storyItem}
+              onPress={() => handleOpenStory(userStories)}
+              activeOpacity={0.7}
+            >
+              <StoryRing size={60} seen={!userStories.hasUnviewedStories}>
+                {userStories.avatar_url ? (
+                  <Image 
+                    source={{ uri: userStories.avatar_url }}
+                    style={[styles.storyInner, { 
+                      backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
+                      borderColor: isDarkMode ? '#1a1a2e' : '#e0e0e0'
+                    }]}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.storyInner, { 
+                    backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
+                    borderColor: isDarkMode ? '#1a1a2e' : '#e0e0e0'
+                  }]}>
+                    <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
+                  </View>
+                )}
+              </StoryRing>
+              <Text 
+                style={[
+                  styles.storyName, 
+                  { 
+                    color: isDarkMode ? '#fff' : '#000',
+                    fontWeight: userStories.hasUnviewedStories ? '700' : '400'
+                  }
+                ]}
+              >
+                {userStories.username}
+              </Text>
+            </TouchableOpacity>
+          ))
+        ) : (
+          // Show "No stories" message if none exist
+          <View style={styles.noStoriesContainer}>
+            <Text style={[styles.noStoriesText, { color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }]}>
+              No stories yet
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+};
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
@@ -1893,12 +2010,20 @@ export default function SocialScreen() {
               colors={['#f2709c', '#ff9472']}
               style={styles.avatarGradientSmall}
             >
-              <View style={[styles.avatarSmall, { 
-                backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
-                borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
-              }]}>
-                <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
-              </View>
+              {currentUserAvatar ? (
+                <Image
+                  source={{ uri: currentUserAvatar }}
+                  style={styles.avatarSmall}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.avatarSmall, { 
+                  backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
+                  borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                }]}>
+                  <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
+                </View>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -1918,47 +2043,8 @@ export default function SocialScreen() {
         </View>
       </LinearGradient>
 
-      {/* Stories Section */}
-      <View style={[styles.storiesContainer, { 
-        borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' 
-      }]}>
-        <ScrollView 
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.storiesContent}
-        >
-          <TouchableOpacity style={styles.storyAdd}>
-            <LinearGradient
-              colors={['rgba(74,144,226,0.2)', 'rgba(74,144,226,0.1)']}
-              style={styles.storyAddRing}
-            >
-              <View style={[styles.storyAddIcon, {
-                backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)'
-              }]}>
-                <Feather name="plus" size={20} color="#4a90e2" />
-              </View>
-            </LinearGradient>
-            <Text style={[styles.storyAddText, { color: '#4a90e2' }]}>Add</Text>
-          </TouchableOpacity>
-          
-          {['John', 'Maria', 'Carlos', 'Ana', 'Pedro'].map((name, index) => (
-            <TouchableOpacity key={index} style={styles.storyItem}>
-              <LinearGradient
-                colors={index % 2 === 0 ? ['#f2709c', '#ff9472'] : ['#4776E6', '#8E54E9']}
-                style={styles.storyRing}
-              >
-                <View style={[styles.storyInner, { 
-                  backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
-                  borderColor: isDarkMode ? '#1a1a2e' : '#e0e0e0'
-                }]}>
-                  <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
-                </View>
-              </LinearGradient>
-              <Text style={[styles.storyName, { color: isDarkMode ? '#fff' : '#000' }]}>{name}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      {/* Stories Section - Replace with our new renderStoriesSection */}
+      {renderStoriesSection()}
 
       {/* Posts Feed */}
       <Animated.ScrollView 
@@ -2023,12 +2109,20 @@ export default function SocialScreen() {
                     colors={['#f2709c', '#ff9472']}
                     style={styles.avatarGradient}
                   >
-                    <View style={[styles.avatar, { 
-                      backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
-                      borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
-                    }]}>
-                      <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
-                    </View>
+                    {post.avatar_url ? (
+                      <Image 
+                        source={{ uri: post.avatar_url }}
+                        style={styles.avatar}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.avatar, { 
+                        backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                        borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                      }]}>
+                        <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
+                      </View>
+                    )}
                   </LinearGradient>
                   <TouchableOpacity onPress={() => router.push(`/${post.user_id}`)}>
                     <Text style={[styles.username, { color: isDarkMode ? '#fff' : '#000' }]}>{post.username}</Text>
@@ -2418,9 +2512,17 @@ export default function SocialScreen() {
                       colors={['#f2709c', '#ff9472']}
                       style={styles.resultAvatarGradient}
                     >
-                      <View style={styles.resultAvatar}>
-                        <FontAwesome name="user" size={18} color="#fff" />
-                      </View>
+                      {user.avatar_url ? (
+                        <Image 
+                          source={{ uri: user.avatar_url }}
+                          style={styles.resultAvatar}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.resultAvatar}>
+                          <FontAwesome name="user" size={18} color="#fff" />
+                        </View>
+                      )}
                     </LinearGradient>
                     <View style={styles.userResultInfo}>
                       <Text style={styles.userResultUsername}>{user.username}</Text>
@@ -2574,6 +2676,25 @@ export default function SocialScreen() {
 
       {/* Add this at the end of the return statement */}
       {posts.map(post => renderCommentsModal(post))}
+
+      {/* Story Viewer Modal */}
+      {selectedUserStories && showStoryViewer && (
+        <StoryViewer
+          stories={selectedUserStories.stories}
+          currentUserID={currentUserId || ''}
+          initialStoryIndex={initialStoryIndex}
+          onClose={handleCloseStoryViewer}
+          onComplete={handleStoryComplete}
+        />
+      )}
+
+      {/* Story Creator Modal */}
+      <StoryCreator
+        visible={showStoryCreator}
+        onClose={() => setShowStoryCreator(false)}
+        onStoryCreated={handleStoryCreated}
+        userId={currentUserId || ''}
+      />
     </View>
   );
 } 
