@@ -1,12 +1,133 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
+import { supabase } from '@/utils/supabase';
 
 export default function HeaderStats() {
-  // These values would typically come from your app's state management
-  const streakCount = 7; // Example streak count
-  const currencyCount = 350; // Example currency count
+  const [streakCount, setStreakCount] = useState(0);
+  const [currencyCount, setCurrencyCount] = useState(350); // Example currency count
   const { isDarkMode, colors } = useTheme();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    calculateStreak();
+  }, []);
+
+  // Calculate workout streak based on consecutive days with workouts
+  const calculateStreak = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) {
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get user's workout sessions sorted by start_time in descending order
+      const { data: sessions, error } = await supabase
+        .from('sessions')
+        .select('start_time, status')
+        .eq('user_id', userData.user.id)
+        .eq('status', 'completed')
+        .order('start_time', { ascending: false });
+      
+      if (error || !sessions || sessions.length === 0) {
+        setIsLoading(false);
+        return;
+      }
+      
+      // Calculate streak
+      let streak = 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalize to start of day
+      
+      // Group sessions by day (since a user might have multiple workouts in a day)
+      const workoutDays = new Set<string>();
+      
+      sessions.forEach(session => {
+        const sessionDate = new Date(session.start_time);
+        const dateString = sessionDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+        workoutDays.add(dateString);
+      });
+      
+      // Convert to array and sort in descending order (newest first)
+      const sortedWorkoutDays = Array.from(workoutDays).sort().reverse();
+      
+      if (sortedWorkoutDays.length === 0) {
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get the most recent workout date
+      const mostRecentWorkoutDate = new Date(sortedWorkoutDays[0]);
+      mostRecentWorkoutDate.setHours(0, 0, 0, 0);
+      
+      // Calculate days since most recent workout
+      const daysSinceLastWorkout = Math.floor(
+        (today.getTime() - mostRecentWorkoutDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      
+      // If more than 3 days since last workout, streak is 0
+      if (daysSinceLastWorkout > 3) {
+        setStreakCount(0);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Calculate streak by counting all workout days with gaps <= 3 days
+      streak = 0;
+      let currentDate = new Date(today);
+      currentDate.setHours(0, 0, 0, 0);
+      
+      // Create a set of workout day strings for easier lookup
+      const workoutDaysSet = new Set(sortedWorkoutDays);
+      
+      // Scan backwards from today, looking for the longest streak
+      let previousWorkoutDate: Date | null = null;
+      let gapDays = 0;
+      
+      // Convert sortedWorkoutDays to actual Date objects and sort most recent first
+      const workoutDatesArray = sortedWorkoutDays.map(dateStr => {
+        const date = new Date(dateStr);
+        date.setHours(0, 0, 0, 0);
+        return date;
+      });
+      
+      // Traverse the sorted workout dates
+      for (let i = 0; i < workoutDatesArray.length; i++) {
+        const currentWorkoutDate = workoutDatesArray[i];
+        
+        if (previousWorkoutDate === null) {
+          // First workout in the sequence
+          previousWorkoutDate = currentWorkoutDate;
+          streak = 1; // Start the streak
+          continue;
+        }
+        
+        // Calculate days between previous workout and this one
+        const daysBetween = Math.floor(
+          (previousWorkoutDate.getTime() - currentWorkoutDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        if (daysBetween <= 3) {
+          // Gap is 3 days or less, include in streak
+          streak++;
+          previousWorkoutDate = currentWorkoutDate;
+        } else {
+          // Gap is more than 3 days, streak is broken
+          break;
+        }
+      }
+      
+      setStreakCount(streak);
+    } catch (error) {
+      console.error('Error calculating streak:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Format value with K suffix if over 1000
   const formatValue = (val: number): string => {
