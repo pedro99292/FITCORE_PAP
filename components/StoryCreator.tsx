@@ -18,6 +18,7 @@ import {
   PanResponder,
   Animated
 } from 'react-native';
+import { SafeAreaView as SafeAreaViewRN } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Ionicons, MaterialIcons, FontAwesome5, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
@@ -561,24 +562,26 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
       <Animated.View style={[styles.editorContainer, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
         
-        {/* Header */}
-        <View style={styles.editorHeader}>
-          <TouchableOpacity onPress={handleBackToOptions}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.editorTitle}>New Story</Text>
-          <TouchableOpacity 
-            onPress={handleCreateStory}
-            disabled={isLoading}
-            style={styles.postButton}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons name="checkmark" size={24} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
-        </View>
+        <SafeAreaViewRN style={styles.safeAreaContainer} edges={['top']}>
+          {/* Header */}
+          <View style={styles.editorHeader}>
+            <TouchableOpacity onPress={handleBackToOptions}>
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.editorTitle}>New Story</Text>
+            <TouchableOpacity 
+              onPress={handleCreateStory}
+              disabled={isLoading}
+              style={styles.postButton}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </SafeAreaViewRN>
         
         {/* Media Preview with Filter */}
         <View style={styles.mediaContainer}>
@@ -761,6 +764,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     zIndex: 9999,
   },
+  safeAreaContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   editorHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -768,7 +778,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 10,
   },
   editorTitle: {
     color: '#FFFFFF',

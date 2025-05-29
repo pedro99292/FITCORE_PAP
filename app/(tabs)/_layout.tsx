@@ -17,7 +17,8 @@ const TabIcon = memo(({ name, color, size }: { name: string, color: string, size
 // Helper function to calculate icon size based on screen width
 const getIconSize = () => {
   const { width } = Dimensions.get('window');
-  return Math.max(41, width * 0.09);
+  // Increased icon size for better visibility while ensuring they fit properly
+  return Math.min(32, Math.max(26, width * 0.08));
 };
 
 // Precomputed icon size to avoid recalculation
@@ -51,14 +52,15 @@ const TabLayout = () => {
     backgroundColor: isDarkMode ? '#2D2B3F' : '#ffffff',
     borderTopWidth: 1,
     borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-    height: 75,
-    paddingBottom: 12,
-    paddingTop: 12,
+    height: Platform.OS === 'ios' ? 90 : 75,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 15,
+    paddingTop: 10,
   }), [isDarkMode]);
 
   const tabBarItemStyle = useMemo((): ViewStyle => ({
-    paddingVertical: 8,
+    paddingVertical: 4,
     justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   }), []);
 
   // While checking authentication state, show a loading indicator

@@ -230,16 +230,6 @@ const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedVa
   );
 });
 
-// Memoized Header component
-const Header = memo(({ title, color }: { title: string, color: string }) => (
-  <View style={styles.header}>
-    <Text style={[styles.title, { color }]}>{title}</Text>
-    <TouchableOpacity style={styles.notificationButton}>
-      <Ionicons name="notifications-outline" size={26} color={color} />
-    </TouchableOpacity>
-  </View>
-));
-
 // Create a platform-optimized image component
 const OptimizedImage = ({ 
   source, 
@@ -340,9 +330,6 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-      
-      {/* Header */}
-      <Header title="FITCORE" color={colors.text} />
       
       {/* Stats Box */}
       <StatsContainer statsOpacity={statsOpacity} />
@@ -505,20 +492,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    marginTop: 20,
+    marginTop: 35,
     marginBottom: 20,
   },
   silhouetteWrapper: {
-    width: screenWidth * 0.75,
-    height: screenHeight * 0.5,
+    width: screenWidth * 0.76,
+    height: screenHeight * 0.49,
     justifyContent: 'center',
     alignItems: 'center',
     // Enable 3D transformations
     perspective: '1000px',
   },
   silhouette: {
-    width: screenWidth * 0.75,
-    height: screenHeight * 0.5,
+    width: screenWidth * 0.76,
+    height: screenHeight * 0.49,
     resizeMode: 'contain',
     alignSelf: 'center',
   },

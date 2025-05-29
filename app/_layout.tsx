@@ -2,6 +2,7 @@ import React, { useEffect, memo, Suspense } from 'react';
 import { Stack } from 'expo-router';
 import { Platform, StyleSheet, Text, TextProps, View, LogBox, ActivityIndicator, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 // Only import specific icons instead of entire libraries
@@ -169,7 +170,11 @@ const MainLayout = () => {
 
   return (
     <>
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      <StatusBar 
+        style={isDarkMode ? 'light' : 'dark'} 
+        translucent={Platform.OS === 'android'}
+        backgroundColor={Platform.OS === 'android' ? 'transparent' : undefined}
+      />
       <Stack
         screenOptions={{
           headerStyle: {
@@ -232,13 +237,15 @@ const RootLayout = () => {
   }
 
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <SubscriptionProvider>
-          <MainLayout />
-        </SubscriptionProvider>
-      </ThemeProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <SubscriptionProvider>
+            <MainLayout />
+          </SubscriptionProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 };
 

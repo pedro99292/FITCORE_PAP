@@ -12,6 +12,7 @@ import {
   Platform,
   SafeAreaView
 } from 'react-native';
+import { SafeAreaView as SafeAreaViewRN } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
@@ -333,52 +334,54 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
       
       {/* Story Content */}
       <View style={styles.storyContainer}>
-        {/* User Info Header */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.7)', 'transparent']}
-          style={styles.header}
-        >
-          {renderProgressBars()}
-          
-          <View style={styles.userInfoContainer}>
-            <View style={styles.userInfo}>
-              <LinearGradient
-                colors={['#4776E6', '#8E54E9']}
-                style={styles.avatarContainer}
-              >
-                {currentStory?.avatar_url ? (
-                  <Image 
-                    source={{ uri: currentStory.avatar_url }}
-                    style={styles.avatar}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.avatar}>
-                    <FontAwesome name="user" size={18} color="#fff" />
-                  </View>
+        {/* User Info Header with SafeAreaView */}
+        <SafeAreaViewRN style={styles.headerSafeArea} edges={['top']}>
+          <LinearGradient
+            colors={['rgba(0,0,0,0.7)', 'transparent']}
+            style={styles.header}
+          >
+            {renderProgressBars()}
+            
+            <View style={styles.userInfoContainer}>
+              <View style={styles.userInfo}>
+                <LinearGradient
+                  colors={['#4776E6', '#8E54E9']}
+                  style={styles.avatarContainer}
+                >
+                  {currentStory?.avatar_url ? (
+                    <Image 
+                      source={{ uri: currentStory.avatar_url }}
+                      style={styles.avatar}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.avatar}>
+                      <FontAwesome name="user" size={18} color="#fff" />
+                    </View>
+                  )}
+                </LinearGradient>
+                <View>
+                  <Text style={styles.username}>{currentStory?.username || 'User'}</Text>
+                  <Text style={styles.timestamp}>{currentStory?.timeAgo || 'now'}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.actionButtons}>
+                {isCurrentUserStory && (
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => setShowOptions(true)}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                  </TouchableOpacity>
                 )}
-              </LinearGradient>
-              <View>
-                <Text style={styles.username}>{currentStory?.username || 'User'}</Text>
-                <Text style={styles.timestamp}>{currentStory?.timeAgo || 'now'}</Text>
+                <TouchableOpacity style={styles.actionButton} onPress={handleClose}>
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
               </View>
             </View>
-            
-            <View style={styles.actionButtons}>
-              {isCurrentUserStory && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => setShowOptions(true)}
-                >
-                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.actionButton} onPress={handleClose}>
-                <Ionicons name="close" size={28} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </LinearGradient>
+          </LinearGradient>
+        </SafeAreaViewRN>
         
         {/* Media Content */}
         {currentStory?.story_type === 'video' ? (
@@ -474,13 +477,15 @@ const styles = StyleSheet.create({
     width: screenWidth,
     height: screenHeight,
   },
-  header: {
+  headerSafeArea: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 40,
+  },
+  header: {
+    position: 'relative',
     paddingBottom: 20,
   },
   progressContainer: {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/utils/supabase';
 
@@ -144,47 +145,56 @@ export default function HeaderStats() {
   };
 
   return (
-    <View style={[
-      styles.container, 
+    <SafeAreaView style={[
+      styles.safeArea, 
       { 
         backgroundColor: isDarkMode ? '#2D2B3F' : colors.surface,
-        borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
       }
-    ]}>
-      {/* Streaks Counter on the Left */}
-      <View style={styles.counterContainer}>
-        <Image 
-          source={require('../assets/images/streaks.png')} 
-          style={styles.icon} 
-          resizeMode="contain"
-        />
-        <Text style={[styles.counterText, { color: colors.text }]}>{streakCount}</Text>
-        <Text style={[styles.labelText, { color: isDarkMode ? '#ccc' : '#666' }]}>dias</Text>
-      </View>
+    ]} edges={['top', 'left', 'right']}>
+      <View style={[
+        styles.container, 
+        { 
+          borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+        }
+      ]}>
+        {/* Streaks Counter on the Left */}
+        <View style={styles.counterContainer}>
+          <Image 
+            source={require('../assets/images/streaks.png')} 
+            style={styles.icon} 
+            resizeMode="contain"
+          />
+          <Text style={[styles.counterText, { color: colors.text }]}>{streakCount}</Text>
+          <Text style={[styles.labelText, { color: isDarkMode ? '#ccc' : '#666' }]}>dias</Text>
+        </View>
 
-      {/* Title in the Center */}
-      <Text style={[styles.title, { color: colors.text }]}>FitCore</Text>
+        {/* Title in the Center */}
+        <Text style={[styles.title, { color: colors.text }]}>FitCore</Text>
 
-      {/* Currency Counter on the Right */}
-      <View style={styles.counterContainer}>
-        <Image 
-          source={require('../assets/images/coin.png')} 
-          style={styles.icon} 
-          resizeMode="contain"
-        />
-        <Text style={[styles.counterText, { color: colors.text }]}>{formatValue(currencyCount)}</Text>
+        {/* Currency Counter on the Right */}
+        <View style={styles.counterContainer}>
+          <Image 
+            source={require('../assets/images/coin.png')} 
+            style={styles.icon} 
+            resizeMode="contain"
+          />
+          <Text style={[styles.counterText, { color: colors.text }]}>{formatValue(currencyCount)}</Text>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: 'transparent',
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 10,
     paddingBottom: 10,
     borderBottomWidth: 1,
   },

@@ -19,6 +19,7 @@ import {
   Animated,
   Modal
 } from 'react-native';
+import { SafeAreaView as SafeAreaViewRN } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import { useExerciseDB, useTargets, useEquipment } from '@/hooks/useExerciseDB';
 import { Ionicons } from '@expo/vector-icons';
@@ -668,24 +669,26 @@ export default function WorkoutBuilderScreen() {
           }
         ]}
       >
-        {/* Fixed Header */}
-        <LinearGradient
-          colors={['#2e2e40', '#262635']}
-          style={styles.libraryHeader}
-        >
-          <TouchableOpacity 
-            style={styles.closeButton}
-            onPress={closeExerciseLibrary}
+        {/* Fixed Header with SafeAreaView */}
+        <SafeAreaViewRN style={styles.libraryHeaderSafeArea} edges={['top']}>
+          <LinearGradient
+            colors={['#2e2e40', '#262635']}
+            style={styles.libraryHeader}
           >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.libraryTitle}>Exercise Library</Text>
-          <View style={styles.headerRight}>
-            <Text style={styles.selectionCount}>
-              {selectedExercises.length} selected
-            </Text>
-          </View>
-        </LinearGradient>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={closeExerciseLibrary}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.libraryTitle}>Exercise Library</Text>
+            <View style={styles.headerRight}>
+              <Text style={styles.selectionCount}>
+                {selectedExercises.length} selected
+              </Text>
+            </View>
+          </LinearGradient>
+        </SafeAreaViewRN>
         
         {/* Fixed Search and Filters */}
         <View style={styles.fixedTopContent}>
@@ -1547,6 +1550,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 999,
   },
+  libraryHeaderSafeArea: {
+    backgroundColor: '#2e2e40',
+    zIndex: 2,
+  },
   libraryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1555,8 +1562,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#2c2c3e',
-    zIndex: 2,
+    backgroundColor: 'transparent',
   },
   libraryTitle: {
       fontSize: 20,
