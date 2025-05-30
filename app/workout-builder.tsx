@@ -80,6 +80,7 @@ export default function WorkoutBuilderScreen() {
   const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
   const [equipmentDropdownOpen, setEquipmentDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filters, setFilters] = useState<{ target?: string; equipment?: string; search?: string }>({});
   const [saving, setSaving] = useState(false);
   const [showExerciseSelection, setShowExerciseSelection] = useState(false);
@@ -159,6 +160,20 @@ export default function WorkoutBuilderScreen() {
     }
   }, [allEquipment]);
   
+  // Add debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Only set search query if it's 3 characters or more, or empty
+      if (searchQuery.length >= 3 || searchQuery.length === 0) {
+        setDebouncedSearchQuery(searchQuery);
+      } else {
+        setDebouncedSearchQuery('');
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Filter exercises when category changes
   useEffect(() => {
     const newFilters: any = { ...filters };
@@ -176,15 +191,15 @@ export default function WorkoutBuilderScreen() {
       newFilters.equipment = activeEquipment;
     }
     
-    // Set search query if any
-    if (searchQuery) {
-      newFilters.search = searchQuery;
+    // Set search query only if it's 3 characters or more
+    if (debouncedSearchQuery && debouncedSearchQuery.length >= 3) {
+      newFilters.search = debouncedSearchQuery;
     } else {
       delete newFilters.search;
     }
     
     setFilters(newFilters);
-  }, [activeTarget, activeEquipment, searchQuery]);
+  }, [activeTarget, activeEquipment, debouncedSearchQuery]);
 
   const handleFilterChange = (newFilters: { target?: string; equipment?: string; search?: string }) => {
     setFilters(newFilters);
@@ -196,6 +211,7 @@ export default function WorkoutBuilderScreen() {
   
   const clearSearch = () => {
     setSearchQuery('');
+    setDebouncedSearchQuery('');
     if (searchInputRef.current) {
       searchInputRef.current.clear();
     }
@@ -698,16 +714,30 @@ export default function WorkoutBuilderScreen() {
             <TextInput
               ref={searchInputRef}
               style={styles.searchInput}
-              placeholder="Search exercises..."
+              placeholder={`Search exercises${searchQuery.length > 0 && searchQuery.length < 3 ? ` (${3 - searchQuery.length} more)` : '...'}`}
               placeholderTextColor="#9ca3af"
               value={searchQuery}
               onChangeText={handleSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
-            {searchQuery ? (
-              <TouchableOpacity onPress={clearSearch} style={styles.clearSearch}>
-                <Ionicons name="close-circle" size={20} color="#9ca3af" />
-              </TouchableOpacity>
-            ) : null}
+            <View style={styles.searchActions}>
+              {searchQuery.length > 0 && searchQuery.length < 3 && (
+                <View style={styles.searchIndicator}>
+                  <Text style={styles.searchIndicatorText}>{searchQuery.length}/3</Text>
+                </View>
+              )}
+              {searchQuery.length >= 3 && (
+                <View style={styles.searchActiveIndicator}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                </View>
+              )}
+              {searchQuery ? (
+                <TouchableOpacity onPress={clearSearch} style={styles.clearSearch}>
+                  <Ionicons name="close-circle" size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
           
           {/* Filter Buttons */}
@@ -799,7 +829,7 @@ export default function WorkoutBuilderScreen() {
                   
                   <View style={styles.exerciseItemContent}>
                     <Text style={styles.exerciseItemName}>{item.name}</Text>
-                    <Text style={styles.exerciseItemDetail}>{item.bodyPart} • {item.equipment}</Text>
+                    <Text style={styles.exerciseItemDetail}>{item.target} • {item.equipment}</Text>
                   </View>
 
                   <View style={styles.exerciseItemActions}>
@@ -833,7 +863,7 @@ export default function WorkoutBuilderScreen() {
               )}
               ListFooterComponent={() => (
                 <View style={styles.listFooter}>
-                  {displayedExercises.length < exercises.length && (
+                  {displayedExercises.length < getFilteredExercisesCount() && (
                     <TouchableOpacity 
                       style={styles.loadMoreButton}
                       onPress={handleLoadMoreExercises}
@@ -850,7 +880,10 @@ export default function WorkoutBuilderScreen() {
                     </TouchableOpacity>
                   )}
                   <Text style={styles.listFooterText}>
-                    Showing {displayedExercises.length} of {exercises.length} exercises
+                    Showing {displayedExercises.length} of {getFilteredExercisesCount()} exercises
+                    {(activeTarget || activeEquipment || (debouncedSearchQuery && debouncedSearchQuery.length >= 3)) && 
+                      ` (filtered from ${exercises.length} total)`
+                    }
                   </Text>
                 </View>
               )}
@@ -1310,9 +1343,41 @@ export default function WorkoutBuilderScreen() {
   // Use effect to control how many exercises are displayed
   useEffect(() => {
     if (exercises.length > 0) {
-      setDisplayedExercises(exercises.slice(0, displayLimit));
+      // Apply additional client-side filtering to ensure both filters work together
+      let filteredExercises = exercises;
+      
+      // If both target and equipment are selected, apply AND logic
+      if (activeTarget && activeEquipment) {
+        filteredExercises = exercises.filter(exercise => 
+          exercise.target.toLowerCase().includes(activeTarget.toLowerCase()) &&
+          exercise.equipment.toLowerCase().includes(activeEquipment.toLowerCase())
+        );
+      }
+      // If only target is selected
+      else if (activeTarget && !activeEquipment) {
+        filteredExercises = exercises.filter(exercise => 
+          exercise.target.toLowerCase().includes(activeTarget.toLowerCase())
+        );
+      }
+      // If only equipment is selected
+      else if (activeEquipment && !activeTarget) {
+        filteredExercises = exercises.filter(exercise => 
+          exercise.equipment.toLowerCase().includes(activeEquipment.toLowerCase())
+        );
+      }
+      
+      // Apply search filter if active (3+ characters)
+      if (debouncedSearchQuery && debouncedSearchQuery.length >= 3) {
+        filteredExercises = filteredExercises.filter(exercise =>
+          exercise.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+        );
+      }
+      
+      setDisplayedExercises(filteredExercises.slice(0, displayLimit));
+    } else {
+      setDisplayedExercises([]);
     }
-  }, [exercises, displayLimit]);
+  }, [exercises, displayLimit, activeTarget, activeEquipment, debouncedSearchQuery]);
 
   // Modify the handleLoadMoreExercises function
   const handleLoadMoreExercises = () => {
@@ -1324,6 +1389,40 @@ export default function WorkoutBuilderScreen() {
       setDisplayLimit(prevLimit => prevLimit + 20);
       setLoadingMoreExercises(false);
     }, 500);
+  };
+
+  // Helper function to get the current filtered exercises count
+  const getFilteredExercisesCount = () => {
+    if (exercises.length === 0) return 0;
+    
+    let filteredExercises = exercises;
+    
+    // Apply the same filtering logic as in the useEffect
+    if (activeTarget && activeEquipment) {
+      filteredExercises = exercises.filter(exercise => 
+        exercise.target.toLowerCase().includes(activeTarget.toLowerCase()) &&
+        exercise.equipment.toLowerCase().includes(activeEquipment.toLowerCase())
+      );
+    }
+    else if (activeTarget && !activeEquipment) {
+      filteredExercises = exercises.filter(exercise => 
+        exercise.target.toLowerCase().includes(activeTarget.toLowerCase())
+      );
+    }
+    else if (activeEquipment && !activeTarget) {
+      filteredExercises = exercises.filter(exercise => 
+        exercise.equipment.toLowerCase().includes(activeEquipment.toLowerCase())
+      );
+    }
+    
+    // Apply search filter if active
+    if (debouncedSearchQuery && debouncedSearchQuery.length >= 3) {
+      filteredExercises = filteredExercises.filter(exercise =>
+        exercise.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+      );
+    }
+    
+    return filteredExercises.length;
   };
 
   // Define styles using the extendedColors object
@@ -1587,24 +1686,52 @@ const styles = StyleSheet.create({
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 10,
-      margin: 16,
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      borderRadius: 8,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderRadius: 12,
+      marginHorizontal: 16,
+      marginVertical: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
     },
     searchIcon: {
-      marginLeft: 6,
       marginRight: 8,
     },
     searchInput: {
       flex: 1,
       fontSize: 16,
       color: '#fff',
-      height: 40,
+      height: 36,
+      paddingVertical: 0,
     },
-    clearSearch: {
-    padding: 4,
-  },
+    searchActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    searchIndicator: {
+      backgroundColor: 'rgba(255,165,0,0.2)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(255,165,0,0.3)',
+      marginRight: 6,
+    },
+    searchActiveIndicator: {
+      backgroundColor: 'rgba(16,185,129,0.2)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(16,185,129,0.3)',
+      marginRight: 6,
+    },
+    searchIndicatorText: {
+      color: '#ffa500',
+      fontSize: 12,
+      fontWeight: '600',
+    },
     filterButtonsContainer: {
       flexDirection: 'row',
       paddingHorizontal: 16,
@@ -2078,6 +2205,10 @@ const styles = StyleSheet.create({
   loadingMoreIndicator: {
     marginVertical: 16,
     alignItems: 'center',
+  },
+  clearSearch: {
+    padding: 4,
+    marginLeft: 8,
   },
 }); 
 
