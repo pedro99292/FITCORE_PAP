@@ -57,6 +57,551 @@ interface Achievement {
   points?: number;
 }
 
+// Static achievements data
+const ACHIEVEMENTS_DATA: Achievement[] = [
+  // 🏋️‍♂️ Workout Mastery
+  {
+    id: 1,
+    title: "First Rep",
+    description: "Complete your first workout session.",
+    icon: "fitness-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#4CAF50",
+    category: "Workout Mastery"
+  },
+  {
+    id: 2,
+    title: "Consistency Rookie",
+    description: "Workout consistently for 7 days.",
+    icon: "calendar-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#2196F3",
+    category: "Workout Mastery"
+  },
+  {
+    id: 3,
+    title: "Fitness Enthusiast",
+    description: "Complete 50 workouts.",
+    icon: "barbell-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF9800",
+    category: "Workout Mastery"
+  },
+  {
+    id: 4,
+    title: "Workout Warrior",
+    description: "Finish 100 workouts.",
+    icon: "shield-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#E91E63",
+    category: "Workout Mastery"
+  },
+  {
+    id: 5,
+    title: "Routine Expert",
+    description: "Create and use 10 custom workout templates.",
+    icon: "create-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#9C27B0",
+    category: "Workout Mastery"
+  },
+  {
+    id: 7,
+    title: "Exercise Explorer",
+    description: "Perform 50 unique exercises.",
+    icon: "search-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#00BCD4",
+    category: "Workout Mastery"
+  },
+  {
+    id: 8,
+    title: "Form Focused",
+    description: "View 20 exercise instruction animations.",
+    icon: "play-circle-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF5722",
+    category: "Workout Mastery"
+  },
+  {
+    id: 9,
+    title: "Rest is Best",
+    description: "Consistently adhere to rest times for 30 workouts.",
+    icon: "time-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#607D8B",
+    category: "Workout Mastery"
+  },
+  {
+    id: 10,
+    title: "Custom Crafter",
+    description: "Build and complete 5 personalized workouts.",
+    icon: "construct-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#795548",
+    category: "Workout Mastery"
+  },
+
+  // 📈 Progress
+  {
+    id: 11,
+    title: "Tracker Beginner",
+    description: "Log your first workout.",
+    icon: "list-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#4CAF50",
+    category: "Progress"
+  },
+  {
+    id: 12,
+    title: "Volume Victor",
+    description: "Lift a cumulative total of 10,000 kg.",
+    icon: "trending-up-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF9800",
+    category: "Progress"
+  },
+  {
+    id: 13,
+    title: "Strength Seeker",
+    description: "Set 5 personal bests.",
+    icon: "trophy-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FFD700",
+    category: "Progress"
+  },
+  {
+    id: 14,
+    title: "Endurance Ace",
+    description: "Record a total of 100 workout hours.",
+    icon: "timer-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#2196F3",
+    category: "Progress"
+  },
+  {
+    id: 15,
+    title: "Graph Guru",
+    description: "Analyze your workout stats 50 times.",
+    icon: "stats-chart-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#9C27B0",
+    category: "Progress"
+  },
+  {
+    id: 16,
+    title: "Visual Vanguard",
+    description: "Upload 10 progress photos.",
+    icon: "camera-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#E91E63",
+    category: "Progress"
+  },
+  {
+    id: 17,
+    title: "Record Breaker",
+    description: "Achieve 20 new personal records.",
+    icon: "medal-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF5722",
+    category: "Progress"
+  },
+  {
+    id: 18,
+    title: "Workout Historian",
+    description: "Review your workout history 25 times.",
+    icon: "library-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#607D8B",
+    category: "Progress"
+  },
+
+  // 🔥 Consistency
+  {
+    id: 19,
+    title: "First Streak",
+    description: "Workout 3 days in a row.",
+    icon: "flame-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF5722",
+    category: "Consistency"
+  },
+  {
+    id: 20,
+    title: "Week Warrior",
+    description: "Maintain a workout streak of 7 days.",
+    icon: "flash-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF9800",
+    category: "Consistency"
+  },
+  {
+    id: 21,
+    title: "Month of Motivation",
+    description: "Keep a 30-day workout streak.",
+    icon: "calendar-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#4CAF50",
+    category: "Consistency"
+  },
+  {
+    id: 22,
+    title: "Unstoppable",
+    description: "Maintain a workout streak of 60 days.",
+    icon: "infinite-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#2196F3",
+    category: "Consistency"
+  },
+  {
+    id: 23,
+    title: "Habit Hero",
+    description: "Achieve a 100-day workout streak.",
+    icon: "ribbon-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#9C27B0",
+    category: "Consistency"
+  },
+  {
+    id: 24,
+    title: "Early Bird",
+    description: "Workout before 7 AM for 30 days.",
+    icon: "sunny-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FFD700",
+    category: "Consistency"
+  },
+  {
+    id: 25,
+    title: "Night Owl",
+    description: "Workout after 9 PM for 30 days.",
+    icon: "moon-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#3F51B5",
+    category: "Consistency"
+  },
+  {
+    id: 26,
+    title: "Weekend Warrior",
+    description: "Workout every weekend for a month.",
+    icon: "calendar-week",
+    iconType: "material",
+    progress: 0,
+    color: "#E91E63",
+    category: "Consistency"
+  },
+  {
+    id: 27,
+    title: "Routine Ritualist",
+    description: "Maintain the same workout schedule for a month.",
+    icon: "repeat-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#00BCD4",
+    category: "Consistency"
+  },
+  {
+    id: 28,
+    title: "Consistency Champion",
+    description: "Complete 200 total workouts.",
+    icon: "trophy-variant",
+    iconType: "material",
+    progress: 0,
+    color: "#795548",
+    category: "Consistency"
+  },
+
+  // 🎯 Goals & Milestones
+  {
+    id: 29,
+    title: "Goal Setter",
+    description: "Set your first fitness goal.",
+    icon: "flag-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#4CAF50",
+    category: "Goals & Milestones"
+  },
+  {
+    id: 30,
+    title: "Goal Getter",
+    description: "Achieve your first set fitness goal.",
+    icon: "checkmark-done-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF9800",
+    category: "Goals & Milestones"
+  },
+  {
+    id: 31,
+    title: "Lift Legend",
+    description: "Hit a major strength milestone (e.g., bench press your bodyweight).",
+    icon: "barbell-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#E91E63",
+    category: "Goals & Milestones"
+  },
+  {
+    id: 32,
+    title: "Endurance Elite",
+    description: "Run or perform cardio for 100 cumulative hours.",
+    icon: "walk-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#2196F3",
+    category: "Goals & Milestones"
+  },
+  {
+    id: 33,
+    title: "Weight Wizard",
+    description: "Successfully track and manage your weight for 3 months.",
+    icon: "fitness-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#9C27B0",
+    category: "Goals & Milestones"
+  },
+  {
+    id: 34,
+    title: "Fitness Veteran",
+    description: "Reach advanced experience level.",
+    icon: "star-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FFD700",
+    category: "Goals & Milestones"
+  },
+  {
+    id: 35,
+    title: "Elite Athlete",
+    description: "Achieve advanced level in multiple muscle areas.",
+    icon: "medal-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF5722",
+    category: "Goals & Milestones"
+  },
+
+  // 👥 Social
+  {
+    id: 36,
+    title: "First Post",
+    description: "Share your first workout update.",
+    icon: "chatbox-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#4CAF50",
+    category: "Social"
+  },
+  {
+    id: 37,
+    title: "Community Contributor",
+    description: "Post 20 times in the social feed.",
+    icon: "people-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#2196F3",
+    category: "Social"
+  },
+  {
+    id: 38,
+    title: "Inspiration Icon",
+    description: "Receive 100 likes on a single post.",
+    icon: "heart-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#E91E63",
+    category: "Social"
+  },
+  {
+    id: 39,
+    title: "Engagement Expert",
+    description: "Comment 50 times on community posts.",
+    icon: "chatbubbles-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF9800",
+    category: "Social"
+  },
+  {
+    id: 40,
+    title: "Storyteller",
+    description: "Create 10 Instagram-style stories.",
+    icon: "camera-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#9C27B0",
+    category: "Social"
+  },
+  {
+    id: 41,
+    title: "Follower Fanatic",
+    description: "Follow 50 other fitness enthusiasts.",
+    icon: "person-add-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#00BCD4",
+    category: "Social"
+  },
+  {
+    id: 42,
+    title: "Emoji Enthusiast",
+    description: "React to 100 posts with emojis.",
+    icon: "happy-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FFD700",
+    category: "Social"
+  },
+  {
+    id: 43,
+    title: "Location Scout",
+    description: "Tag locations in 25 posts.",
+    icon: "location-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF5722",
+    category: "Social"
+  },
+  {
+    id: 44,
+    title: "Social Star",
+    description: "Reach 500 followers.",
+    icon: "star-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#795548",
+    category: "Social"
+  },
+
+  // 🥇 Special Trophies
+  {
+    id: 45,
+    title: "Iron Titan",
+    description: "Lift a cumulative total of 100,000 kg.",
+    icon: "trophy",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#8BC34A",
+    category: "Special Trophies"
+  },
+  {
+    id: 46,
+    title: "Endurance Emperor",
+    description: "Accumulate 500 hours of exercise.",
+    icon: "crown",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#FFD700",
+    category: "Special Trophies"
+  },
+  {
+    id: 47,
+    title: "Consistency Conqueror",
+    description: "Workout every week for one full year.",
+    icon: "calendar",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#E91E63",
+    category: "Special Trophies"
+  },
+  {
+    id: 48,
+    title: "Milestone Marvel",
+    description: "Achieve 50 unique milestones.",
+    icon: "diamond",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#9C27B0",
+    category: "Special Trophies"
+  },
+  {
+    id: 49,
+    title: "Ultimate Athlete",
+    description: "Achieve advanced-level status across all muscle categories.",
+    icon: "star",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#FF5722",
+    category: "Special Trophies"
+  },
+  {
+    id: 50,
+    title: "Legendary Lifter",
+    description: "Set a personal best of twice your body weight.",
+    icon: "trophy",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#607D8B",
+    category: "Special Trophies"
+  },
+  {
+    id: 51,
+    title: "Time Keeper",
+    description: "Accumulate 1000 total hours of workouts.",
+    icon: "clock-o",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#00BCD4",
+    category: "Special Trophies"
+  },
+  {
+    id: 52,
+    title: "Transformation Triumph",
+    description: "Document an extraordinary physical transformation.",
+    icon: "refresh",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#4CAF50",
+    category: "Special Trophies"
+  },
+  {
+    id: 53,
+    title: "Community Leader",
+    description: "Be featured as a top community contributor.",
+    icon: "users",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#2196F3",
+    category: "Special Trophies"
+  },
+  {
+    id: 54,
+    title: "Fitness Icon",
+    description: "Unlock every achievement in the app.",
+    icon: "trophy",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#FFD700",
+    category: "Special Trophies"
+  }
+];
+
 // Componente de item de conquista modernizado
 const AchievementItem: React.FC<AchievementItemProps> = ({ 
   title, 
@@ -236,7 +781,7 @@ const CategoryFilter = ({
       </ScrollView>
       
       {/* Indicador de seleção separado, em vez de estender a borda */}
-      {selectedCategory === 'Todas' && (
+      {selectedCategory === 'All' && (
         <View style={styles.selectionIndicator} />
       )}
     </View>
@@ -304,19 +849,19 @@ const StatusFilter = ({
 // Memoized AchievementsPage component to improve performance
 const AchievementsPage = () => {
   const { colors } = useTheme();
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [categories, setCategories] = useState<string[]>(['Todas']);
+  const [achievements, setAchievements] = useState<Achievement[]>(ACHIEVEMENTS_DATA);
+  const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [filter, setFilter] = useState('Todas');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   
   // For trophies section
   const trophies = useMemo(() => [
-    { id: 1, title: 'Bronze', color: '#CD7F32', unlocked: achievements.length >= 5 },
-    { id: 2, title: 'Prata', color: '#C0C0C0', unlocked: achievements.length >= 10 },
-    { id: 3, title: 'Ouro', color: '#FFD700', unlocked: achievements.length >= 15 },
-    { id: 4, title: 'Platina', color: '#E5E4E2', unlocked: achievements.length >= 20 },
-    { id: 5, title: 'Diamante', color: '#B9F2FF', unlocked: achievements.length >= 25 },
+    { id: 1, title: 'Bronze', color: '#CD7F32', unlocked: achievements.filter(a => a.progress === 100).length >= 5 },
+    { id: 2, title: 'Prata', color: '#C0C0C0', unlocked: achievements.filter(a => a.progress === 100).length >= 10 },
+    { id: 3, title: 'Ouro', color: '#FFD700', unlocked: achievements.filter(a => a.progress === 100).length >= 15 },
+    { id: 4, title: 'Platina', color: '#E5E4E2', unlocked: achievements.filter(a => a.progress === 100).length >= 20 },
+    { id: 5, title: 'Diamante', color: '#B9F2FF', unlocked: achievements.filter(a => a.progress === 100).length >= 25 },
   ], [achievements]);
   
   // Format value with K suffix if over 1000
@@ -333,55 +878,35 @@ const AchievementsPage = () => {
     return val.toString();
   };
   
-  // Buscar todas as categorias ao iniciar
+  // Initialize categories from static data
   useEffect(() => {
-    async function fetchAllCategories() {
-      const { data } = await supabase
-        .from('achievements')
-        .select('category')
-        .order('category');
-        
-      if (data) {
-        const uniqueCategories = ['Todas', ...new Set(data.map(item => item.category))];
-        setCategories(uniqueCategories);
-      }
-    }
-    
-    fetchAllCategories();
+    const uniqueCategories = ['Todas', ...new Set(ACHIEVEMENTS_DATA.map(item => item.category))];
+    setCategories(uniqueCategories);
   }, []);
   
-  // Buscar conquistas filtradas
-  useEffect(() => {
-    async function fetchAchievements() {
-      setLoading(true);
-      
-      let query = supabase.from('achievements').select('*');
-      
-      // Aplicar filtro de categoria
-      if (selectedCategory !== 'Todas') {
-        query = query.eq('category', selectedCategory);
-      }
-      
-      // Aplicar filtro de progresso
-      if (filter === 'Concluídas') {
-        query = query.eq('progress', 100);
-      } else if (filter === 'Em Progresso') {
-        query = query.lt('progress', 100);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error("Erro ao buscar conquistas:", error);
-      } else {
-        setAchievements(data || []);
-      }
-      
-      setLoading(false);
+  // Filter achievements based on selected category and status
+  const filteredAchievements = useMemo(() => {
+    let filtered = ACHIEVEMENTS_DATA;
+    
+    // Apply category filter
+    if (selectedCategory !== 'Todas') {
+      filtered = filtered.filter(achievement => achievement.category === selectedCategory);
     }
     
-    fetchAchievements();
+    // Apply progress filter
+    if (filter === 'Concluídas') {
+      filtered = filtered.filter(achievement => achievement.progress === 100);
+    } else if (filter === 'Em Progresso') {
+      filtered = filtered.filter(achievement => achievement.progress < 100);
+    }
+    
+    return filtered;
   }, [selectedCategory, filter]);
+
+  // Update achievements state when filters change
+  useEffect(() => {
+    setAchievements(filteredAchievements);
+  }, [filteredAchievements]);
 
   // Calcular conquistas concluídas e em progresso
   const completedAchievements = achievements.filter(achievement => achievement.progress === 100);
