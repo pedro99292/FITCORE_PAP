@@ -126,11 +126,12 @@ export const createStory = async (
   userId: string,
   mediaUri: string,
   caption: string | null = null,  // We'll keep the parameter for backward compatibility but won't use it
-  storyType: 'image' | 'video' = 'image'
+  storyType: 'image' | 'video' = 'image',
+  base64?: string // Add base64 parameter
 ): Promise<Story> => {
   try {
     // 1. Upload media to storage
-    const mediaUrl = await uploadStoryMedia(mediaUri, storyType);
+    const mediaUrl = await uploadStoryMedia(mediaUri, storyType, base64);
     if (!mediaUrl) {
       throw new Error('Failed to upload media');
     }
@@ -232,7 +233,7 @@ export const deleteStory = async (storyId: number): Promise<void> => {
 };
 
 // Helper to pick media from library for story
-export const pickStoryMedia = async (options: { mediaTypes: 'Images' | 'Videos' | 'All' } = { mediaTypes: 'All' }): Promise<{ uri: string; type: 'image' | 'video' } | null> => {
+export const pickStoryMedia = async (options: { mediaTypes: 'Images' | 'Videos' | 'All' } = { mediaTypes: 'All' }): Promise<{ uri: string; type: 'image' | 'video'; base64?: string } | null> => {
   try {
     let mediaTypes: ImagePicker.MediaTypeOptions;
     switch (options.mediaTypes) {
@@ -248,8 +249,9 @@ export const pickStoryMedia = async (options: { mediaTypes: 'Images' | 'Videos' 
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes,
-      allowsEditing: true,
+      allowsEditing: false, // Disable editing to avoid iOS square limitation
       quality: 0.8,
+      base64: options.mediaTypes === 'Images' || options.mediaTypes === 'All', // Get base64 for images
     });
 
     if (result.canceled) {
@@ -260,7 +262,11 @@ export const pickStoryMedia = async (options: { mediaTypes: 'Images' | 'Videos' 
     const uri = result.assets[0].uri;
     const type = uri.endsWith('.mp4') || uri.includes('video') ? 'video' : 'image';
 
-    return { uri, type };
+    return { 
+      uri, 
+      type,
+      base64: result.assets[0].base64 || undefined // Convert null to undefined for type safety
+    };
   } catch (error) {
     console.error('Error picking media:', error);
     throw error;
@@ -268,7 +274,7 @@ export const pickStoryMedia = async (options: { mediaTypes: 'Images' | 'Videos' 
 };
 
 // Helper to take a photo/video for story
-export const captureStoryMedia = async (options: { mediaType: 'photo' | 'video' | 'mixed' } = { mediaType: 'photo' }): Promise<{ uri: string; type: 'image' | 'video' } | null> => {
+export const captureStoryMedia = async (options: { mediaType: 'photo' | 'video' | 'mixed' } = { mediaType: 'photo' }): Promise<{ uri: string; type: 'image' | 'video'; base64?: string } | null> => {
   try {
     // Request camera permissions
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -283,8 +289,9 @@ export const captureStoryMedia = async (options: { mediaType: 'photo' | 'video' 
         : options.mediaType === 'video'
           ? ImagePicker.MediaTypeOptions.Videos
           : ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
+      allowsEditing: false, // Disable editing to avoid iOS square limitation
       quality: 0.8,
+      base64: options.mediaType === 'photo' || options.mediaType === 'mixed', // Get base64 for photos
       // Video-specific options
       videoMaxDuration: 30, // 30 seconds max for stories
     });
@@ -297,7 +304,11 @@ export const captureStoryMedia = async (options: { mediaType: 'photo' | 'video' 
     const uri = result.assets[0].uri;
     const type = uri.endsWith('.mp4') || uri.includes('video') ? 'video' : 'image';
 
-    return { uri, type };
+    return { 
+      uri, 
+      type,
+      base64: result.assets[0].base64 || undefined // Convert null to undefined for type safety
+    };
   } catch (error) {
     console.error('Error capturing media:', error);
     throw error;
@@ -305,34 +316,88 @@ export const captureStoryMedia = async (options: { mediaType: 'photo' | 'video' 
 };
 
 // Helper to upload media to Supabase storage
-const uploadStoryMedia = async (uri: string, type: 'image' | 'video'): Promise<string | null> => {
+const uploadStoryMedia = async (uri: string, type: 'image' | 'video', base64?: string): Promise<string | null> => {
   try {
-    // Convert URI to Blob
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    
-    // Generate a unique file name with proper extension
-    const extension = type === 'image' ? 'jpg' : 'mp4';
-    const fileName = `story_${Date.now()}.${extension}`;
-    
-    // Upload to Supabase Storage - using post-images bucket instead of story-media
-    const { data, error } = await supabase
-      .storage
-      .from('post-images')  // Changed from 'story-media' to 'post-images'
-      .upload(fileName, blob);
+    // For images, convert to base64 and upload like profile images
+    if (type === 'image') {
+      let base64Data: string;
       
-    if (error) {
-      console.error('Storage upload error:', error);
-      throw error;
+      if (base64) {
+        // Use provided base64 data
+        base64Data = base64;
+      } else {
+        // Fallback to converting URI to base64
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        
+        // Convert blob to base64
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const base64 = reader.result as string;
+            // Remove the data:image/jpeg;base64, prefix
+            const base64DataFromBlob = base64.split(',')[1];
+            resolve(base64DataFromBlob);
+          };
+          reader.onerror = reject;
+        });
+        reader.readAsDataURL(blob);
+        
+        base64Data = await base64Promise;
+      }
+      
+      // Convert base64 to ArrayBuffer (same as profile upload)
+      const { decode } = await import('base64-arraybuffer');
+      const arrayBuffer = decode(base64Data);
+      
+      // Generate a unique file name with proper extension
+      const fileName = `story_${Date.now()}.jpg`;
+      
+      // Upload to Supabase Storage with contentType (same as profile upload)
+      const { data, error } = await supabase
+        .storage
+        .from('post-images')
+        .upload(fileName, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+        
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw error;
+      }
+      
+      // Get the public URL
+      const { data: urlData } = supabase
+        .storage
+        .from('post-images')
+        .getPublicUrl(fileName);
+        
+      return urlData.publicUrl;
+    } else {
+      // For videos, keep the original blob approach as it might work better
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      const fileName = `story_${Date.now()}.mp4`;
+      
+      const { data, error } = await supabase
+        .storage
+        .from('post-images')
+        .upload(fileName, blob);
+        
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw error;
+      }
+      
+      const { data: urlData } = supabase
+        .storage
+        .from('post-images')
+        .getPublicUrl(fileName);
+        
+      return urlData.publicUrl;
     }
-    
-    // Get the public URL
-    const { data: urlData } = supabase
-      .storage
-      .from('post-images')  // Changed from 'story-media' to 'post-images'
-      .getPublicUrl(fileName);
-      
-    return urlData.publicUrl;
   } catch (error) {
     console.error('Error uploading story media:', error);
     throw error;  // Throw the error instead of returning null to see the full error

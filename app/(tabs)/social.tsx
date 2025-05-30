@@ -76,6 +76,7 @@ export default function SocialScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [image, setImage] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showPostInput, setShowPostInput] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -120,6 +121,7 @@ export default function SocialScreen() {
 
   // Add state for current user avatar
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null);
+  const [currentUserUsername, setCurrentUserUsername] = useState<string>('user_fitcore');
   
   useEffect(() => {
     let isMounted = true;
@@ -130,20 +132,21 @@ export default function SocialScreen() {
       if (isMounted) {
         setCurrentUserId(data.user?.id || null);
         
-        // If we have a user ID, fetch their avatar
+        // If we have a user ID, fetch their avatar and username
         if (data.user?.id) {
           try {
             const { data: userData, error } = await supabase
               .from('users')
-              .select('avatar_url')
+              .select('avatar_url, username')
               .eq('id', data.user.id)
               .single();
               
             if (!error && userData && isMounted) {
               setCurrentUserAvatar(userData.avatar_url);
+              setCurrentUserUsername(userData.username || data.user.email?.split('@')[0] || 'user_fitcore');
             }
           } catch (error) {
-            console.error('Error fetching user avatar:', error);
+            console.error('Error fetching user data:', error);
           }
         }
       }
@@ -391,10 +394,15 @@ export default function SocialScreen() {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
+      base64: true, // Add base64 option like profile upload
     });
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
+      // Store base64 data for upload
+      if (result.assets[0].base64) {
+        setImageBase64(result.assets[0].base64);
+      }
     }
   };
 
@@ -413,10 +421,15 @@ export default function SocialScreen() {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
+      base64: true, // Add base64 option like profile upload
     });
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
+      // Store base64 data for upload
+      if (result.assets[0].base64) {
+        setImageBase64(result.assets[0].base64);
+      }
     }
   };
   
@@ -523,23 +536,26 @@ export default function SocialScreen() {
   };
 
   const uploadImage = async () => {
-    if (!image) return null;
+    if (!image || !imageBase64) return null;
     
     try {
       setUploading(true);
 
-      // Convert URI to Blob
-      const response = await fetch(image);
-      const blob = await response.blob();
+      // Convert base64 to ArrayBuffer (same as profile upload)
+      const { decode } = await import('base64-arraybuffer');
+      const arrayBuffer = decode(imageBase64);
       
       // Generate a unique file name
       const fileName = `post_image_${Date.now()}.jpg`;
       
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage with contentType (same as profile upload)
       const { data, error } = await supabase
         .storage
         .from('post-images')
-        .upload(fileName, blob);
+        .upload(fileName, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
         
       if (error) {
         throw error;
@@ -631,6 +647,7 @@ export default function SocialScreen() {
       // Reset post creation form
       setNewPost('');
       setImage(null);
+      setImageBase64(null);
       setLocation(null);
     } catch (error) {
       console.error('Error creating post:', error);
@@ -775,6 +792,7 @@ export default function SocialScreen() {
       setSelectedPost(null);
       setEditContent('');
       setImage(null);
+      setImageBase64(null);
       
     } catch (error) {
       console.error('Error updating post:', error);
@@ -989,7 +1007,7 @@ export default function SocialScreen() {
       backgroundColor: '#1a1a2e',
     },
     header: {
-      paddingTop: Platform.OS === 'ios' ? 50 : 20,
+      paddingTop: Platform.OS === 'ios' ? 15 : 10,
       paddingBottom: 15,
       paddingHorizontal: 20,
       flexDirection: 'row',
@@ -2319,6 +2337,8 @@ export default function SocialScreen() {
                   setShowPostInput(false);
                   setImage(null);
                   setNewPost('');
+                  setImageBase64(null);
+                  setLocation(null);
                 }}
               >
                 <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
@@ -2335,14 +2355,22 @@ export default function SocialScreen() {
                   colors={['#f2709c', '#ff9472']}
                   style={styles.avatarGradient}
                 >
-                  <View style={[styles.avatar, {
-                    backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
-                    borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
-                  }]}>
-                    <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
-                  </View>
+                  {currentUserAvatar ? (
+                    <Image
+                      source={{ uri: currentUserAvatar }}
+                      style={styles.avatar}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.avatar, {
+                      backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                      borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                    }]}>
+                      <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
+                    </View>
+                  )}
                 </LinearGradient>
-                <Text style={[styles.createPostUsername, { color: isDarkMode ? '#fff' : '#000' }]}>{DEFAULT_USERNAME}</Text>
+                <Text style={[styles.createPostUsername, { color: isDarkMode ? '#fff' : '#000' }]}>{currentUserUsername}</Text>
               </View>
 
               <TextInput
@@ -2558,6 +2586,7 @@ export default function SocialScreen() {
                       setEditMode(false);
                       setEditContent('');
                       setImage(null);
+                      setImageBase64(null);
                     }}
                   >
                     <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
