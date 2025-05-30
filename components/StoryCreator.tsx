@@ -575,9 +575,15 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
       // For now, we'll use the existing createStory function
       
       if (mediaUri) {
+        // Create the story first
         await createStory(userId, mediaUri, null, mediaType, mediaBase64 || undefined);
+        
+        // Call the callback immediately after successful creation to refresh stories
+        console.log('Story created successfully, refreshing stories...');
+        onStoryCreated();
       }
       
+      // Then handle the animation and closing
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -592,13 +598,15 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
       ]).start(() => {
         InteractionManager.runAfterInteractions(() => {
           resetState();
-          onStoryCreated();
+          setIsLoading(false);
+          setIsProcessing(false);
         });
       });
     } catch (error) {
       console.error('Error creating story:', error);
       Alert.alert('Error', 'Failed to create story. Please try again.');
-    } finally {
+      
+      // Reset loading states on error
       setIsLoading(false);
       setIsProcessing(false);
     }

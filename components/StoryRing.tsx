@@ -17,7 +17,7 @@ const StoryRing: React.FC<StoryRingProps> = ({
   style,
   children 
 }) => {
-  const ringSize = size + 8; // Ring is slightly larger than the avatar
+  const ringSize = size + 4; // Ring is slightly larger than the avatar (made thinner)
 
   if (!hasStories) {
     // No ring for users without stories

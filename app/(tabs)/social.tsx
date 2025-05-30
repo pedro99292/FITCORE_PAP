@@ -151,11 +151,12 @@ export default function SocialScreen() {
         }
       }
     };
-    
+
     const init = async () => {
       await getCurrentUser();
       if (isMounted) {
         await fetchPosts();
+        await fetchStories();
         
         // Animate FAB in
         Animated.spring(fabAnimation, {
@@ -185,23 +186,37 @@ export default function SocialScreen() {
 
     init();
 
-    // Cleanup function
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // Add a useEffect to fetch stories
+  // Add focus listener to refresh stories periodically
   useEffect(() => {
-    if (currentUserId) {
-      fetchStories();
-    }
-  }, [currentUserId]);
+    // Reduce the interval to 10 seconds for more responsive updates
+    const interval = setInterval(() => {
+      if (currentUserId && !showStoryViewer && !showStoryCreator) {
+        fetchStories();
+      }
+    }, 10000); // Refresh every 10 seconds when user is active and not viewing/creating stories
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [currentUserId, showStoryViewer, showStoryCreator]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchPosts();
-    setRefreshing(false);
+    try {
+      await Promise.all([
+        fetchPosts(),
+        fetchStories() // Also refresh stories on pull-to-refresh
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   // Function to fetch posts from the database
@@ -658,8 +673,8 @@ export default function SocialScreen() {
   };
 
   const handleAddFriends = () => {
-    // This would open the add friends screen or modal
-    console.log('Open add friends screen');
+    // Navigate to the discover users screen
+    router.push('/discover-users');
   };
 
   // Function to search for users
@@ -1001,6 +1016,16 @@ export default function SocialScreen() {
     fetchStories(); // Refresh stories after creating a new one
   };
 
+  const handleStoryDeleted = () => {
+    // Refresh stories after deletion
+    fetchStories();
+    // Close the story viewer if it's open
+    if (showStoryViewer) {
+      setShowStoryViewer(false);
+      setSelectedUserStories(null);
+    }
+  };
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -1025,13 +1050,6 @@ export default function SocialScreen() {
       height: 40,
       borderRadius: 20,
       backgroundColor: 'rgba(255,255,255,0.1)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    avatarGradientSmall: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -1252,14 +1270,6 @@ export default function SocialScreen() {
     },
     userInfo: {
       flexDirection: 'row',
-      alignItems: 'center',
-    },
-    avatarGradient: {
-      width: 45,
-      height: 45,
-      borderRadius: 25,
-      marginRight: 12,
-      justifyContent: 'center',
       alignItems: 'center',
     },
     avatar: {
@@ -1547,14 +1557,6 @@ export default function SocialScreen() {
       paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: 'rgba(255,255,255,0.05)',
-    },
-    resultAvatarGradient: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 15,
     },
     resultAvatar: {
       width: 35,
@@ -2024,9 +2026,10 @@ export default function SocialScreen() {
       >
         <View style={styles.headerLeft}>
           <TouchableOpacity style={[styles.profileButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-            <LinearGradient
-              colors={['#f2709c', '#ff9472']}
-              style={styles.avatarGradientSmall}
+            <StoryRing 
+              size={36} 
+              hasStories={stories.some(userStories => userStories.id === currentUserId)}
+              seen={!stories.find(userStories => userStories.id === currentUserId)?.hasUnviewedStories}
             >
               {currentUserAvatar ? (
                 <Image
@@ -2042,7 +2045,7 @@ export default function SocialScreen() {
                   <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
                 </View>
               )}
-            </LinearGradient>
+            </StoryRing>
           </TouchableOpacity>
         </View>
         <View style={styles.headerActions}>
@@ -2052,8 +2055,11 @@ export default function SocialScreen() {
           >
             <Feather name="search" size={22} color={isDarkMode ? "#fff" : "#333"} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-            <Feather name="bell" size={22} color={isDarkMode ? "#fff" : "#333"} />
+          <TouchableOpacity 
+            style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+            onPress={handleAddFriends}
+          >
+            <Feather name="user-plus" size={22} color={isDarkMode ? "#fff" : "#333"} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
             <Feather name="message-circle" size={22} color={isDarkMode ? "#fff" : "#333"} />
@@ -2123,9 +2129,10 @@ export default function SocialScreen() {
                 borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)' 
               }]}>
                 <View style={styles.userInfo}>
-                  <LinearGradient
-                    colors={['#f2709c', '#ff9472']}
-                    style={styles.avatarGradient}
+                  <StoryRing 
+                    size={40} 
+                    hasStories={stories.some(userStories => userStories.id === post.user_id)}
+                    seen={!stories.find(userStories => userStories.id === post.user_id)?.hasUnviewedStories}
                   >
                     {post.avatar_url ? (
                       <Image 
@@ -2141,8 +2148,11 @@ export default function SocialScreen() {
                         <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
                       </View>
                     )}
-                  </LinearGradient>
-                  <TouchableOpacity onPress={() => router.push(`/${post.user_id}`)}>
+                  </StoryRing>
+                  <TouchableOpacity 
+                    onPress={() => router.push(`/${post.user_id}`)}
+                    style={{ marginLeft: 12 }}
+                  >
                     <Text style={[styles.username, { color: isDarkMode ? '#fff' : '#000' }]}>{post.username}</Text>
                     <Text style={[styles.timeAgo, { color: isDarkMode ? '#8e8e93' : '#666' }]}>{post.timeAgo}</Text>
                   </TouchableOpacity>
@@ -2351,9 +2361,10 @@ export default function SocialScreen() {
               contentContainerStyle={{ paddingBottom: 20 }}
             >
               <View style={styles.userRow}>
-                <LinearGradient
-                  colors={['#f2709c', '#ff9472']}
-                  style={styles.avatarGradient}
+                <StoryRing 
+                  size={40} 
+                  hasStories={stories.some(userStories => userStories.id === currentUserId)}
+                  seen={!stories.find(userStories => userStories.id === currentUserId)?.hasUnviewedStories}
                 >
                   {currentUserAvatar ? (
                     <Image
@@ -2369,7 +2380,7 @@ export default function SocialScreen() {
                       <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
                     </View>
                   )}
-                </LinearGradient>
+                </StoryRing>
                 <Text style={[styles.createPostUsername, { color: isDarkMode ? '#fff' : '#000' }]}>{currentUserUsername}</Text>
               </View>
 
@@ -2536,9 +2547,10 @@ export default function SocialScreen() {
                       router.push(`/${user.id}`);
                     }}
                   >
-                    <LinearGradient
-                      colors={['#f2709c', '#ff9472']}
-                      style={styles.resultAvatarGradient}
+                    <StoryRing 
+                      size={36} 
+                      hasStories={stories.some(userStories => userStories.id === user.id)}
+                      seen={!stories.find(userStories => userStories.id === user.id)?.hasUnviewedStories}
                     >
                       {user.avatar_url ? (
                         <Image 
@@ -2551,7 +2563,7 @@ export default function SocialScreen() {
                           <FontAwesome name="user" size={18} color="#fff" />
                         </View>
                       )}
-                    </LinearGradient>
+                    </StoryRing>
                     <View style={styles.userResultInfo}>
                       <Text style={styles.userResultUsername}>{user.username}</Text>
                       <Text style={styles.userResultName}>{user.full_name}</Text>
@@ -2714,6 +2726,7 @@ export default function SocialScreen() {
           initialStoryIndex={initialStoryIndex}
           onClose={handleCloseStoryViewer}
           onComplete={handleStoryComplete}
+          onStoryDeleted={handleStoryDeleted}
         />
       )}
 

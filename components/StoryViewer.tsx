@@ -29,6 +29,7 @@ interface StoryViewerProps {
   initialStoryIndex?: number;
   onClose: () => void;
   onComplete: () => void;
+  onStoryDeleted?: () => void;
 }
 
 const StoryViewer: React.FC<StoryViewerProps> = ({
@@ -36,7 +37,8 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
   currentUserID,
   initialStoryIndex = 0,
   onClose,
-  onComplete
+  onComplete,
+  onStoryDeleted
 }) => {
   const { isDarkMode, colors } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(initialStoryIndex);
@@ -226,6 +228,9 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
   const handleDeleteStory = async () => {
     try {
       await deleteStory(currentStory.id);
+      
+      // Call the callback to refresh stories in parent component
+      onStoryDeleted?.();
       
       // If this was the only story, close the viewer
       if (stories.length === 1) {

@@ -16,6 +16,10 @@ import { supabase } from '../utils/supabase';
 import { useTheme } from '@/hooks/useTheme';
 import { BlurView } from 'expo-blur';
 
+// Add Story related imports
+import StoryViewer from '@/components/StoryViewer';
+import { fetchActiveStories, UserWithStories } from '@/utils/storyService';
+
 const { width: screenWidth } = Dimensions.get('window');
 
 type UserProfile = {
@@ -142,6 +146,22 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 1,
   },
+  storyRingContainer: {
+    width: 126,
+    height: 126,
+    borderRadius: 63,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  clickableAvatar: {
+    // Add subtle shadow or transform to indicate it's interactive
+    shadowColor: '#4a90e2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
 });
 
 export default function UserProfileScreen() {
@@ -157,12 +177,52 @@ export default function UserProfileScreen() {
   });
   const { isDarkMode, colors } = useTheme();
 
+  // Add story related state
+  const [stories, setStories] = useState<UserWithStories[]>([]);
+  const [userStories, setUserStories] = useState<UserWithStories | null>(null);
+  const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchUserProfile();
     fetchUserStats();
     checkIfFollowing();
     checkIfOwnProfile();
+    initializeData();
   }, [userId]);
+
+  const initializeData = async () => {
+    try {
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+      }
+      
+      // Fetch stories for this specific user
+      await fetchUserStories();
+    } catch (error) {
+      console.error('Error initializing data:', error);
+    }
+  };
+
+  const fetchUserStories = async () => {
+    try {
+      const storiesData = await fetchActiveStories(currentUserId);
+      setStories(storiesData);
+      
+      // Find stories for this specific user
+      const currentUserStories = storiesData.find(userWithStories => userWithStories.id === userId);
+      setUserStories(currentUserStories || null);
+      
+      // Debug logging
+      console.log('Profile User ID:', userId);
+      console.log('Stories found for user:', currentUserStories ? currentUserStories.stories.length : 0);
+      console.log('Has stories:', currentUserStories && currentUserStories.stories.length > 0);
+    } catch (error) {
+      console.error('Error fetching user stories:', error);
+    }
+  };
 
   const checkIfFollowing = async () => {
     try {
@@ -306,6 +366,27 @@ export default function UserProfileScreen() {
     console.log('Message button pressed');
   };
 
+  // Add story handlers
+  const handleOpenStory = () => {
+    if (userStories && userStories.stories.length > 0) {
+      setShowStoryViewer(true);
+    }
+  };
+
+  const handleCloseStoryViewer = () => {
+    setShowStoryViewer(false);
+  };
+
+  const handleStoryComplete = () => {
+    setShowStoryViewer(false);
+  };
+
+  const handleStoryDeleted = () => {
+    // Refresh stories after deletion
+    fetchUserStories();
+    setShowStoryViewer(false);
+  };
+
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
@@ -347,21 +428,54 @@ export default function UserProfileScreen() {
       <ScrollView>
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <LinearGradient
-              colors={['#f2709c', '#ff9472']}
-              style={styles.avatarGradient}
+            <TouchableOpacity 
+              onPress={userStories && userStories.stories.length > 0 ? handleOpenStory : undefined}
+              activeOpacity={userStories && userStories.stories.length > 0 ? 0.7 : 1}
+              style={userStories && userStories.stories.length > 0 ? styles.clickableAvatar : null}
             >
-              <View style={[styles.avatar, { borderColor: colors.background }]}>
-                {userProfile.avatar_url ? (
-                  <Image
-                    source={{ uri: userProfile.avatar_url }}
-                    style={{ width: '100%', height: '100%', borderRadius: 55 }}
-                  />
-                ) : (
-                  <FontAwesome name="user" size={40} color={colors.text} />
-                )}
-              </View>
-            </LinearGradient>
+              {userStories && userStories.stories.length > 0 ? (
+                // User has stories - show with ring
+                <View style={[
+                  styles.storyRingContainer,
+                  {
+                    borderColor: userStories.hasUnviewedStories 
+                      ? '#4a90e2' 
+                      : 'rgba(255,255,255,0.3)'
+                  }
+                ]}>
+                  <LinearGradient
+                    colors={['#f2709c', '#ff9472']}
+                    style={styles.avatarGradient}
+                  >
+                    <View style={[styles.avatar, { borderColor: colors.background }]}>
+                      {userProfile.avatar_url ? (
+                        <Image
+                          source={{ uri: userProfile.avatar_url }}
+                          style={{ width: '100%', height: '100%', borderRadius: 55 }}
+                        />
+                      ) : (
+                        <FontAwesome name="user" size={40} color={colors.text} />
+                      )}
+                    </View>
+                  </LinearGradient>
+                </View>
+              ) : (
+                // User has no stories - completely clean avatar without any gradient or ring
+                <View style={[styles.avatar, { 
+                  borderColor: colors.background,
+                  backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5'
+                }]}>
+                  {userProfile.avatar_url ? (
+                    <Image
+                      source={{ uri: userProfile.avatar_url }}
+                      style={{ width: '100%', height: '100%', borderRadius: 55 }}
+                    />
+                  ) : (
+                    <FontAwesome name="user" size={40} color={colors.text} />
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           <Text style={[styles.username, { color: colors.text }]}>
@@ -463,6 +577,18 @@ export default function UserProfileScreen() {
           )}
         </BlurView>
       </ScrollView>
+
+      {/* Story Viewer Modal */}
+      {userStories && showStoryViewer && (
+        <StoryViewer
+          stories={userStories.stories}
+          currentUserID={currentUserId || ''}
+          initialStoryIndex={0}
+          onClose={handleCloseStoryViewer}
+          onComplete={handleStoryComplete}
+          onStoryDeleted={handleStoryDeleted}
+        />
+      )}
     </View>
   );
 }
