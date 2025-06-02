@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Alert, Dimensions, SafeAreaView, StatusBar, Platform, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Alert, Dimensions, SafeAreaView, StatusBar, Platform, ActivityIndicator, Modal, Image } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState, useEffect, useRef, memo } from 'react';
@@ -6,6 +6,8 @@ import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTim
 import { useTheme } from '@/hooks/useTheme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/utils/supabase';
+import { useExerciseDB } from '@/hooks/useExerciseDB';
+import { Video, ResizeMode } from 'expo-av';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -48,6 +50,23 @@ interface SessionSetType {
   set_order: number;
 }
 
+// Add new state for exercise details modal
+interface Exercise {
+  id: string;
+  name: string;
+  bodyPart: string;
+  target: string;
+  equipment: string;
+  gifUrl?: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  instructions?: string[];
+  overview?: string;
+  exerciseTips?: string[];
+  variations?: string[];
+  secondaryMuscles?: string[];
+}
+
 // Header component
 const Header = memo(({ title, onClose }: { title: string, onClose: () => void }) => {
   const { colors } = useTheme();
@@ -66,7 +85,7 @@ const Header = memo(({ title, onClose }: { title: string, onClose: () => void })
 const Stopwatch = memo(({ onTimeUpdate }: { onTimeUpdate: (time: number) => void }) => {
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
   const { colors } = useTheme();
   
   // Format time as mm:ss
@@ -133,10 +152,11 @@ const Stopwatch = memo(({ onTimeUpdate }: { onTimeUpdate: (time: number) => void
 });
 
 // Exercise item component with set tracking
-const ExerciseItem = memo(({ exercise, index, onSetUpdate }: { 
+const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails }: { 
   exercise: ExerciseType,
   index: number,
-  onSetUpdate: (exerciseId: string, setIndex: number, reps: string, weight: string) => void
+  onSetUpdate: (exerciseId: string, setIndex: number, reps: string, weight: string) => void,
+  onShowExerciseDetails: (exerciseName: string) => void
 }) => {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
@@ -283,9 +303,17 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate }: {
         activeOpacity={0.7}
       >
         <View style={styles.exerciseInfo}>
-          <Text style={[styles.exerciseName, { color: colors.text }]}>
-            {exercise.name}
-          </Text>
+          <View style={styles.exerciseNameRow}>
+            <Text style={[styles.exerciseName, { color: colors.text }]}>
+              {exercise.name}
+            </Text>
+            <TouchableOpacity
+              style={styles.infoButton}
+              onPress={() => onShowExerciseDetails(exercise.name)}
+            >
+              <Ionicons name="information-circle-outline" size={24} color="#4a90e2" />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.exerciseDetails}>
             {customSets.length} séries 
             {exercise.sets[0]?.planned_reps ? ` • ${exercise.sets[0]?.planned_reps} reps` : ''} 
@@ -415,6 +443,12 @@ const WorkoutSessionScreen = () => {
   // Store completed sets data for saving to the database
   const [sessionSets, setSessionSets] = useState<Map<string, SessionSetType[]>>(new Map());
   const [sessionId, setSessionId] = useState<string | null>(null);
+  
+  // Add exercise details modal state
+  const [selectedExerciseDetails, setSelectedExerciseDetails] = useState<Exercise | null>(null);
+  
+  // Fetch all exercises using the same hook as workout builder
+  const { exercises: allExercises, loading: loadingAllExercises } = useExerciseDB({});
   
   // Fetch workout and exercise data
   useEffect(() => {
@@ -563,6 +597,208 @@ const WorkoutSessionScreen = () => {
   // Handle timer updates
   const handleTimeUpdate = (time: number) => {
     setElapsed(time);
+  };
+  
+  // Function to handle showing exercise details
+  const handleShowExerciseDetails = (exerciseName: string) => {
+    if (!allExercises || allExercises.length === 0) {
+      Alert.alert('Exercise Details', 'Exercise details are still loading. Please try again in a moment.');
+      return;
+    }
+    
+    console.log('Searching for exercise:', exerciseName);
+    console.log('Available exercises count:', allExercises.length);
+    
+    // First try exact match (case insensitive)
+    let exerciseDetails = allExercises.find(ex => 
+      ex.name.toLowerCase() === exerciseName.toLowerCase()
+    );
+    
+    // If no exact match, try partial match
+    if (!exerciseDetails) {
+      exerciseDetails = allExercises.find(ex => 
+        ex.name.toLowerCase().includes(exerciseName.toLowerCase()) ||
+        exerciseName.toLowerCase().includes(ex.name.toLowerCase())
+      );
+    }
+    
+    // If still no match, try matching individual words
+    if (!exerciseDetails) {
+      const searchWords = exerciseName.toLowerCase().split(/\s+/);
+      exerciseDetails = allExercises.find(ex => {
+        const exerciseWords = ex.name.toLowerCase().split(/\s+/);
+        return searchWords.some(searchWord => 
+          exerciseWords.some(exerciseWord => 
+            exerciseWord.includes(searchWord) || searchWord.includes(exerciseWord)
+          )
+        );
+      });
+    }
+    
+    if (exerciseDetails) {
+      console.log('Found exercise:', exerciseDetails.name);
+      setSelectedExerciseDetails(exerciseDetails);
+    } else {
+      console.log('No exercise found. First 5 available exercises:', 
+        allExercises.slice(0, 5).map(ex => ex.name));
+      
+      Alert.alert(
+        'Exercise Details', 
+        `Could not find details for "${exerciseName}". This might be because:\n\n• The exercise is not in our database\n• The exercise name doesn't match exactly\n• The exercise database is still loading\n\nTry again in a few moments.`,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+  
+  // Add the modal component for exercise details
+  const renderExerciseDetailsModal = () => {
+    if (!selectedExerciseDetails) return null;
+
+    return (
+      <Modal
+        visible={!!selectedExerciseDetails}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setSelectedExerciseDetails(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.exerciseModalContent}>
+            <ScrollView style={styles.modalScrollView}>
+              {/* Header with close button */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{selectedExerciseDetails.name}</Text>
+                <TouchableOpacity 
+                  onPress={() => setSelectedExerciseDetails(null)}
+                  style={styles.closeButtonModal}
+                >
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Exercise Image/Video */}
+              {selectedExerciseDetails.videoUrl ? (
+                <View style={styles.modalImageContainer}>
+                  <Video
+                    source={{ uri: selectedExerciseDetails.videoUrl }}
+                    style={styles.modalVideo}
+                    resizeMode={ResizeMode.CONTAIN}
+                    useNativeControls
+                    shouldPlay={false}
+                    isLooping={false}
+                  />
+                </View>
+              ) : selectedExerciseDetails.imageUrl ? (
+                <View style={styles.modalImageContainer}>
+                  <Image
+                    source={{ uri: selectedExerciseDetails.imageUrl }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : selectedExerciseDetails.gifUrl ? (
+                <View style={styles.modalImageContainer}>
+                  <Image
+                    source={{ uri: selectedExerciseDetails.gifUrl }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : (
+                <View style={styles.modalNoImageContainer}>
+                  <Ionicons name="image-outline" size={48} color="rgba(255,255,255,0.3)" />
+                  <Text style={styles.modalNoImageText}>No media available</Text>
+                </View>
+              )}
+
+              {/* Exercise Details */}
+              <View style={styles.modalDetailsContainer}>
+                {/* Overview */}
+                {selectedExerciseDetails.overview && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.sectionTitleModal}>Overview</Text>
+                    <Text style={styles.overviewText}>{selectedExerciseDetails.overview}</Text>
+                  </View>
+                )}
+
+                {/* Category and Equipment */}
+                <View style={styles.detailSection}>
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="body-outline" size={20} color="#4a90e2" />
+                      <Text style={styles.detailLabel}>Body Part:</Text>
+                      <Text style={styles.detailValue}>{selectedExerciseDetails.bodyPart}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="barbell-outline" size={20} color="#4a90e2" />
+                      <Text style={styles.detailLabel}>Equipment:</Text>
+                      <Text style={styles.detailValue}>{selectedExerciseDetails.equipment}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Target Muscles */}
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitleModal}>Target Muscles</Text>
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="fitness-outline" size={20} color="#4a90e2" />
+                      <Text style={styles.detailLabel}>Primary:</Text>
+                      <Text style={styles.detailValue}>{selectedExerciseDetails.target}</Text>
+                    </View>
+                  </View>
+                  {selectedExerciseDetails.secondaryMuscles && selectedExerciseDetails.secondaryMuscles.length > 0 && (
+                    <View style={styles.secondaryMusclesContainer}>
+                      <Text style={styles.detailLabel}>Secondary Muscles:</Text>
+                      {selectedExerciseDetails.secondaryMuscles.map((muscle, index) => (
+                        <Text key={index} style={styles.secondaryMuscleText}>• {muscle}</Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Instructions */}
+                {selectedExerciseDetails.instructions && selectedExerciseDetails.instructions.length > 0 && (
+                  <View style={styles.instructionsSection}>
+                    <Text style={styles.sectionTitleModal}>Instructions</Text>
+                    {selectedExerciseDetails.instructions.map((instruction, index) => (
+                      <View key={index} style={styles.instructionItem}>
+                        <Text style={styles.instructionNumber}>{index + 1}.</Text>
+                        <Text style={styles.instructionText}>{instruction}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Exercise Tips */}
+                {selectedExerciseDetails.exerciseTips && selectedExerciseDetails.exerciseTips.length > 0 && (
+                  <View style={styles.tipsSection}>
+                    <Text style={styles.sectionTitleModal}>Tips</Text>
+                    {selectedExerciseDetails.exerciseTips.map((tip, index) => (
+                      <View key={index} style={styles.tipItem}>
+                        <Ionicons name="bulb-outline" size={20} color="#4a90e2" />
+                        <Text style={styles.tipText}>{tip}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Variations */}
+                {selectedExerciseDetails.variations && selectedExerciseDetails.variations.length > 0 && (
+                  <View style={styles.variationsSection}>
+                    <Text style={styles.sectionTitleModal}>Variations</Text>
+                    {selectedExerciseDetails.variations.map((variation, index) => (
+                      <View key={index} style={styles.variationItem}>
+                        <Text style={styles.variationText}>• {variation}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
   };
   
   // Finish workout and save session data
@@ -904,6 +1140,7 @@ const WorkoutSessionScreen = () => {
               exercise={exercise} 
               index={index} 
               onSetUpdate={handleSetUpdate}
+              onShowExerciseDetails={handleShowExerciseDetails}
             />
           ))
         )}
@@ -924,6 +1161,8 @@ const WorkoutSessionScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      
+      {renderExerciseDetailsModal()}
     </SafeAreaView>
   );
 };
@@ -1007,10 +1246,17 @@ const styles = StyleSheet.create({
   exerciseInfo: {
     flex: 1,
   },
+  exerciseNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   exerciseName: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+  },
+  infoButton: {
+    padding: 8,
   },
   exerciseDetails: {
     fontSize: 14,
@@ -1151,6 +1397,175 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 13,
     fontWeight: '400',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exerciseModalContent: {
+    width: '90%',
+    maxHeight: '90%',
+    backgroundColor: '#2c2c3e',
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+    flex: 1,
+  },
+  closeButtonModal: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  modalImageContainer: {
+    width: '100%',
+    height: 300,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    position: 'relative',
+  },
+  modalVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  modalImage: {
+    width: '100%',
+    height: '100%',
+  },
+  modalNoImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    width: '100%',
+    height: '100%',
+  },
+  modalNoImageText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  modalDetailsContainer: {
+    padding: 16,
+  },
+  detailSection: {
+    marginBottom: 16,
+  },
+  sectionTitleModal: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginRight: 16,
+  },
+  detailLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    marginLeft: 8,
+    marginRight: 4,
+  },
+  detailValue: {
+    color: '#fff',
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
+  secondaryMusclesContainer: {
+    marginTop: 12,
+  },
+  secondaryMuscleText: {
+    color: '#fff',
+    fontSize: 14,
+    marginLeft: 16,
+    marginTop: 4,
+  },
+  instructionsSection: {
+    marginTop: 16,
+  },
+  instructionItem: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  instructionNumber: {
+    color: '#4a90e2',
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: 8,
+    minWidth: 24,
+  },
+  instructionText: {
+    color: '#fff',
+    lineHeight: 20,
+    flex: 1,
+  },
+  tipsSection: {
+    marginTop: 24,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  tipText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+    marginLeft: 12,
+  },
+  variationsSection: {
+    marginTop: 24,
+  },
+  variationItem: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  variationText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  overviewText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  modalScrollView: {
+    flex: 1,
   },
 });
 
