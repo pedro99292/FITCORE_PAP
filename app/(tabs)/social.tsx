@@ -1699,13 +1699,8 @@ export default function SocialScreen() {
       justifyContent: 'flex-end',
     },
     commentsModalContent: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
       borderTopLeftRadius: 15,
       borderTopRightRadius: 15,
-      maxHeight: Dimensions.get('window').height * 0.7,
     },
     commentsModalHandle: {
       width: 40,
@@ -1748,9 +1743,11 @@ export default function SocialScreen() {
       flex: 1,
       borderRadius: 20,
       paddingHorizontal: 15,
-      paddingVertical: 8,
+      paddingVertical: 12,
       marginRight: 10,
       fontSize: 16,
+      minHeight: 40,
+      maxHeight: 100,
     },
     commentsSendButton: {
       width: 35,
@@ -1782,49 +1779,54 @@ export default function SocialScreen() {
       key={`modal-${post.id}`}
       visible={showComments[post.id] || false}
       transparent
-      animationType="none"
+      animationType="slide"
       onRequestClose={() => hideCommentsModal(post.id)}
     >
-      <TouchableOpacity
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        activeOpacity={1}
-        onPress={() => hideCommentsModal(post.id)}
-      >
-        <Animated.View
-          style={[
-            styles.commentsModalContent,
-            {
-              backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
-              transform: [{
-                translateY: modalAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [Dimensions.get('window').height, 0]
-                })
-              }]
-            }
-          ]}
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          activeOpacity={1}
+          onPress={() => hideCommentsModal(post.id)}
+        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 0 }}
         >
-          <View style={{ maxHeight: Dimensions.get('window').height * 0.8 }}>
-            <TouchableOpacity activeOpacity={1} onPress={() => Keyboard.dismiss()}>
-              <View style={styles.commentsModalHandle} />
-              <View style={[styles.commentsModalHeader, {
-                borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
-              }]}>
-                <Text style={[styles.commentsModalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
-                  Comments
-                </Text>
-                <TouchableOpacity
-                  style={styles.commentsCloseButton}
-                  onPress={() => hideCommentsModal(post.id)}
-                >
-                  <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+          <View
+            style={[
+              styles.commentsModalContent,
+              {
+                backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
+                position: 'relative',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                maxHeight: Dimensions.get('window').height * 0.75,
+                minHeight: Dimensions.get('window').height * 0.5,
+              }
+            ]}
+          >
+            <View style={styles.commentsModalHandle} />
+            <View style={[styles.commentsModalHeader, {
+              borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+            }]}>
+              <Text style={[styles.commentsModalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+                Comments
+              </Text>
+              <TouchableOpacity
+                style={styles.commentsCloseButton}
+                onPress={() => hideCommentsModal(post.id)}
+              >
+                <Feather name="x" size={24} color={isDarkMode ? "#fff" : "#000"} />
+              </TouchableOpacity>
+            </View>
 
             <ScrollView 
-              style={styles.commentsListContainer}
+              style={[styles.commentsListContainer, { flex: 1 }]}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
               {loadingComments[post.id] ? (
                 <ActivityIndicator size="small" color="#4a90e2" style={{ marginTop: 20 }} />
@@ -1875,48 +1877,47 @@ export default function SocialScreen() {
                   </View>
                 ))
               )}
-              <View style={{ height: 15 }} />
+              <View style={{ height: 20 }} />
             </ScrollView>
 
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-            >
-              <View style={[styles.commentsInputContainer, {
-                borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-              }]}>
-                <TextInput
-                  style={[styles.commentsInput, {
-                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                    color: isDarkMode ? '#fff' : '#000'
-                  }]}
-                  placeholder="Add a comment..."
-                  placeholderTextColor={isDarkMode ? '#8e8e93' : '#666'}
-                  value={commentText[post.id] || ''}
-                  onChangeText={(text) => setCommentText(prev => ({ ...prev, [post.id]: text }))}
+            <View style={[styles.commentsInputContainer, {
+              borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
+              paddingBottom: Platform.OS === 'ios' ? 34 : 15,
+            }]}>
+              <TextInput
+                style={[styles.commentsInput, {
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  color: isDarkMode ? '#fff' : '#000'
+                }]}
+                placeholder="Add a comment..."
+                placeholderTextColor={isDarkMode ? '#8e8e93' : '#666'}
+                value={commentText[post.id] || ''}
+                onChangeText={(text) => setCommentText(prev => ({ ...prev, [post.id]: text }))}
+                multiline
+                maxLength={500}
+              />
+              <TouchableOpacity
+                style={[styles.commentsSendButton, {
+                  backgroundColor: commentText[post.id]?.trim()
+                    ? '#4a90e2'
+                    : isDarkMode
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(0,0,0,0.05)'
+                }]}
+                onPress={() => handleAddComment(post.id)}
+                disabled={!commentText[post.id]?.trim()}
+              >
+                <Feather
+                  name="send"
+                  size={18}
+                  color={commentText[post.id]?.trim() ? '#fff' : isDarkMode ? '#8e8e93' : '#666'}
                 />
-                <TouchableOpacity
-                  style={[styles.commentsSendButton, {
-                    backgroundColor: commentText[post.id]?.trim()
-                      ? '#4a90e2'
-                      : isDarkMode
-                      ? 'rgba(255,255,255,0.1)'
-                      : 'rgba(0,0,0,0.05)'
-                  }]}
-                  onPress={() => handleAddComment(post.id)}
-                  disabled={!commentText[post.id]?.trim()}
-                >
-                  <Feather
-                    name="send"
-                    size={18}
-                    color={commentText[post.id]?.trim() ? '#fff' : isDarkMode ? '#8e8e93' : '#666'}
-                  />
-                </TouchableOpacity>
-              </View>
-            </KeyboardAvoidingView>
+              </TouchableOpacity>
+            </View>
           </View>
-        </Animated.View>
-      </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 
