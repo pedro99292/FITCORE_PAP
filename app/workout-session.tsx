@@ -8,6 +8,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/utils/supabase';
 import { useExerciseDB } from '@/hooks/useExerciseDB';
 import { Video, ResizeMode } from 'expo-av';
+import { updateAllAchievements } from '@/utils/achievementService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -937,7 +938,16 @@ const WorkoutSessionScreen = () => {
         }
       }
       
-      // Even if we couldn't insert any sets, consider it a success if we updated the session
+      // Update achievements for the user after successful workout completion
+      try {
+        if (userData?.user?.id) {
+          await updateAllAchievements(userData.user.id);
+        }
+      } catch (achievementError) {
+        // Don't fail the workout save if achievements fail
+        console.warn('Error updating achievements:', achievementError);
+      }
+      
       return true;
     } catch (error) {
       console.error('Error saving workout session:', error);

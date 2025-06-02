@@ -27,6 +27,13 @@ import Animated, {
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/utils/supabase';
 import { BlurView } from 'expo-blur';
+import { 
+  getUserAchievements, 
+  updateAllAchievements, 
+  getAchievementStats,
+  initializeUserAchievements,
+  UserAchievement
+} from '@/utils/achievementService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -121,26 +128,6 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
     category: "Workout Mastery"
   },
   {
-    id: 8,
-    title: "Form Focused",
-    description: "View 20 exercise instruction animations.",
-    icon: "play-circle-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#FF5722",
-    category: "Workout Mastery"
-  },
-  {
-    id: 9,
-    title: "Rest is Best",
-    description: "Consistently adhere to rest times for 30 workouts.",
-    icon: "time-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#607D8B",
-    category: "Workout Mastery"
-  },
-  {
     id: 10,
     title: "Custom Crafter",
     description: "Build and complete 5 personalized workouts.",
@@ -190,16 +177,6 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#2196F3",
-    category: "Progress"
-  },
-  {
-    id: 15,
-    title: "Graph Guru",
-    description: "Analyze your workout stats 50 times.",
-    icon: "stats-chart-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#9C27B0",
     category: "Progress"
   },
   {
@@ -287,7 +264,7 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
   {
     id: 24,
     title: "Early Bird",
-    description: "Workout before 7 AM for 30 days.",
+    description: "Workout before 7 AM 10 times.",
     icon: "sunny-outline",
     iconType: "ionicons",
     progress: 0,
@@ -411,7 +388,7 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
   {
     id: 36,
     title: "First Post",
-    description: "Share your first workout update.",
+    description: "Share your first Post.",
     icon: "chatbox-outline",
     iconType: "ionicons",
     progress: 0,
@@ -451,7 +428,7 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
   {
     id: 40,
     title: "Storyteller",
-    description: "Create 10 Instagram-style stories.",
+    description: "Create 10 stories.",
     icon: "camera-outline",
     iconType: "ionicons",
     progress: 0,
@@ -849,11 +826,13 @@ const StatusFilter = ({
 // Memoized AchievementsPage component to improve performance
 const AchievementsPage = () => {
   const { colors } = useTheme();
-  const [achievements, setAchievements] = useState<Achievement[]>(ACHIEVEMENTS_DATA);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [filter, setFilter] = useState('Todas');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   
   // For trophies section
   const trophies = useMemo(() => [
@@ -877,16 +856,86 @@ const AchievementsPage = () => {
     }
     return val.toString();
   };
+
+  // Fetch user achievements from database
+  const fetchUserAchievements = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      const userId = userData.user.id;
+
+      // Try to get existing achievements
+      let userAchievementsData = await getUserAchievements(userId);
+      
+      // If no achievements exist, initialize them
+      if (userAchievementsData.length === 0) {
+        await initializeUserAchievements(userId);
+        userAchievementsData = await getUserAchievements(userId);
+      }
+
+      // Update all achievements based on current user progress
+      const newUnlocks = await updateAllAchievements(userId);
+      
+      // If there were new unlocks, fetch updated data
+      if (newUnlocks.length > 0) {
+        userAchievementsData = await getUserAchievements(userId);
+        
+        // Show notification for new unlocks (you can enhance this)
+        console.log('New achievements unlocked:', newUnlocks);
+      }
+
+      setUserAchievements(userAchievementsData);
+
+      // Merge static achievement data with user progress
+      const mergedAchievements = ACHIEVEMENTS_DATA.map(staticAchievement => {
+        const userProgress = userAchievementsData.find(
+          ua => ua.achievement_id === staticAchievement.id
+        );
+        
+        return {
+          ...staticAchievement,
+          progress: userProgress?.progress || 0,
+          date: userProgress?.unlocked_at ? new Date(userProgress.unlocked_at).toLocaleDateString('pt-PT') : undefined
+        };
+      });
+
+      setAchievements(mergedAchievements);
+      
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Refresh achievements
+  const refreshAchievements = useCallback(async () => {
+    setRefreshing(true);
+    await fetchUserAchievements();
+  }, [fetchUserAchievements]);
   
   // Initialize categories from static data
   useEffect(() => {
     const uniqueCategories = ['Todas', ...new Set(ACHIEVEMENTS_DATA.map(item => item.category))];
     setCategories(uniqueCategories);
   }, []);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchUserAchievements();
+  }, [fetchUserAchievements]);
   
   // Filter achievements based on selected category and status
   const filteredAchievements = useMemo(() => {
-    let filtered = ACHIEVEMENTS_DATA;
+    let filtered = achievements;
     
     // Apply category filter
     if (selectedCategory !== 'Todas') {
@@ -901,12 +950,7 @@ const AchievementsPage = () => {
     }
     
     return filtered;
-  }, [selectedCategory, filter]);
-
-  // Update achievements state when filters change
-  useEffect(() => {
-    setAchievements(filteredAchievements);
-  }, [filteredAchievements]);
+  }, [achievements, selectedCategory, filter]);
 
   // Calcular conquistas concluídas e em progresso
   const completedAchievements = achievements.filter(achievement => achievement.progress === 100);
@@ -926,7 +970,21 @@ const AchievementsPage = () => {
           colors={['rgba(74, 144, 226, 0.3)', 'transparent']}
           style={styles.headerGradient}
         >
-          <Text style={styles.headerTitle}>Conquistas</Text>
+          <View style={styles.headerTop}>
+            <Text style={styles.headerTitle}>Conquistas</Text>
+            <TouchableOpacity 
+              onPress={refreshAchievements}
+              style={styles.refreshButton}
+              disabled={refreshing}
+            >
+              <Ionicons 
+                name="refresh" 
+                size={24} 
+                color="#fff" 
+                style={refreshing ? { opacity: 0.5 } : {}}
+              />
+            </TouchableOpacity>
+          </View>
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{formatValue(completedAchievements.length)}</Text>
@@ -942,7 +1000,7 @@ const AchievementsPage = () => {
               <Text style={styles.statValue}>{formatValue(achievements.length)}</Text>
               <Text style={styles.statLabel}>Total</Text>
             </View>
-                </View>
+          </View>
         </LinearGradient>
       </Animated.View>
       
@@ -973,28 +1031,28 @@ const AchievementsPage = () => {
                 ? 'Todas as Conquistas' 
                 : `Conquistas: ${selectedCategory}`}
             </Text>
-                </View>
+          </View>
                 
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#4a90e2" />
               <Text style={styles.loadingText}>Carregando conquistas...</Text>
             </View>
-          ) : achievements.length > 0 ? (
-                <View style={styles.achievementsList}>
-              {achievements.map((achievement) => (
-                        <AchievementItem 
-                            key={achievement.achievement_id || achievement.id} 
-                            title={achievement.title} 
-                            description={achievement.description} 
+          ) : filteredAchievements.length > 0 ? (
+            <View style={styles.achievementsList}>
+              {filteredAchievements.map((achievement) => (
+                <AchievementItem 
+                  key={achievement.id} 
+                  title={achievement.title} 
+                  description={achievement.description} 
                   date={achievement.date || ''} 
-                            icon={achievement.icon}
+                  icon={achievement.icon}
                   iconType={achievement.iconType} 
-                            progress={achievement.progress}
-                            color={achievement.color}
+                  progress={achievement.progress}
+                  color={achievement.color}
                   category={achievement.category} 
-                        />
-                    ))}
+                />
+              ))}
             </View>
           ) : (
             <View style={styles.emptyStateContainer}>
@@ -1007,16 +1065,16 @@ const AchievementsPage = () => {
               </Text>
             </View>
           )}
-                </View>
+        </View>
                 
         {/* Trophies Section */}
         <View style={styles.sectionContainer}>
-                    <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Coleção de Troféus</Text>
             <Text style={styles.sectionSubtitle}>
               Complete mais conquistas para desbloquear troféus
             </Text>
-                    </View>
+          </View>
           
           <View style={styles.trophiesContainer}>
             {trophies.map((trophy) => (
@@ -1026,12 +1084,12 @@ const AchievementsPage = () => {
                 title={trophy.title}
                 unlocked={trophy.unlocked}
               />
-                        ))}
-                    </View>
-                </View>
-            </ScrollView>
-        </SafeAreaView>
-    );
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -1360,6 +1418,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 16,
     },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
 });
 
 export default AchievementsPage;

@@ -7,7 +7,9 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
-  Dimensions
+  Dimensions,
+  Modal,
+  FlatList
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
@@ -35,6 +37,18 @@ type UserProfile = {
   gender: string | null;
   days_per_week: number | null;
 };
+
+// Add type for follower/following user
+type FollowUser = {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  isFollowing: boolean;
+};
+
+// Add modal type
+type ModalType = 'followers' | 'following' | null;
 
 const styles = StyleSheet.create({
   container: {
@@ -162,6 +176,87 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 20,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    marginVertical: 5,
+    borderRadius: 12,
+  },
+  userAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userUsername: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  userFullName: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  followUserButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 15,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  followUserButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    opacity: 0.6,
+    textAlign: 'center',
+  },
+  clickableStatItem: {
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+  },
 });
 
 export default function UserProfileScreen() {
@@ -182,6 +277,12 @@ export default function UserProfileScreen() {
   const [userStories, setUserStories] = useState<UserWithStories | null>(null);
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Add modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [modalUsers, setModalUsers] = useState<FollowUser[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
@@ -387,6 +488,321 @@ export default function UserProfileScreen() {
     setShowStoryViewer(false);
   };
 
+  const fetchFollowers = async () => {
+    try {
+      setModalLoading(true);
+      
+      // Get current user for checking follow status
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserId = user?.id;
+
+      // First, get the follower IDs
+      const { data: followersData, error: followersError } = await supabase
+        .from('user_followers')
+        .select('follower_id')
+        .eq('followed_id', userId);
+
+      if (followersError) throw followersError;
+
+      if (!followersData || followersData.length === 0) {
+        setModalUsers([]);
+        return;
+      }
+
+      // Extract follower IDs
+      const followerIds = followersData.map(f => f.follower_id);
+
+      // Fetch user details for all followers
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, full_name, avatar_url')
+        .in('id', followerIds);
+
+      if (usersError) throw usersError;
+
+      if (!usersData) {
+        setModalUsers([]);
+        return;
+      }
+
+      // Check follow status for each follower
+      const followersWithStatus = await Promise.all(
+        usersData.map(async (userData) => {
+          let isFollowing = false;
+          if (currentUserId && currentUserId !== userData.id) {
+            const { data: followCheck } = await supabase
+              .from('user_followers')
+              .select('id')
+              .eq('follower_id', currentUserId)
+              .eq('followed_id', userData.id)
+              .single();
+            
+            isFollowing = !!followCheck;
+          }
+
+          return {
+            id: userData.id,
+            username: userData.username,
+            full_name: userData.full_name,
+            avatar_url: userData.avatar_url,
+            isFollowing
+          };
+        })
+      );
+
+      setModalUsers(followersWithStatus);
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      setModalUsers([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const fetchFollowing = async () => {
+    try {
+      setModalLoading(true);
+      
+      // Get current user for checking follow status
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserId = user?.id;
+
+      // First, get the following IDs
+      const { data: followingData, error: followingError } = await supabase
+        .from('user_followers')
+        .select('followed_id')
+        .eq('follower_id', userId);
+
+      if (followingError) throw followingError;
+
+      if (!followingData || followingData.length === 0) {
+        setModalUsers([]);
+        return;
+      }
+
+      // Extract following IDs
+      const followingIds = followingData.map(f => f.followed_id);
+
+      // Fetch user details for all following
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, full_name, avatar_url')
+        .in('id', followingIds);
+
+      if (usersError) throw usersError;
+
+      if (!usersData) {
+        setModalUsers([]);
+        return;
+      }
+
+      // Check follow status for each followed user
+      const followingWithStatus = await Promise.all(
+        usersData.map(async (userData) => {
+          let isFollowing = false;
+          if (currentUserId && currentUserId !== userData.id) {
+            const { data: followCheck } = await supabase
+              .from('user_followers')
+              .select('id')
+              .eq('follower_id', currentUserId)
+              .eq('followed_id', userData.id)
+              .single();
+            
+            isFollowing = !!followCheck;
+          }
+
+          return {
+            id: userData.id,
+            username: userData.username,
+            full_name: userData.full_name,
+            avatar_url: userData.avatar_url,
+            isFollowing
+          };
+        })
+      );
+
+      setModalUsers(followingWithStatus);
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      setModalUsers([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const openFollowersModal = () => {
+    setModalType('followers');
+    setModalVisible(true);
+    fetchFollowers();
+  };
+
+  const openFollowingModal = () => {
+    setModalType('following');
+    setModalVisible(true);
+    fetchFollowing();
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setModalType(null);
+    setModalUsers([]);
+  };
+
+  const handleFollowUser = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert('You must be logged in to follow users');
+        return;
+      }
+
+      if (user.id === targetUserId) {
+        alert('You cannot follow yourself');
+        return;
+      }
+
+      if (isCurrentlyFollowing) {
+        // Unfollow
+        const { error } = await supabase
+          .from('user_followers')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('followed_id', targetUserId);
+
+        if (error) throw error;
+      } else {
+        // Follow
+        const { error } = await supabase
+          .from('user_followers')
+          .insert({
+            follower_id: user.id,
+            followed_id: targetUserId,
+            created_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+      }
+
+      // Update the modal users list with new follow status
+      setModalUsers(prev => 
+        prev.map(user => 
+          user.id === targetUserId 
+            ? { ...user, isFollowing: !isCurrentlyFollowing }
+            : user
+        )
+      );
+
+      // Update stats count when unfollowing from your own following list
+      if (modalType === 'following' && userId === user.id && isCurrentlyFollowing) {
+        setStats(prev => ({
+          ...prev,
+          following: Math.max(0, prev.following - 1)
+        }));
+      }
+      
+      // Update stats count when following someone new from any modal
+      if (!isCurrentlyFollowing) {
+        // If we're viewing our own profile and just followed someone, update following count
+        if (userId === user.id) {
+          setStats(prev => ({
+            ...prev,
+            following: prev.following + 1
+          }));
+        }
+      }
+
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      alert('Failed to update follow status. Please try again.');
+    }
+  };
+
+  const navigateToUserProfile = (targetUserId: string) => {
+    closeModal();
+    router.push(`/${targetUserId}`);
+  };
+
+  // Helper function to format goals display
+  const formatGoals = (goals: string | null): string => {
+    if (!goals) return '';
+    
+    try {
+      // If it's a JSON string, parse it
+      if (goals.startsWith('[') || goals.startsWith('"')) {
+        const parsed = JSON.parse(goals);
+        if (Array.isArray(parsed)) {
+          return parsed.join(', ');
+        }
+        return parsed.toString();
+      }
+      // If it's already a clean string, return as is
+      return goals;
+    } catch (error) {
+      // If parsing fails, clean up manually
+      return goals
+        .replace(/^\[|\]$/g, '') // Remove square brackets
+        .replace(/^"|"$/g, '') // Remove outer quotes
+        .replace(/","/g, ', ') // Replace quote comma quote with comma space
+        .replace(/"/g, ''); // Remove any remaining quotes
+    }
+  };
+
+  const renderUserItem = ({ item }: { item: FollowUser }) => {
+    const isCurrentUser = currentUserId === item.id;
+
+    return (
+      <TouchableOpacity
+        style={[styles.userItem, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
+        onPress={() => navigateToUserProfile(item.id)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.userAvatar, { backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5' }]}>
+          {item.avatar_url ? (
+            <Image
+              source={{ uri: item.avatar_url }}
+              style={{ width: 50, height: 50, borderRadius: 25 }}
+            />
+          ) : (
+            <FontAwesome name="user" size={20} color={colors.text} />
+          )}
+        </View>
+        
+        <View style={styles.userInfo}>
+          <Text style={[styles.userUsername, { color: colors.text }]}>
+            @{item.username}
+          </Text>
+          {item.full_name && (
+            <Text style={[styles.userFullName, { color: colors.text }]}>
+              {item.full_name}
+            </Text>
+          )}
+        </View>
+
+        {!isCurrentUser && (
+          <TouchableOpacity
+            style={[
+              styles.followUserButton,
+              { 
+                backgroundColor: item.isFollowing ? 'rgba(255,255,255,0.1)' : '#4a90e2',
+                borderWidth: item.isFollowing ? 1 : 0,
+                borderColor: item.isFollowing ? colors.text : 'transparent'
+              }
+            ]}
+            onPress={() => handleFollowUser(item.id, item.isFollowing)}
+          >
+            <Text style={[
+              styles.followUserButtonText,
+              { color: item.isFollowing ? colors.text : '#fff' }
+            ]}>
+              {item.isFollowing ? 'Following' : 'Follow'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
@@ -488,18 +904,18 @@ export default function UserProfileScreen() {
           )}
 
           <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
+            <TouchableOpacity style={styles.clickableStatItem} onPress={() => router.push(`/${userId}/posts`)}>
               <Text style={[styles.statNumber, { color: colors.text }]}>{stats.posts}</Text>
               <Text style={[styles.statLabel, { color: colors.text }]}>Posts</Text>
-            </View>
-            <View style={styles.statItem}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.clickableStatItem} onPress={openFollowersModal}>
               <Text style={[styles.statNumber, { color: colors.text }]}>{stats.followers}</Text>
               <Text style={[styles.statLabel, { color: colors.text }]}>Followers</Text>
-            </View>
-            <View style={styles.statItem}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.clickableStatItem} onPress={openFollowingModal}>
               <Text style={[styles.statNumber, { color: colors.text }]}>{stats.following}</Text>
               <Text style={[styles.statLabel, { color: colors.text }]}>Following</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {!isOwnProfile && (
@@ -562,7 +978,7 @@ export default function UserProfileScreen() {
             <View style={[styles.infoRow, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
               <Text style={[styles.infoLabel, { color: colors.text }]}>Goals</Text>
               <Text style={[styles.infoValue, { color: colors.text }]}>
-                {userProfile.goals}
+                {formatGoals(userProfile.goals)}
               </Text>
             </View>
           )}
@@ -588,6 +1004,55 @@ export default function UserProfileScreen() {
           onComplete={handleStoryComplete}
           onStoryDeleted={handleStoryDeleted}
         />
+      )}
+
+      {/* Modal for followers/following list */}
+      {modalVisible && (
+        <Modal
+          visible={modalVisible}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={closeModal}
+        >
+          <View style={styles.modalOverlay}>
+            <BlurView
+              intensity={isDarkMode ? 40 : 60}
+              tint={isDarkMode ? 'dark' : 'light'}
+              style={[styles.modalContent, { backgroundColor: isDarkMode ? 'rgba(40,40,40,0.95)' : 'rgba(255,255,255,0.95)' }]}
+            >
+              <View style={[styles.modalHeader, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {modalType === 'followers' ? 'Followers' : 'Following'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={closeModal}
+                >
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              {modalLoading ? (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : modalUsers.length > 0 ? (
+                <FlatList
+                  data={modalUsers}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderUserItem}
+                  showsVerticalScrollIndicator={false}
+                />
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={[styles.emptyStateText, { color: colors.text }]}>
+                    {modalType === 'followers' ? 'No followers found' : 'No following found'}
+                  </Text>
+                </View>
+              )}
+            </BlurView>
+          </View>
+        </Modal>
       )}
     </View>
   );
