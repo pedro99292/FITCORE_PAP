@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
-  FlatList
+  FlatList,
+  SafeAreaView
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
@@ -156,9 +157,15 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 20,
+    top: 60,
     left: 20,
     zIndex: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   storyRingContainer: {
     width: 126,
@@ -820,7 +827,7 @@ export default function UserProfileScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           headerShown: false,
@@ -1054,6 +1061,6 @@ export default function UserProfileScreen() {
           </View>
         </Modal>
       )}
-    </View>
+    </SafeAreaView>
   );
 }

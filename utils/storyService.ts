@@ -27,16 +27,50 @@ export type UserWithStories = {
 // Fetch all active stories grouped by user
 export const fetchActiveStories = async (currentUserId: string | null): Promise<UserWithStories[]> => {
   try {
-    // Simplified approach - just get the stories without trying to join with users
+    if (!currentUserId) {
+      return [];
+    }
+
+    // First, get the list of users that the current user follows
+    const { data: followingData, error: followingError } = await supabase
+      .from('user_followers')
+      .select('followed_id')
+      .eq('follower_id', currentUserId);
+
+    if (followingError) {
+      console.error('Error fetching following list:', followingError);
+      return [];
+    }
+
+    // Get list of user IDs to include in stories (following + current user)
+    const followingIds = followingData?.map(f => f.followed_id) || [];
+    const userIdsToShow = [...followingIds, currentUserId]; // Include current user's stories
+
+    // If user doesn't follow anyone, only show their own stories
+    if (userIdsToShow.length === 1 && userIdsToShow[0] === currentUserId) {
+      // Check if current user has any stories
+      const { count: userStoryCount } = await supabase
+        .from('user_stories')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUserId)
+        .eq('is_active', true);
+
+      if (!userStoryCount || userStoryCount === 0) {
+        return [];
+      }
+    }
+
+    // Fetch stories only from followed users and current user
     const { data: stories, error } = await supabase
-      .from('user_stories') // Use user_stories as shown in the screenshot
+      .from('user_stories')
       .select('*')
-      .eq('is_active', true) // Only active stories
+      .in('user_id', userIdsToShow)
+      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching stories:', error);
-      return []; // Return empty array on error
+      return [];
     }
 
     if (!stories || stories.length === 0) {

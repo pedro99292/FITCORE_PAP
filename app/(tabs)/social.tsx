@@ -191,20 +191,6 @@ export default function SocialScreen() {
     };
   }, []);
 
-  // Add focus listener to refresh stories periodically
-  useEffect(() => {
-    // Reduce the interval to 10 seconds for more responsive updates
-    const interval = setInterval(() => {
-      if (currentUserId && !showStoryViewer && !showStoryCreator) {
-        fetchStories();
-      }
-    }, 10000); // Refresh every 10 seconds when user is active and not viewing/creating stories
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [currentUserId, showStoryViewer, showStoryCreator]);
-
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -223,9 +209,46 @@ export default function SocialScreen() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
+      
+      if (!currentUserId) {
+        setPosts([]);
+        return;
+      }
+
+      // First, get the list of users that the current user follows
+      const { data: followingData, error: followingError } = await supabase
+        .from('user_followers')
+        .select('followed_id')
+        .eq('follower_id', currentUserId);
+
+      if (followingError) {
+        console.error('Error fetching following list:', followingError);
+        return;
+      }
+
+      // Get list of user IDs to include in posts (following + current user)
+      const followingIds = followingData?.map(f => f.followed_id) || [];
+      const userIdsToShow = [...followingIds, currentUserId]; // Include current user's posts
+
+      // If user doesn't follow anyone and has no posts, show empty feed
+      if (userIdsToShow.length === 1 && userIdsToShow[0] === currentUserId) {
+        // Check if current user has any posts
+        const { count: userPostCount } = await supabase
+          .from('social_posts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', currentUserId);
+
+        if (!userPostCount || userPostCount === 0) {
+          setPosts([]);
+          return;
+        }
+      }
+
+      // Fetch posts only from followed users and current user
       const { data, error } = await supabase
         .from('social_posts')
         .select('*, profiles:user_id(username, avatar_url)')
+        .in('user_id', userIdsToShow)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -2005,7 +2028,7 @@ export default function SocialScreen() {
           // Show "No stories" message if none exist
           <View style={styles.noStoriesContainer}>
             <Text style={[styles.noStoriesText, { color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }]}>
-              No stories yet
+              Sem stories das pessoas que segues
             </Text>
           </View>
         )}
@@ -2110,14 +2133,14 @@ export default function SocialScreen() {
           </View>
         ) : posts.length === 0 && !loading ? (
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="post-outline" size={80} color={isDarkMode ? "#8e8e93" : "#999"} />
-            <Text style={[styles.emptyText, { color: isDarkMode ? '#fff' : '#000' }]}>Não existem posts ainda</Text>
-            <Text style={[styles.emptySubtext, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Sê o primeiro a partilhar!</Text>
+            <MaterialCommunityIcons name="account-group" size={80} color={isDarkMode ? "#8e8e93" : "#999"} />
+            <Text style={[styles.emptyText, { color: isDarkMode ? '#fff' : '#000' }]}>O teu feed está vazio</Text>
+            <Text style={[styles.emptySubtext, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Segue pessoas para veres os seus posts aqui</Text>
             <TouchableOpacity 
               style={styles.emptyButton}
-              onPress={() => setShowPostInput(true)}
+              onPress={handleAddFriends}
             >
-              <Text style={styles.emptyButtonText}>Criar Post</Text>
+              <Text style={styles.emptyButtonText}>Descobrir Pessoas</Text>
             </TouchableOpacity>
           </View>
         ) : (

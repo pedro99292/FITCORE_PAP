@@ -12,6 +12,7 @@ import {
   Alert,
   RefreshControl,
   StatusBar,
+  SafeAreaView,
 } from 'react-native';
 import { FontAwesome, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -473,7 +474,7 @@ export default function DiscoverUsersScreen() {
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen 
         options={{
           title: "Discover People",
@@ -553,6 +554,6 @@ export default function DiscoverUsersScreen() {
           <View style={{ height: 20 }} />
         </ScrollView>
       )}
-    </View>
+    </SafeAreaView>
   );
 } 
