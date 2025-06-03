@@ -253,15 +253,18 @@ export default function ProfileScreen() {
               <Text style={[styles.actionText, { color: colors.text }]}>TREINO</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.actionItem}>
+            <TouchableOpacity 
+              style={styles.actionItem}
+              onPress={() => router.push('/personal-records')}
+            >
               <LinearGradient
                 colors={['#11998E', '#38EF7D']}
                 start={[0, 0]}
                 end={[1, 1]}
                 style={styles.actionIcon}>
-                <FontAwesome name="graduation-cap" size={26} color="#fff" />
+                <FontAwesome name="trophy" size={26} color="#fff" />
               </LinearGradient>
-              <Text style={[styles.actionText, { color: colors.text }]}>APRENDER</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>MY BESTS</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
