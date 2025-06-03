@@ -456,16 +456,6 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
     category: "Social"
   },
   {
-    id: 43,
-    title: "Location Scout",
-    description: "Tag locations in 25 posts.",
-    icon: "location-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#FF5722",
-    category: "Social"
-  },
-  {
     id: 44,
     title: "Social Star",
     description: "Reach 500 followers.",
@@ -509,8 +499,8 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
   },
   {
     id: 48,
-    title: "Milestone Marvel",
-    description: "Achieve 50 unique milestones.",
+    title: "Achievement Marvel",
+    description: "Achieve 50 unique achievements.",
     icon: "diamond",
     iconType: "fontawesome",
     progress: 0,
