@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Platform } from 'react-native';
+import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { Asset } from 'expo-asset';
 import { router } from 'expo-router';
 import { supabase } from '@/utils/supabase';
+import { generateAndSaveWorkout } from '@/utils/workoutGenerationService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -311,6 +312,65 @@ const HomeScreen = () => {
     router.push('/workout-select');
   };
 
+  // Function to handle generating AI workout
+  const handleGenerateWorkout = async () => {
+    try {
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) {
+        Alert.alert('Not logged in', 'Please log in to generate a workout');
+        return;
+      }
+
+      Alert.alert(
+        'Generate AI Workout',
+        'This will create a personalized workout plan based on your profile data. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Generate', 
+            onPress: async () => {
+              try {
+                const workoutId = await generateAndSaveWorkout(userData.user.id);
+                
+                if (workoutId) {
+                  Alert.alert(
+                    'Success!',
+                    'Your personalized workout plan has been created! Each training day is now a separate workout that you can start individually.',
+                    [
+                      { text: 'View Workouts', onPress: () => router.push('/workouts') },
+                      { text: 'OK' }
+                    ]
+                  );
+                } else {
+                  Alert.alert('Error', 'Failed to generate workout plan. Please try again.');
+                }
+              } catch (error: any) {
+                console.error('Error generating workout:', error);
+                
+                // Provide more specific error messages
+                let errorMessage = 'An unexpected error occurred while generating your workout.';
+                
+                if (error.message.includes('profile data')) {
+                  errorMessage = 'Unable to fetch your profile data. Please complete your profile setup first by going to Profile > Edit Profile.';
+                } else if (error.message.includes('fetch exercises')) {
+                  errorMessage = 'Unable to fetch exercise database. Please check your internet connection and try again.';
+                } else if (error.message.includes('save')) {
+                  errorMessage = 'Failed to save the workout. Please try again.';
+                }
+                
+                Alert.alert('Error', errorMessage);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error in handleGenerateWorkout:', error);
+      Alert.alert('Error', 'An unexpected error occurred.');
+    }
+  };
+
   // Memoized animated styles for front silhouette
   const rotateStyle = useAnimatedStyle(() => {
     // Calculate opacity manually to avoid interpolate issues
@@ -380,6 +440,18 @@ const HomeScreen = () => {
             style={styles.mainButtonGradient}
           >
             <Text style={styles.mainButtonText}>INICIAR TREINO</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        
+        {/* Temporary AI Workout Generation Button */}
+        <TouchableOpacity style={[styles.mainButton, { marginTop: 12 }]} onPress={handleGenerateWorkout}>
+          <LinearGradient
+            colors={['#e24a90', '#b23570']}
+            start={[0, 0]}
+            end={[1, 0]}
+            style={styles.mainButtonGradient}
+          >
+            <Text style={styles.mainButtonText}>🤖 GERAR TREINO IA</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
