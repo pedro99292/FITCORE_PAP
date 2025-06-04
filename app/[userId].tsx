@@ -31,13 +31,19 @@ type UserProfile = {
   full_name: string | null;
   bio: string | null;
   avatar_url: string | null;
+};
+
+type UserData = {
   experience_level: string | null;
   goals: string | null;
   height: number | null;
   weight: number | null;
   gender: string | null;
-  days_per_week: number | null;
+  workouts_per_week: number | null;
+  age: number | null;
 };
+
+type UserProfileWithData = UserProfile & UserData;
 
 // Add type for follower/following user
 type FollowUser = {
@@ -268,7 +274,7 @@ const styles = StyleSheet.create({
 
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfileWithData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
@@ -368,14 +374,49 @@ export default function UserProfileScreen() {
 
   const fetchUserProfile = async () => {
     try {
+      // Fetch user profile with data from joined tables
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          id,
+          username,
+          full_name,
+          bio,
+          avatar_url,
+          created_at,
+          updated_at,
+          users_data (
+            age,
+            weight,
+            height,
+            gender,
+            goals,
+            experience_level,
+            workouts_per_week
+          )
+        `)
         .eq('id', userId)
         .single();
 
       if (error) throw error;
-      setUserProfile(data);
+      
+      // Flatten the data structure
+      const userProfileWithData: UserProfileWithData = {
+        id: data.id,
+        username: data.username,
+        full_name: data.full_name,
+        bio: data.bio,
+        avatar_url: data.avatar_url,
+        age: data.users_data?.[0]?.age || null,
+        weight: data.users_data?.[0]?.weight || null,
+        height: data.users_data?.[0]?.height || null,
+        gender: data.users_data?.[0]?.gender || null,
+        goals: data.users_data?.[0]?.goals || null,
+        experience_level: data.users_data?.[0]?.experience_level || null,
+        workouts_per_week: data.users_data?.[0]?.workouts_per_week || null,
+      };
+      
+      setUserProfile(userProfileWithData);
     } catch (error) {
       console.error('Error fetching user profile:', error);
     } finally {
@@ -972,11 +1013,11 @@ export default function UserProfileScreen() {
             </View>
           )}
 
-          {userProfile.days_per_week && (
+          {userProfile.workouts_per_week && (
             <View style={[styles.infoRow, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
               <Text style={[styles.infoLabel, { color: colors.text }]}>Training Days</Text>
               <Text style={[styles.infoValue, { color: colors.text }]}>
-                {userProfile.days_per_week} days/week
+                {userProfile.workouts_per_week} days/week
               </Text>
             </View>
           )}

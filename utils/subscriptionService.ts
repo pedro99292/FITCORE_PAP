@@ -87,19 +87,42 @@ export const subscriptionService = {
         throw new Error('Invalid numeric values provided');
       }
 
+      // Normalize experience_level to match constraint (capitalize first letter)
+      const normalizeExperienceLevel = (level: string): string => {
+        switch (level.toLowerCase()) {
+          case 'novice': return 'Novice';
+          case 'experienced': return 'Experienced';
+          case 'advanced': return 'Advanced';
+          default: return level; // fallback to original value
+        }
+      };
+
+      // Normalize gender to match constraint
+      const normalizeGender = (gender: string): string => {
+        switch (gender.toLowerCase()) {
+          case 'male': return 'Male';
+          case 'female': return 'Female';
+          case 'prefer not to say': return 'Prefer not to say';
+          default: return gender; // fallback to original value
+        }
+      };
+
+      // Use upsert to insert or update users_data record
       const { error } = await supabase
-        .from('users')
-        .update({
+        .from('users_data')
+        .upsert({
+          user_id: userId,
           age: age,
           height: height,
           weight: weight,
-          experience_level: surveyData.experienceLevel,
+          experience_level: normalizeExperienceLevel(surveyData.experienceLevel),
           workouts_per_week: parseInt(surveyData.availability),
-          goals: surveyData.goals, // This is already an array in the correct format
-          gender: surveyData.gender,
+          goals: [surveyData.goals], // Convert single goal to array format for database
+          gender: normalizeGender(surveyData.gender),
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId);
+        }, {
+          onConflict: 'user_id' // Handle conflict on user_id (unique constraint)
+        });
 
       if (error) {
         console.error('Error updating user profile:', error);

@@ -32,10 +32,10 @@ export interface SurveyData {
   age: string;
   height: string;
   weight: string;
-  experienceLevel: 'novice' | 'experienced' | 'advanced';
+  experienceLevel: 'Novice' | 'Experienced' | 'Advanced';
   availability: string;
-  goals: ('gain muscle' | 'lose fat' | 'gain strength' | 'maintain muscle')[];
-  gender: 'male' | 'female' | 'prefer not to say';
+  goals: 'Gain muscle' | 'Lose fat' | 'Gain strength' | 'Maintain muscle';
+  gender: 'Male' | 'Female' | 'Prefer not to say';
 }
 
 interface NumberPickerModalProps {
@@ -144,10 +144,10 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
     age: '',
     height: '170',
     weight: '70',
-    experienceLevel: 'novice',
+    experienceLevel: 'Novice',
     availability: '3',
-    goals: ['gain muscle'],
-    gender: 'prefer not to say',
+    goals: 'Gain muscle',
+    gender: 'Prefer not to say',
   });
 
   const [selectedHeight, setSelectedHeight] = useState(formData.height);
@@ -437,28 +437,26 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
       subtitle: "What do you want to achieve?",
       content: (
         <View style={styles.pageContent}>
-          <Text style={[styles.label, { color: colors.text }]}>Select your goals (multiple choice)</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Select your main goal</Text>
           <View style={styles.goalsContainer}>
             {[
-              { value: 'gain muscle', icon: '💪', title: 'Gain Muscle' },
-              { value: 'lose fat', icon: '🔥', title: 'Lose Fat' },
-              { value: 'gain strength', icon: '🏋️‍♂️', title: 'Gain Strength' },
-              { value: 'maintain muscle', icon: '⚖️', title: 'Maintain Muscle' }
+              { value: 'Gain muscle', icon: '💪', title: 'Gain Muscle' },
+              { value: 'Lose fat', icon: '🔥', title: 'Lose Fat' },
+              { value: 'Gain strength', icon: '🏋️‍♂️', title: 'Gain Strength' },
+              { value: 'Maintain muscle', icon: '⚖️', title: 'Maintain Muscle' }
             ].map((goal) => (
               <TouchableOpacity
                 key={goal.value}
                 style={[
                   styles.goalCard,
                   { backgroundColor: isDarkMode ? colors.surface : '#f5f5f5' },
-                  formData.goals.includes(goal.value as SurveyData['goals'][0]) && 
+                  formData.goals === goal.value && 
                   { backgroundColor: '#4A90E2' }
                 ]}
                 onPress={() => {
                   setFormData(prev => ({
                     ...prev,
-                    goals: prev.goals.includes(goal.value as SurveyData['goals'][0])
-                      ? prev.goals.filter(g => g !== goal.value)
-                      : [...prev.goals, goal.value as SurveyData['goals'][0]]
+                    goals: goal.value as SurveyData['goals']
                   }));
                 }}
               >
@@ -466,7 +464,7 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
                 <Text style={[
                   styles.goalTitle,
                   { 
-                    color: formData.goals.includes(goal.value as SurveyData['goals'][0]) 
+                    color: formData.goals === goal.value 
                       ? 'white' 
                       : colors.text 
                   }
@@ -502,8 +500,8 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
     if (!formData.weight || parseFloat(formData.weight) < 30 || parseFloat(formData.weight) > 300) {
       return 'Please enter a valid weight between 30kg and 300kg';
     }
-    if (formData.goals.length === 0) {
-      return 'Please select at least one fitness goal';
+    if (!formData.goals) {
+      return 'Please select a fitness goal';
     }
     return null;
   };
@@ -555,6 +553,11 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
         case 3: // Weekly Schedule
           if (!formData.availability) {
             error = 'Please select your weekly workout frequency';
+          }
+          break;
+        case 4: // Goals
+          if (!formData.goals) {
+            error = 'Please select your primary fitness goal';
           }
           break;
       }
