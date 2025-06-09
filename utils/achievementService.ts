@@ -42,6 +42,7 @@ export interface UserMetrics {
   totalReactions: number; // total reactions given by user
   emojiComments: number; // comments with emojis made by user
   completedAchievements: number; // number of achievements at 100% progress
+  isAdvancedLevel: boolean;
 }
 
 // Achievement calculation functions for each achievement
@@ -60,7 +61,7 @@ const achievementCalculators: Record<number, (metrics: UserMetrics) => number> =
   12: (metrics) => Math.min((metrics.totalVolume / 10000) * 100, 100), // Volume Victor - 10,000 kg total volume
   13: (metrics) => Math.min((metrics.personalBests / 5) * 100, 100), // Strength Seeker - 5 personal bests
   14: (metrics) => Math.min((metrics.totalMinutes / 6000) * 100, 100), // Endurance Ace - 100 hours (6000 minutes)
-  16: (metrics) => 0, // Visual Vanguard - placeholder for photos
+  16: (metrics) => Math.min((metrics.socialPosts / 10) * 100, 100), // Visual Vanguard - 10 progress photos (using social posts)
   17: (metrics) => Math.min((metrics.personalBests / 20) * 100, 100), // Record Breaker - 20 personal bests
   18: (metrics) => 0, // Workout Historian - placeholder for history views
 
@@ -82,7 +83,7 @@ const achievementCalculators: Record<number, (metrics: UserMetrics) => number> =
   31: (metrics) => 0, // Lift Legend - placeholder for bodyweight bench
   32: (metrics) => Math.min((metrics.totalMinutes / 6000) * 100, 100), // Endurance Elite - 100 hours
   33: (metrics) => 0, // Weight Wizard - placeholder for weight tracking
-  34: (metrics) => 0, // Fitness Veteran - placeholder for experience level
+  34: (metrics) => metrics.isAdvancedLevel ? 100 : 0, // Fitness Veteran - reach Advanced level
   35: (metrics) => 0, // Elite Athlete - placeholder for muscle area progress
 
   // Social achievements (36-44) - now implemented with database support
@@ -170,6 +171,24 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       .eq('user_id', userId);
 
     const workoutTemplates = workoutTemplatesData?.length || 0;
+
+    // Get personal records count
+    const { data: personalRecordsData } = await supabase
+      .from('personal_records')
+      .select('id')
+      .eq('user_id', userId);
+
+    const personalBests = personalRecordsData?.length || 0;
+
+    // Get user's experience level
+    const { data: userData } = await supabase
+      .from('users_data')
+      .select('experience_level')
+      .eq('user_id', userId)
+      .single();
+
+    // Check if user has reached Advanced level
+    const isAdvancedLevel = userData?.experience_level === 'Advanced';
 
     // Get social posts count
     const { data: socialPostsData } = await supabase
@@ -275,7 +294,7 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       currentStreak,
       longestStreak: currentStreak, // Simplified for now
       uniqueExercises,
-      personalBests: 0, // Placeholder - would need PR tracking
+      personalBests,
       workoutTemplates,
       earlyWorkouts,
       lateWorkouts,
@@ -292,6 +311,7 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       totalReactions,
       emojiComments,
       completedAchievements,
+      isAdvancedLevel,
     };
   } catch (error) {
     console.error('Error calculating user metrics:', error);
@@ -319,6 +339,7 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       totalReactions: 0,
       emojiComments: 0,
       completedAchievements: 0,
+      isAdvancedLevel: false,
     };
   }
 };

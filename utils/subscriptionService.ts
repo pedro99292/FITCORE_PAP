@@ -107,6 +107,9 @@ export const subscriptionService = {
         }
       };
 
+      // Convert sets per exercise to integer if it exists
+      const setsPerExercise = surveyData.setsPerExercise ? parseInt(surveyData.setsPerExercise) : null;
+
       // Use upsert to insert or update users_data record
       const { error } = await supabase
         .from('users_data')
@@ -119,6 +122,9 @@ export const subscriptionService = {
           workouts_per_week: parseInt(surveyData.availability),
           goals: [surveyData.goals], // Convert single goal to array format for database
           gender: normalizeGender(surveyData.gender),
+          workout_split: surveyData.workoutSplit || null,
+          sets_per_exercise: setsPerExercise,
+          rest_time: surveyData.restTime || null,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id' // Handle conflict on user_id (unique constraint)

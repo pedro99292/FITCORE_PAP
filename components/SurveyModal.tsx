@@ -36,6 +36,9 @@ export interface SurveyData {
   availability: string;
   goals: 'Gain muscle' | 'Lose fat' | 'Gain strength' | 'Maintain muscle';
   gender: 'Male' | 'Female' | 'Prefer not to say';
+  workoutSplit?: string;
+  setsPerExercise?: string;
+  restTime?: string;
 }
 
 interface NumberPickerModalProps {
@@ -148,6 +151,9 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
     availability: '3',
     goals: 'Gain muscle',
     gender: 'Prefer not to say',
+    workoutSplit: '',
+    setsPerExercise: '2',
+    restTime: '2-3',
   });
 
   const [selectedHeight, setSelectedHeight] = useState(formData.height);
@@ -476,6 +482,226 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
           </View>
         </View>
       )
+    },
+    {
+      title: "Workout Split 🏋️‍♂️",
+      subtitle: "Choose your workout structure",
+      content: (
+        <View style={styles.pageContent}>
+          <Text style={[styles.label, { color: colors.text }]}>Select your preferred split</Text>
+          <ScrollView style={{ maxHeight: 300 }}>
+            <View style={styles.splitOptionsContainer}>
+              {(() => {
+                const days = parseInt(formData.availability) || 3;
+                let splitOptions = [];
+                
+                // 3 days options
+                if (days === 3) {
+                  splitOptions = [
+                    { value: 'upper_lower_full', title: 'Upper/Lower/Full Body', recommended: true },
+                    { value: 'push_pull_legs', title: 'Push/Pull/Legs' },
+                    { value: 'full_body_3x', title: '3x Full Body' },
+                    { value: 'upper_lower_upper', title: 'Upper/Lower/Upper' },
+                  ];
+                }
+                // 4 days options
+                else if (days === 4) {
+                  splitOptions = [
+                    { value: 'upper_lower_upper_full', title: 'Upper/Lower/Upper/Full Body', recommended: true },
+                    { value: 'push_pull_legs_full', title: 'Push/Pull/Legs/Full Body' },
+                    { value: 'full_body_4x', title: '4x Full Body' },
+                    { value: 'upper_lower_2x', title: '2x Upper/Lower' },
+                    { value: 'push_legs_pull_legs', title: 'Push/Legs/Pull/Legs' },
+                  ];
+                }
+                // 5 days options
+                else if (days === 5) {
+                  splitOptions = [
+                    { value: 'upper_lower_upper_lower_full', title: 'Upper/Lower/Upper/Lower/Full Body', recommended: true },
+                    { value: 'upper_lower_upper_lower_upper', title: 'Upper/Lower/Upper/Lower/Upper' },
+                    { value: 'full_body_5x', title: '5x Full Body' },
+                    { value: 'push_pull_legs_upper_lower', title: 'Push/Pull/Legs/Upper/Lower' },
+                  ];
+                }
+                // 6 days options
+                else if (days === 6) {
+                  splitOptions = [
+                    { value: 'upper_lower_full_2x', title: '2x Upper/Lower/Full Body', recommended: true },
+                    { value: 'upper_lower_3x', title: '3x Upper/Lower' },
+                    { value: 'push_pull_legs_2x', title: '2x Push/Pull/Legs' },
+                    { value: 'full_body_6x', title: '6x Full Body' },
+                    { value: 'push_pull_legs_upper_lower_full', title: 'Push/Pull/Legs/Upper/Lower/Full Body' },
+                  ];
+                }
+                // Default options for other day counts
+                else {
+                  splitOptions = [
+                    { value: 'full_body', title: 'Full Body', recommended: true },
+                  ];
+                }
+                
+                return splitOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.splitOptionCard,
+                      { backgroundColor: isDarkMode ? colors.surface : '#f5f5f5' },
+                      formData.workoutSplit === option.value && 
+                      { backgroundColor: '#4A90E2' }
+                    ]}
+                    onPress={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        workoutSplit: option.value
+                      }));
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={[
+                        styles.splitTitle,
+                        { 
+                          color: formData.workoutSplit === option.value 
+                            ? 'white' 
+                            : colors.text 
+                        }
+                      ]}>
+                        {option.title}
+                      </Text>
+                      {option.recommended && (
+                        <View style={styles.recommendedBadge}>
+                          <Text style={styles.recommendedText}>Recommended</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ));
+              })()}
+            </View>
+          </ScrollView>
+        </View>
+      )
+    },
+    {
+      title: "Training Volume 🔄",
+      subtitle: "Choose your sets per exercise",
+      content: (
+        <View style={styles.pageContent}>
+          <Text style={[styles.label, { color: colors.text }]}>Sets per exercise</Text>
+          <View style={styles.setsContainer}>
+            {[
+              { value: '2', title: '2 Sets', recommended: true },
+              { value: '3', title: '3 Sets' },
+              { value: '4', title: '4 Sets' },
+              { value: '5', title: '5 Sets' },
+            ].map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.setsCard,
+                  { backgroundColor: isDarkMode ? colors.surface : '#f5f5f5' },
+                  formData.setsPerExercise === option.value && 
+                  { backgroundColor: '#4A90E2' }
+                ]}
+                onPress={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    setsPerExercise: option.value
+                  }));
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[
+                    styles.setsTitle,
+                    { 
+                      color: formData.setsPerExercise === option.value 
+                        ? 'white' 
+                        : colors.text 
+                    }
+                  ]}>
+                    {option.title}
+                  </Text>
+                  {option.recommended && (
+                    <View style={styles.recommendedBadge}>
+                      <Text style={styles.recommendedText}>Recommended</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )
+    },
+    {
+      title: "Rest Period ⏱️",
+      subtitle: "Choose your rest time between sets",
+      content: (
+        <View style={styles.pageContent}>
+          <Text style={[styles.label, { color: colors.text }]}>Rest time (minutes)</Text>
+          <View style={styles.restContainer}>
+            {(() => {
+              const goal = formData.goals;
+              let restOptions = [];
+              
+              if (goal === 'Gain muscle' || goal === 'Lose fat') {
+                restOptions = [
+                  { value: '2-3', title: '2-3 min', recommended: true },
+                  { value: '1-2', title: '1-2 min' },
+                  { value: '3+', title: '3+ min' },
+                ];
+              } else if (goal === 'Gain strength') {
+                restOptions = [
+                  { value: '3+', title: '3+ min', recommended: true },
+                  { value: '2-3', title: '2-3 min' },
+                  { value: '1-2', title: '1-2 min' },
+                ];
+              } else { // Maintain muscle
+                restOptions = [
+                  { value: '1-2', title: '1-2 min', recommended: true },
+                  { value: '2-3', title: '2-3 min' },
+                  { value: '3+', title: '3+ min' },
+                ];
+              }
+              
+              return restOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.restCard,
+                    { backgroundColor: isDarkMode ? colors.surface : '#f5f5f5' },
+                    formData.restTime === option.value && 
+                    { backgroundColor: '#4A90E2' }
+                  ]}
+                  onPress={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      restTime: option.value
+                    }));
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[
+                      styles.restTitle,
+                      { 
+                        color: formData.restTime === option.value 
+                          ? 'white' 
+                          : colors.text 
+                      }
+                    ]}>
+                      {option.title}
+                    </Text>
+                    {option.recommended && (
+                      <View style={styles.recommendedBadge}>
+                        <Text style={styles.recommendedText}>Recommended</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ));
+            })()}
+          </View>
+        </View>
+      )
     }
   ];
 
@@ -502,6 +728,15 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
     }
     if (!formData.goals) {
       return 'Please select a fitness goal';
+    }
+    if (!formData.workoutSplit) {
+      return 'Please select a workout split';
+    }
+    if (!formData.setsPerExercise) {
+      return 'Please select the number of sets per exercise';
+    }
+    if (!formData.restTime) {
+      return 'Please select your rest time between sets';
     }
     return null;
   };
@@ -558,6 +793,21 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
         case 4: // Goals
           if (!formData.goals) {
             error = 'Please select your primary fitness goal';
+          }
+          break;
+        case 5: // Workout Split
+          if (!formData.workoutSplit) {
+            error = 'Please select a workout split';
+          }
+          break;
+        case 6: // Sets per Exercise
+          if (!formData.setsPerExercise) {
+            error = 'Please select the number of sets per exercise';
+          }
+          break;
+        case 7: // Rest Time
+          if (!formData.restTime) {
+            error = 'Please select your rest time between sets';
           }
           break;
       }
@@ -1003,6 +1253,96 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'transparent',
     width: ITEM_WIDTH,
+  },
+  splitOptionsContainer: {
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 16,
+  },
+  splitOptionCard: {
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginBottom: 10,
+  },
+  splitTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  recommendedBadge: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+  recommendedText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  setsContainer: {
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 16,
+  },
+  setsCard: {
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginBottom: 10,
+  },
+  setsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  restContainer: {
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 16,
+  },
+  restCard: {
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginBottom: 10,
+  },
+  restTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
   },
 });
 

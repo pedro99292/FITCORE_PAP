@@ -18,6 +18,10 @@ import { useTheme } from '@/hooks/useTheme';
 import { getExercisePersonalRecords, deletePersonalRecord } from '@/utils/personalRecordsService';
 import { PersonalRecord, RecordType } from '@/types/personalRecords';
 import AddPRModal from '@/components/AddPRModal';
+// SVG Charts imports
+import { LineChart, YAxis, XAxis, Grid } from 'react-native-svg-charts';
+import * as shape from 'd3-shape';
+import { Circle, G, Line, Text as SvgText } from 'react-native-svg';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -29,12 +33,19 @@ export default function ExercisePRDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedRecordType, setSelectedRecordType] = useState<RecordType>('strength');
+  const [progressData, setProgressData] = useState<{date: Date, value: number, reps?: number, unit: string}[]>([]);
 
   useEffect(() => {
     if (exerciseId) {
       loadRecords();
     }
   }, [exerciseId]);
+
+  useEffect(() => {
+    if (records.length > 0) {
+      generateProgressData();
+    }
+  }, [records, selectedRecordType]);
 
   const loadRecords = async () => {
     try {
@@ -47,6 +58,24 @@ export default function ExercisePRDetailsScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateProgressData = () => {
+    const filteredRecords = getRecordsByType(selectedRecordType);
+    
+    // Sort by date ascending for the chart
+    const sortedRecords = [...filteredRecords].sort(
+      (a, b) => new Date(a.achieved_at).getTime() - new Date(b.achieved_at).getTime()
+    );
+
+    const data = sortedRecords.map(record => ({
+      date: new Date(record.achieved_at),
+      value: record.value,
+      reps: record.reps,
+      unit: record.unit
+    }));
+
+    setProgressData(data);
   };
 
   const handleDeleteRecord = async (recordId: string) => {
@@ -118,6 +147,106 @@ export default function ExercisePRDetailsScreen() {
   });
 
   const exerciseName = records[0]?.exercise_name || 'Exercise';
+
+  const renderProgressChart = () => {
+    if (progressData.length < 2) {
+      return (
+        <View style={[styles.chartEmptyContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.chartEmptyText, { color: colors.text }]}>
+            Add more records to see progress chart
+          </Text>
+        </View>
+      );
+    }
+    
+    const chartData = progressData.map(item => item.value);
+    const dates = progressData.map(item => item.date);
+    
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
+    };
+    
+    const contentInset = { top: 20, bottom: 20, left: 20, right: 20 };
+
+    // Define decorator for data points
+    const Decorator = ({ x, y, data }: { x: any; y: any; data: number[] }) => {
+      return data.map((value, index) => (
+        <G key={index}>
+          <Circle
+            cx={x(index)}
+            cy={y(value)}
+            r={4}
+            stroke={'#4a90e2'}
+            strokeWidth={2}
+            fill={'white'}
+          />
+        </G>
+      ));
+    };
+
+    // Define tooltip decorator for the latest value
+    const LatestValueTooltip = ({ x, y, data }: { x: any; y: any; data: number[] }) => {
+      if (data.length === 0) return null;
+      
+      const lastIndex = data.length - 1;
+      const lastValue = data[lastIndex];
+      const tooltipRadius = 14;
+      
+      return (
+        <G x={x(lastIndex)} y={y(lastValue) - 35}>
+          <Circle
+            cy={tooltipRadius / 2}
+            r={tooltipRadius}
+            fill={'#4a90e2'}
+          />
+          <SvgText
+            y={tooltipRadius / 2 + 4}
+            fontSize="10"
+            fontWeight="bold"
+            fill="white"
+            textAnchor="middle"
+          >
+            {lastValue}
+          </SvgText>
+        </G>
+      );
+    };
+
+    return (
+      <View style={[styles.chartContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.chartTitle, { color: colors.text }]}>Progress Chart</Text>
+        <View style={{ height: 200, flexDirection: 'row', paddingVertical: 16 }}>
+          <YAxis
+            data={chartData}
+            contentInset={contentInset}
+            svg={{ fill: colors.text + '80', fontSize: 10 }}
+            numberOfTicks={5}
+            formatLabel={(value: number) => `${value}${progressData[0]?.unit || ''}`}
+          />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <LineChart
+              style={{ flex: 1 }}
+              data={chartData}
+              svg={{ stroke: '#4a90e2', strokeWidth: 3 }}
+              contentInset={contentInset}
+              curve={shape.curveLinear}
+            >
+              <Grid svg={{ stroke: colors.text + '20' }} />
+              <Decorator />
+              <LatestValueTooltip />
+            </LineChart>
+            <XAxis
+              style={{ marginHorizontal: -10, height: 30 }}
+              data={chartData}
+              formatLabel={(_: number, index: number) => formatDate(dates[index])}
+              contentInset={{ ...contentInset, left: 30, right: 30 }}
+              svg={{ fill: colors.text + '80', fontSize: 9, rotation: -45, originY: 20, y: 5 }}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -220,6 +349,8 @@ export default function ExercisePRDetailsScreen() {
             contentContainerStyle={styles.recordsContent}
             showsVerticalScrollIndicator={false}
           >
+            {/* Progress Chart */}
+            {records.length > 0 && renderProgressChart()}
             {getRecordsByType(selectedRecordType).map((record, index) => (
               <View
                 key={record.id}
@@ -455,5 +586,26 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 14,
     lineHeight: 18,
+  },
+  chartContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  chartEmptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  chartEmptyText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 }); 
