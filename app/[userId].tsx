@@ -374,8 +374,8 @@ export default function UserProfileScreen() {
 
   const fetchUserProfile = async () => {
     try {
-      // Fetch user profile with data from joined tables
-      const { data, error } = await supabase
+      // First, fetch the basic user profile
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select(`
           id,
@@ -384,36 +384,44 @@ export default function UserProfileScreen() {
           bio,
           avatar_url,
           created_at,
-          updated_at,
-          users_data (
-            age,
-            weight,
-            height,
-            gender,
-            goals,
-            experience_level,
-            workouts_per_week
-          )
+          updated_at
         `)
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (userError) throw userError;
+      
+      // Then fetch the user fitness data separately
+      const { data: userDataRecord, error: dataError } = await supabase
+        .from('users_data')
+        .select(`
+          age,
+          weight,
+          height,
+          gender,
+          goals,
+          experience_level,
+          workouts_per_week
+        `)
+        .eq('user_id', userId)
+        .maybeSingle(); // Use maybeSingle to handle case where user_data might not exist
+      
+      // Note: We don't throw on dataError since a user might not have fitness data yet
       
       // Flatten the data structure
       const userProfileWithData: UserProfileWithData = {
-        id: data.id,
-        username: data.username,
-        full_name: data.full_name,
-        bio: data.bio,
-        avatar_url: data.avatar_url,
-        age: data.users_data?.[0]?.age || null,
-        weight: data.users_data?.[0]?.weight || null,
-        height: data.users_data?.[0]?.height || null,
-        gender: data.users_data?.[0]?.gender || null,
-        goals: data.users_data?.[0]?.goals || null,
-        experience_level: data.users_data?.[0]?.experience_level || null,
-        workouts_per_week: data.users_data?.[0]?.workouts_per_week || null,
+        id: userData.id,
+        username: userData.username,
+        full_name: userData.full_name,
+        bio: userData.bio,
+        avatar_url: userData.avatar_url,
+        age: userDataRecord?.age || null,
+        weight: userDataRecord?.weight || null,
+        height: userDataRecord?.height || null,
+        gender: userDataRecord?.gender || null,
+        goals: userDataRecord?.goals || null,
+        experience_level: userDataRecord?.experience_level || null,
+        workouts_per_week: userDataRecord?.workouts_per_week || null,
       };
       
       setUserProfile(userProfileWithData);
@@ -772,28 +780,41 @@ export default function UserProfileScreen() {
   };
 
   // Helper function to format goals display
-  const formatGoals = (goals: string | null): string => {
+  const formatGoals = (goals: string | null | string[] | any): string => {
+    // Handle null/undefined
     if (!goals) return '';
     
-    try {
-      // If it's a JSON string, parse it
-      if (goals.startsWith('[') || goals.startsWith('"')) {
-        const parsed = JSON.parse(goals);
-        if (Array.isArray(parsed)) {
-          return parsed.join(', ');
-        }
-        return parsed.toString();
-      }
-      // If it's already a clean string, return as is
-      return goals;
-    } catch (error) {
-      // If parsing fails, clean up manually
-      return goals
-        .replace(/^\[|\]$/g, '') // Remove square brackets
-        .replace(/^"|"$/g, '') // Remove outer quotes
-        .replace(/","/g, ', ') // Replace quote comma quote with comma space
-        .replace(/"/g, ''); // Remove any remaining quotes
+    // Handle array directly
+    if (Array.isArray(goals)) {
+      return goals.join(', ');
     }
+    
+    // Handle string
+    if (typeof goals === 'string') {
+      try {
+        // Try to parse as JSON if it looks like JSON
+        if (goals.startsWith('[') || goals.startsWith('"')) {
+          const parsed = JSON.parse(goals);
+          if (Array.isArray(parsed)) {
+            return parsed.join(', ');
+          }
+          return String(parsed);
+        }
+        
+        // Return string as is
+        return goals;
+      } catch (error) {
+        // If JSON parsing fails, clean up manually
+        return goals
+          .replace(/^\[|\]$/g, '') // Remove square brackets
+          .replace(/^"|"$/g, '') // Remove outer quotes
+          .replace(/","/g, ', ') // Replace quote comma quote with comma space
+          .replace(/"/g, ''); // Remove any remaining quotes
+      }
+    }
+    
+    // Handle any other type
+    return String(goals);
   };
 
   const renderUserItem = ({ item }: { item: FollowUser }) => {

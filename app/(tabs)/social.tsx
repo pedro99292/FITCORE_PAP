@@ -153,34 +153,37 @@ export default function SocialScreen() {
     };
 
     const init = async () => {
-      await getCurrentUser();
-      if (isMounted) {
-        await fetchPosts();
-        await fetchStories();
+      setLoading(true); // Show loading state while initializing
+      try {
+        await getCurrentUser();
         
         // Animate FAB in
-        Animated.spring(fabAnimation, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 50,
-          friction: 7
-        }).start();
-        
-        // Start pulsing animation for FAB
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(fabPulse, {
-              toValue: 1.1,
-              duration: 1000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(fabPulse, {
-              toValue: 1,
-              duration: 1000,
-              useNativeDriver: true,
-            }),
-          ])
-        ).start();
+        if (isMounted) {
+          Animated.spring(fabAnimation, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 7
+          }).start();
+          
+          // Start pulsing animation for FAB
+          Animated.loop(
+            Animated.sequence([
+              Animated.timing(fabPulse, {
+                toValue: 1.1,
+                duration: 1000,
+                useNativeDriver: true,
+              }),
+              Animated.timing(fabPulse, {
+                toValue: 1,
+                duration: 1000,
+                useNativeDriver: true,
+              }),
+            ])
+          ).start();
+        }
+      } catch (error) {
+        console.error('Error during initialization:', error);
       }
     };
 
@@ -190,6 +193,37 @@ export default function SocialScreen() {
       isMounted = false;
     };
   }, []);
+  
+  // Function to clean up expired stories
+  const cleanupExpiredStories = async () => {
+    try {
+      if (!currentUserId) return;
+      
+      // Get current time
+      const currentTime = new Date().toISOString();
+      
+      // Update all expired stories to set is_active to false
+      const { error } = await supabase
+        .from('user_stories')
+        .update({ is_active: false })
+        .lt('expires_at', currentTime);
+        
+      if (error) {
+        console.error('Error cleaning up expired stories:', error);
+      }
+    } catch (err) {
+      console.error('Error in cleanupExpiredStories:', err);
+    }
+  };
+  
+  // Add a separate useEffect that will fetch posts and stories when currentUserId changes
+  useEffect(() => {
+    if (currentUserId) {
+      cleanupExpiredStories(); // Clean up expired stories first
+      fetchPosts();
+      fetchStories();
+    }
+  }, [currentUserId]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -212,6 +246,7 @@ export default function SocialScreen() {
       
       if (!currentUserId) {
         setPosts([]);
+        setLoading(false);
         return;
       }
 
@@ -223,6 +258,7 @@ export default function SocialScreen() {
 
       if (followingError) {
         console.error('Error fetching following list:', followingError);
+        setLoading(false);
         return;
       }
 
@@ -240,6 +276,7 @@ export default function SocialScreen() {
 
         if (!userPostCount || userPostCount === 0) {
           setPosts([]);
+          setLoading(false);
           return;
         }
       }
@@ -253,6 +290,7 @@ export default function SocialScreen() {
 
       if (error) {
         console.error('Error fetching posts:', error);
+        setLoading(false);
         return;
       }
 
@@ -331,6 +369,11 @@ export default function SocialScreen() {
   const fetchStories = async () => {
     try {
       setLoadingStories(true);
+      if (!currentUserId) {
+        setStories([]);
+        setLoadingStories(false);
+        return;
+      }
       const storiesData = await fetchActiveStories(currentUserId);
       setStories(storiesData);
     } catch (error) {
