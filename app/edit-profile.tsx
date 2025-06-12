@@ -52,7 +52,7 @@ export default function EditProfileScreen() {
         .single();
 
       if (error) {
-        console.error('Erro ao buscar perfil:', error);
+        console.error('Error fetching profile:', error);
       } else if (data) {
         // Populate the form with existing data
         setUsername(data.username || '');
@@ -62,6 +62,7 @@ export default function EditProfileScreen() {
         setAvatarUrl(data.avatar_url);
       }
     } catch (error) {
+      console.error('Error fetching user profile:', error);
       console.error('Erro ao buscar perfil do utilizador:', error);
     } finally {
       setIsFetchingProfile(false);
@@ -74,7 +75,7 @@ export default function EditProfileScreen() {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (!permissionResult.granted) {
-        Alert.alert('Permissão negada', 'Precisamos de permissão para aceder às suas fotos');
+        Alert.alert('Permission denied', 'We need permission to access your photos');
         return;
       }
       
@@ -94,12 +95,12 @@ export default function EditProfileScreen() {
         if (asset.base64) {
           await uploadImage(asset.base64);
         } else {
-          Alert.alert('Erro', 'Não foi possível carregar a imagem');
+          Alert.alert('Error', 'Could not load the image');
         }
       }
     } catch (error) {
       console.error('Erro ao selecionar imagem:', error);
-      Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+      Alert.alert('Error', 'Could not select the image');
     }
   };
 
@@ -146,11 +147,11 @@ export default function EditProfileScreen() {
           console.error('Error updating profile with avatar URL:', updateError);
         }
         
-        Alert.alert('Sucesso', 'Imagem de perfil atualizada');
+        Alert.alert('Success', 'Profile image updated');
       }
     } catch (error: any) {
       console.error('Erro ao carregar imagem:', error);
-      Alert.alert('Erro', error.message || 'Falha ao carregar imagem de perfil');
+      Alert.alert('Error', error.message || 'Failed to load image');
     } finally {
       setUploading(false);
     }
@@ -159,12 +160,12 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     // Only validate age if provided
     if (age && isNaN(Number(age))) {
-      Alert.alert('Erro', 'A idade deve ser um número');
+      Alert.alert('Error', 'Age must be a number');
       return;
     }
 
     if (!user) {
-      Alert.alert('Erro', 'Utilizador não autenticado');
+      Alert.alert('Error', 'User not authenticated');
       return;
     }
 
@@ -193,12 +194,12 @@ export default function EditProfileScreen() {
 
       if (profileError) throw profileError;
 
-      Alert.alert('Sucesso', 'Perfil atualizado com sucesso');
+      Alert.alert('Success', 'Profile updated successfully');
       // Use direct navigation instead of router.back()
       handleBackNavigation();
     } catch (error: any) {
-      console.error('Erro ao atualizar perfil:', error);
-      Alert.alert('Erro', error.message || 'Falha ao atualizar perfil');
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +212,7 @@ export default function EditProfileScreen() {
         <StatusBar barStyle="light-content" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4a90e2" />
-          <Text style={styles.loadingText}>A carregar perfil...</Text>
+          <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </SafeAreaView>
     );
@@ -228,7 +229,7 @@ export default function EditProfileScreen() {
               <TouchableOpacity onPress={handleBackNavigation}>
                 <FontAwesome name="arrow-left" size={20} color="#fff" style={{marginRight: 10}} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Editar Perfil</Text>
+              <Text style={styles.headerTitle}>Edit Profile</Text>
             </View>
           ),
           headerStyle: {
@@ -262,21 +263,21 @@ export default function EditProfileScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.avatarText}>
-              {uploading ? 'A carregar...' : 'Toque para alterar foto'}
+              {uploading ? 'Loading...' : 'Tap to change photo'}
             </Text>
           </View>
 
           {/* Form Fields */}
           <View style={styles.formContainer}>
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Nome de Utilizador</Text>
+              <Text style={styles.label}>Username</Text>
               <View style={styles.inputContainer}>
                 <Ionicons name="person-outline" size={20} color="#8e8ea0" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={username}
                   onChangeText={setUsername}
-                  placeholder="Digite seu nome de utilizador"
+                  placeholder="Enter your username"
                   placeholderTextColor="#555"
                   selectionColor="#4a90e2"
                   autoCapitalize="none"
@@ -286,14 +287,14 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Nome Completo</Text>
+              <Text style={styles.label}>Full Name</Text>
               <View style={styles.inputContainer}>
                 <Ionicons name="id-card-outline" size={20} color="#8e8ea0" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={name}
                   onChangeText={setName}
-                  placeholder="Digite seu nome completo"
+                  placeholder="Enter your full name"
                   placeholderTextColor="#555"
                   selectionColor="#4a90e2"
                   autoCapitalize="words"
@@ -303,14 +304,14 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Idade</Text>
+              <Text style={styles.label}>Age</Text>
               <View style={styles.inputContainer}>
                 <Ionicons name="calendar-outline" size={20} color="#8e8ea0" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={age}
                   onChangeText={setAge}
-                  placeholder="Digite sua idade"
+                  placeholder="Enter your age"
                   keyboardType="numeric"
                   maxLength={3}
                   placeholderTextColor="#555"
@@ -321,14 +322,14 @@ export default function EditProfileScreen() {
 
             {/* Bio field if needed */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Biografia</Text>
+              <Text style={styles.label}>Bio</Text>
               <View style={[styles.inputContainer, styles.textAreaContainer]}>
                 <Ionicons name="create-outline" size={20} color="#8e8ea0" style={[styles.inputIcon, {alignSelf: 'flex-start', paddingTop: 12}]} />
                 <TextInput
                   style={[styles.input, styles.textArea]}
                   value={bio}
                   onChangeText={setBio}
-                  placeholder="Fale um pouco sobre você"
+                  placeholder="Tell us a bit about yourself"
                   multiline
                   numberOfLines={4}
                   placeholderTextColor="#555"
@@ -357,7 +358,7 @@ export default function EditProfileScreen() {
             ) : (
               <>
                 <Ionicons name="save-outline" size={20} color="#fff" style={{marginRight: 8}} />
-                <Text style={styles.saveButtonText}>GUARDAR</Text>
+                <Text style={styles.saveButtonText}>SAVE</Text>
               </>
             )}
           </LinearGradient>
@@ -368,7 +369,7 @@ export default function EditProfileScreen() {
           onPress={handleBackNavigation}
           disabled={isLoading}
         >
-          <Text style={styles.cancelButtonText}>Cancelar</Text>
+          <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

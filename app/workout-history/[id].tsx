@@ -88,7 +88,7 @@ export default function WorkoutHistoryDetailScreen() {
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-PT', { 
+    return date.toLocaleDateString('en-US', { 
       day: '2-digit', 
       month: '2-digit', 
       year: 'numeric' 
@@ -99,7 +99,7 @@ export default function WorkoutHistoryDetailScreen() {
   const formatTime = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleTimeString('pt-PT', { 
+    return date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
@@ -136,14 +136,14 @@ export default function WorkoutHistoryDetailScreen() {
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Detalhes do Treino</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Workout Details</Text>
         <View style={styles.placeholder} />
       </View>
       
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4a90e2" />
-          <Text style={[styles.loadingText, { color: colors.text }]}>A carregar detalhes...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Loading details...</Text>
         </View>
       ) : sessionData ? (
         <ScrollView 
@@ -159,7 +159,7 @@ export default function WorkoutHistoryDetailScreen() {
             style={styles.sessionHeader}
           >
             <View style={styles.sessionTitleContainer}>
-              <Text style={styles.sessionTitle}>{sessionData.workouts?.title || 'Treino'}</Text>
+              <Text style={styles.sessionTitle}>{sessionData.workouts?.title || 'Workout'}</Text>
               <View style={styles.statusBadge}>
                 <Text style={styles.statusText}>{sessionData.status}</Text>
               </View>
@@ -189,13 +189,13 @@ export default function WorkoutHistoryDetailScreen() {
           
           {/* Exercises Section */}
           <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Exercícios</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Exercises</Text>
             
             {Object.keys(groupedExercises).length === 0 ? (
               <View style={styles.emptyExercisesContainer}>
                 <Ionicons name="barbell-outline" size={40} color="rgba(150, 150, 150, 0.8)" />
                 <Text style={[styles.emptyExercisesText, { color: colors.text }]}>
-                  Sem exercícios registados
+                  No exercises recorded
                 </Text>
               </View>
             ) : (
@@ -204,8 +204,8 @@ export default function WorkoutHistoryDetailScreen() {
                   <Text style={[styles.exerciseName, { color: colors.text }]}>{name}</Text>
                   
                   <View style={styles.setsHeaderContainer}>
-                    <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.2 }]}>Série</Text>
-                    <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Peso</Text>
+                    <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.2 }]}>Set</Text>
+                    <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Weight</Text>
                     <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Reps</Text>
                   </View>
                   
@@ -230,7 +230,7 @@ export default function WorkoutHistoryDetailScreen() {
           {/* Notes Section */}
           {sessionData.notes && (
             <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Notas</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
               <Text style={[styles.notesText, { color: colors.text }]}>
                 {sessionData.notes}
               </Text>
@@ -241,7 +241,7 @@ export default function WorkoutHistoryDetailScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={60} color="rgba(150, 150, 150, 0.8)" />
           <Text style={[styles.errorText, { color: colors.text }]}>
-            Não foi possível carregar os detalhes deste treino.
+            Could not load the details of this workout.
           </Text>
         </View>
       )}

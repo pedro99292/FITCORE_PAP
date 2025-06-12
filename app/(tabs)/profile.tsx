@@ -25,7 +25,7 @@ export default function ProfileScreen() {
   const { colors, isDarkMode } = useTheme();
   const [userData, setUserData] = useState<UserData>({
     username: user?.email?.split('@')[0] || 'USERNAME_123',
-    name: user?.user_metadata?.full_name || 'Utilizador',
+    name: user?.user_metadata?.full_name || 'User',
     bio: '',
     avatar: require('../../assets/images/default-avatar.png'),
     avatarUrl: null,
@@ -54,8 +54,8 @@ export default function ProfileScreen() {
       // Check if email is verified
       if (!user.email_confirmed_at) {
         Alert.alert(
-          'Email não verificado',
-          'Por favor, verifique o seu email para confirmar o registo e acessar o seu perfil.'
+          'Email not verified',
+          'Please verify your email to confirm registration and access your profile.'
         );
         router.replace('/login');
         return;
@@ -68,13 +68,13 @@ export default function ProfileScreen() {
         .single();
 
       if (error) {
-        console.error('Erro ao buscar perfil:', error);
+        console.error('Error fetching profile:', error);
         
         // If the error is 'No rows found', the profile might not exist yet due to pending email verification
         if (error.code === 'PGRST116') {
           Alert.alert(
-            'Perfil não encontrado',
-            'O seu perfil ainda está sendo processado após a verificação de email. Por favor, tente novamente em alguns instantes.'
+            'Profile not found',
+            'Your profile is still being processed after email verification. Please try again in a few moments.'
           );
           router.replace('/login');
           return;
@@ -83,14 +83,14 @@ export default function ProfileScreen() {
         // Update user data with database values
         setUserData({
           username: data.username || user?.email?.split('@')[0] || 'USERNAME_123',
-          name: data.full_name || user?.user_metadata?.full_name || 'Utilizador',
-          bio: data.bio || 'Sem biografia disponível.',
+          name: data.full_name || user?.user_metadata?.full_name || 'User',
+          bio: data.bio || 'No bio available.',
           avatar: require('../../assets/images/default-avatar.png'),
           avatarUrl: data.avatar_url,
         });
       }
     } catch (error) {
-      console.error('Erro ao buscar perfil do utilizador:', error);
+      console.error('Error fetching user profile:', error);
     } finally {
       setIsLoading(false);
     }
@@ -172,7 +172,7 @@ export default function ProfileScreen() {
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4a90e2" />
-          <Text style={[styles.loadingText, { color: colors.text }]}>A carregar perfil...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Loading profile...</Text>
         </View>
       </SafeAreaView>
     );
@@ -214,7 +214,7 @@ export default function ProfileScreen() {
                     onPress={handleEditProfile}
                   >
                     <FontAwesome name="pencil" size={14} color="#4a90e2" style={styles.editIcon} />
-                    <Text style={styles.editProfileText}>Editar Perfil</Text>
+                    <Text style={styles.editProfileText}>Edit Profile</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -283,7 +283,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* Calendar Section */}
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Calendário</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Calendar</Text>
           <TouchableOpacity 
             style={[styles.calendarSection, { backgroundColor: colors.surface }]}
             onPress={() => router.push('/calendar')}
@@ -317,15 +317,15 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           
           {/* Achievements Section */}
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Conquistas Recentes</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Achievements</Text>
           <View style={[styles.achievementsSection, { backgroundColor: colors.surface }]}>
             <View style={[styles.achievement, { borderBottomColor: 'rgba(200, 200, 200, 0.2)' }]}>
               <View style={[styles.achievementIconContainer, { backgroundColor: 'rgba(247, 151, 30, 0.15)' }]}>
                 <FontAwesome name="trophy" size={22} color="#F7971E" />
               </View>
               <View style={styles.achievementInfo}>
-                <Text style={[styles.achievementTitle, { color: colors.text }]}>10 Dias Seguidos</Text>
-                <Text style={styles.achievementDate}>Concluído a 15 de Jan, 2024</Text>
+                <Text style={[styles.achievementTitle, { color: colors.text }]}>10 Days in a Row</Text>
+                <Text style={styles.achievementDate}>Completed on Jan 15, 2024</Text>
               </View>
               <View style={styles.pointsContainer}>
                 <Text style={styles.achievementPoints}>+250</Text>
@@ -337,8 +337,8 @@ export default function ProfileScreen() {
                 <FontAwesome name="fire" size={22} color="#FF4757" />
               </View>
               <View style={styles.achievementInfo}>
-                <Text style={[styles.achievementTitle, { color: colors.text }]}>5000 Calorias Queimadas</Text>
-                <Text style={styles.achievementDate}>Concluído a 10 de Jan, 2024</Text>
+                <Text style={[styles.achievementTitle, { color: colors.text }]}>5000 Calories Burned</Text>
+                <Text style={styles.achievementDate}>Completed on Jan 10, 2024</Text>
               </View>
               <View style={styles.pointsContainer}>
                 <Text style={styles.achievementPoints}>+500</Text>

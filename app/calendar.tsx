@@ -11,17 +11,17 @@ import { useAuth } from '@/contexts/AuthContext';
 const { width: screenWidth } = Dimensions.get('window');
 
 // Configure locale for Calendar
-LocaleConfig.locales['pt'] = {
+LocaleConfig.locales['en'] = {
   monthNames: [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ],
-  monthNamesShort: ['Jan.', 'Fev.', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul.', 'Ago', 'Set.', 'Out.', 'Nov.', 'Dez.'],
-  dayNames: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
-  dayNamesShort: ['Dom.', 'Seg.', 'Ter.', 'Qua.', 'Qui.', 'Sex.', 'Sáb.'],
-  today: 'Hoje'
+  monthNamesShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  dayNamesShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  today: 'Today'
 };
-LocaleConfig.defaultLocale = 'pt';
+LocaleConfig.defaultLocale = 'en';
 
 export default function CalendarScreen() {
   const { colors, isDarkMode } = useTheme();
@@ -188,7 +188,7 @@ export default function CalendarScreen() {
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4a90e2" />
-          <Text style={[styles.loadingText, { color: colors.text }]}>A carregar calendário...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Loading calendar...</Text>
         </View>
       </SafeAreaView>
     );
@@ -209,7 +209,7 @@ export default function CalendarScreen() {
           <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Calendário de Treinos</Text>
+          <Text style={styles.headerTitle}>Workout Calendar</Text>
           <View style={styles.placeholder} />
         </View>
       </LinearGradient>
@@ -280,7 +280,7 @@ export default function CalendarScreen() {
                   <Ionicons name="calendar" size={20} color="#fff" />
                 </View>
                 <Text style={[styles.workoutsTitle, { color: colors.text }]}>
-                  {new Date(selectedDate).toLocaleDateString('pt-PT', {
+                  {new Date(selectedDate).toLocaleDateString('en-US', {
                     weekday: 'long',
                     day: 'numeric',
                     month: 'long'
@@ -314,7 +314,7 @@ export default function CalendarScreen() {
                       <Ionicons name="barbell-outline" size={24} color="#fff" />
                     </View>
                     <View style={styles.workoutDetails}>
-                      <Text style={styles.workoutName}>{workout.workouts?.title || 'Treino'}</Text>
+                      <Text style={styles.workoutName}>{workout.workouts?.title || 'Workout'}</Text>
                       <View style={styles.workoutMetaInfo}>
                         <Ionicons name="time-outline" size={14} color="rgba(255, 255, 255, 0.8)" />
                         <Text style={styles.workoutDuration}>{formatDuration(workout.duration)}</Text>
@@ -329,9 +329,7 @@ export default function CalendarScreen() {
             ) : (
               <View style={styles.noWorkoutsContainer}>
                 <Ionicons name="fitness-outline" size={50} color="rgba(150, 150, 150, 0.5)" />
-                <Text style={[styles.noWorkoutsText, { color: colors.text }]}>
-                  Sem treinos registados nesta data
-                </Text>
+                <Text style={[styles.noWorkoutsText, { color: colors.text }]}>No workouts recorded for this date</Text>
               </View>
             )}
           </View>
@@ -354,7 +352,7 @@ export default function CalendarScreen() {
           <View style={[styles.previewContainer, { backgroundColor: colors.surface }]}>
             <View style={styles.previewHeader}>
               <Text style={[styles.previewTitle, { color: colors.text }]}>
-                {selectedWorkout?.workouts?.title || 'Detalhes do Treino'}
+                {selectedWorkout?.workouts?.title || 'Workout Details'}
               </Text>
               <TouchableOpacity onPress={closePreview} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color={colors.text} />
@@ -364,7 +362,7 @@ export default function CalendarScreen() {
             <View style={styles.previewContent}>
               <View style={styles.previewRow}>
                 <Ionicons name="time-outline" size={20} color="#4a90e2" style={styles.previewIcon} />
-                <Text style={[styles.previewLabel, { color: colors.text }]}>Duração:</Text>
+                <Text style={[styles.previewLabel, { color: colors.text }]}>Duration:</Text>
                 <Text style={[styles.previewValue, { color: colors.text }]}>
                   {formatDuration(selectedWorkout?.duration || 0)}
                 </Text>
@@ -372,9 +370,9 @@ export default function CalendarScreen() {
               
               <View style={styles.previewRow}>
                 <Ionicons name="calendar-outline" size={20} color="#4a90e2" style={styles.previewIcon} />
-                <Text style={[styles.previewLabel, { color: colors.text }]}>Data:</Text>
+                <Text style={[styles.previewLabel, { color: colors.text }]}>Date:</Text>
                 <Text style={[styles.previewValue, { color: colors.text }]}>
-                  {selectedDate ? new Date(selectedDate).toLocaleDateString('pt-PT') : ''}
+                  {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US') : ''}
                 </Text>
               </View>
               
@@ -393,7 +391,7 @@ export default function CalendarScreen() {
                   end={[1, 0]}
                   style={styles.detailsButtonGradient}
                 >
-                  <Text style={styles.detailsButtonText}>Ver Detalhes</Text>
+                  <Text style={styles.detailsButtonText}>View Details</Text>
                   <Ionicons name="chevron-forward" size={18} color="#fff" />
                 </LinearGradient>
               </TouchableOpacity>

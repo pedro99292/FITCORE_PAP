@@ -316,8 +316,8 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
             </TouchableOpacity>
           </View>
           <Text style={styles.exerciseDetails}>
-            {customSets.length} séries 
-            {exercise.sets[0]?.planned_reps ? ` • ${exercise.sets[0]?.planned_reps} reps` : ''} 
+            {customSets.length} sets
+            {exercise.sets[0]?.planned_reps ? ` • ${exercise.sets[0]?.planned_reps} reps` : ''}
             {exercise.sets[0]?.rest_time ? ` • ${formatRestTime(exercise.sets[0]?.rest_time)}` : ''}
           </Text>
         </View>
@@ -334,9 +334,9 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
       {expanded && (
         <View style={styles.setsContainer}>
           <View style={styles.setsHeader}>
-            <Text style={[styles.setsHeaderText, { flex: 0.2 }]}>Série</Text>
+            <Text style={[styles.setsHeaderText, { flex: 0.2 }]}>Set</Text>
             <Text style={[styles.setsHeaderText, { flex: 0.4 }]}>Reps</Text>
-            <Text style={[styles.setsHeaderText, { flex: 0.4 }]}>Peso (kg)</Text>
+            <Text style={[styles.setsHeaderText, { flex: 0.4 }]}>Weight (kg)</Text>
           </View>
           
           {customSets.map((set, setIndex) => (
@@ -410,9 +410,7 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
                 size={16} 
                 color={customSets.length <= 1 ? "rgba(255,255,255,0.3)" : "#fff"} 
               />
-              <Text style={styles.setButtonText}>
-                Remover
-              </Text>
+              <Text style={styles.setButtonText}>Remove</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -420,7 +418,7 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
               onPress={addSet}
             >
               <Ionicons name="add" size={16} color="#fff" />
-              <Text style={styles.setButtonText}>Adicionar</Text>
+              <Text style={styles.setButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -998,15 +996,15 @@ const WorkoutSessionScreen = () => {
     
     // On native platforms, confirm before discarding and deleting
     Alert.alert(
-      'Sair do Treino',
-      'Deseja sair sem salvar este treino? O treino será excluído.',
+      'Exit Workout',
+      'Do you want to exit without saving this workout? The workout will be deleted.',
       [
         {
-          text: 'Cancelar',
+          text: 'Cancel',
           style: 'cancel'
         },
         {
-          text: 'Sair e Excluir',
+          text: 'Exit and Delete',
           style: 'destructive',
           onPress: deleteSession
         }
@@ -1038,26 +1036,26 @@ const WorkoutSessionScreen = () => {
     
     // On native platforms, show the Alert dialog
     Alert.alert(
-      'Finalizar Treino',
-      'Tem certeza que deseja finalizar este treino?',
+      'Finish Workout',
+      'Are you sure you want to finish this workout?',
       [
         {
-          text: 'Cancelar',
+          text: 'Cancel',
           style: 'cancel'
         },
         {
-          text: 'Finalizar',
+          text: 'Finish',
           onPress: async () => {
             // Show loading
-            Alert.alert('Salvando treino...', 'Por favor, aguarde...');
+            Alert.alert('Saving workout...', 'Please wait...');
             
             // Save session data
             const success = await saveWorkoutSession();
             
             if (success) {
               Alert.alert(
-                'Treino Finalizado',
-                'Seu treino foi salvo com sucesso!',
+                'Workout Finished',
+                'Your workout was saved successfully!',
                 [
                   {
                     text: 'OK',
@@ -1067,15 +1065,15 @@ const WorkoutSessionScreen = () => {
               );
             } else {
               Alert.alert(
-                'Erro',
-                'Ocorreu um erro ao salvar seu treino. Tente novamente.',
+                'Error',
+                'An error occurred while saving your workout. Try again.',
                 [
                   {
-                    text: 'Tentar Novamente',
+                    text: 'Try Again',
                     onPress: () => saveWorkoutSession()
                   },
                   {
-                    text: 'Voltar Mesmo Assim',
+                    text: 'Exit Anyway',
                     onPress: () => router.back(),
                     style: 'destructive'
                   }
@@ -1092,11 +1090,11 @@ const WorkoutSessionScreen = () => {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-        <Header title="Carregando treino..." onClose={() => router.back()} />
+        <Header title="Loading workout..." onClose={() => router.back()} />
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#4a90e2" />
           <Text style={{ color: colors.text, marginTop: 16 }}>
-            Carregando detalhes do treino...
+            Loading workout details...
           </Text>
         </View>
       </SafeAreaView>
@@ -1107,9 +1105,9 @@ const WorkoutSessionScreen = () => {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-        <Header title="Treino não encontrado" onClose={() => router.back()} />
+        <Header title="Workout not found" onClose={() => router.back()} />
         <View style={styles.centerContent}>
-          <Text style={{ color: colors.text }}>O treino selecionado não foi encontrado.</Text>
+          <Text style={{ color: colors.text }}>The selected workout was not found.</Text>
         </View>
       </SafeAreaView>
     );
@@ -1127,7 +1125,7 @@ const WorkoutSessionScreen = () => {
         <View style={styles.savingOverlay}>
           <View style={styles.savingContent}>
             <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.savingText}>Salvando treino...</Text>
+            <Text style={styles.savingText}>Saving workout...</Text>
           </View>
         </View>
       )}
@@ -1140,7 +1138,7 @@ const WorkoutSessionScreen = () => {
         {exercises.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: colors.text }]}>
-              Este treino não possui exercícios.
+              This workout has no exercises.
             </Text>
           </View>
         ) : (
@@ -1166,7 +1164,7 @@ const WorkoutSessionScreen = () => {
               end={[1, 0]}
               style={styles.completeButtonGradient}
             >
-              <Text style={styles.completeButtonText}>FINALIZAR TREINO</Text>
+              <Text style={styles.completeButtonText}>FINISH WORKOUT</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>

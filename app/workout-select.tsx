@@ -51,7 +51,7 @@ const WorkoutItem = memo(({ workout, onSelect }: {
               <View style={styles.workoutDetail}>
                 <Ionicons name="barbell-outline" size={16} color="#fff" />
                 <Text style={styles.workoutDetailText}>
-                  {workout.exerciseCount || 0} exercícios
+                  {workout.exerciseCount || 0} exercises
                 </Text>
               </View>
             </View>
@@ -81,7 +81,7 @@ const Header = memo(({ onBack }: { onBack: () => void }) => {
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
         <Ionicons name="arrow-back" size={24} color={colors.text} />
       </TouchableOpacity>
-      <Text style={[styles.title, { color: colors.text }]}>Selecionar Treino</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Select Workout</Text>
       <View style={{ width: 24 }} />
     </View>
   );
@@ -101,7 +101,7 @@ const WorkoutSelectScreen = () => {
         // Get current user
         const { data: userData } = await supabase.auth.getUser();
         if (!userData.user) {
-          Alert.alert('Não está logado', 'Por favor, faça login para ver seus treinos');
+          Alert.alert('Not logged in', 'Please log in to view your workouts');
           router.replace('/(tabs)/profile');
           return;
         }
@@ -114,8 +114,8 @@ const WorkoutSelectScreen = () => {
           .order('created_at', { ascending: false });
         
         if (error) {
-          console.error('Erro ao buscar treinos:', error);
-          Alert.alert('Erro', 'Falha ao carregar treinos');
+          console.error('Error fetching workouts:', error);
+          Alert.alert('Error', 'Failed to load workouts');
           return;
         }
         
@@ -165,7 +165,7 @@ const WorkoutSelectScreen = () => {
         setWorkouts(processedWorkouts);
       } catch (err) {
         console.error('Error fetching workouts:', err);
-        Alert.alert('Erro', 'Ocorreu um erro ao buscar seus treinos');
+        Alert.alert('Error', 'An error occurred while fetching your workouts');
       } finally {
         setLoading(false);
       }
@@ -193,28 +193,28 @@ const WorkoutSelectScreen = () => {
       <Header onBack={handleBack} />
       
       <Text style={[styles.subtitle, { color: colors.text }]}>
-        Escolha um treino para começar
+        Choose a workout to start
       </Text>
       
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4a90e2" />
           <Text style={[styles.loadingText, { color: colors.text }]}>
-            Carregando seus treinos...
+            Loading your workouts...
           </Text>
         </View>
       ) : workouts.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="barbell-outline" size={64} color="rgba(255,255,255,0.3)" />
           <Text style={[styles.emptyText, { color: colors.text }]}>
-            Você ainda não tem treinos
+            You don't have any workouts yet
           </Text>
           <TouchableOpacity 
             style={styles.createWorkoutButton}
             onPress={() => router.push('/workout-builder')}
           >
             <Text style={styles.createWorkoutButtonText}>
-              CRIAR TREINO
+              CREATE WORKOUT
             </Text>
           </TouchableOpacity>
         </View>
