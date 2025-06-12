@@ -8,7 +8,7 @@ export interface UserProfile {
 
 export interface GoalSettings {
   sets: number;
-  reps: number;
+  reps: {min: number, max: number};
   rest: number; // in seconds
   focus: string[];
   cardio?: boolean;
@@ -20,7 +20,7 @@ export interface GeneratedExercise {
   target: string;
   equipment: string;
   sets: number;
-  reps: number;
+  reps: {min: number, max: number};
   rest: number; // in seconds
   exerciseId: string;
 }
@@ -54,4 +54,29 @@ export interface ExerciseGroup {
     rest_time: number;
     set_order: number;
   }>;
+}
+
+export interface WorkoutTemplate {
+  name: string;
+  focus: string[];
+  exercises: {
+    male: Array<{
+      name: string;
+      sets: number;
+      reps: {min: number, max: number};
+      rest: number;
+    }>;
+    female: Array<{
+      name: string;
+      sets: number;
+      reps: {min: number, max: number};
+      rest: number;
+    }>;
+    senior: Array<{
+      name: string;
+      sets: number;
+      reps: {min: number, max: number};
+      rest: number;
+    }>;
+  };
 } 

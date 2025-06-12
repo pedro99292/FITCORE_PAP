@@ -3,7 +3,11 @@ import { Exercise } from '@/types/exercise';
 import { 
   EXERCISE_DB_API_URL, 
   getExerciseDBHeaders,
-  EXERCISE_DB_API_KEY
+  EXERCISE_DB_API_KEY,
+  fetchFromExerciseDB,
+  fetchBodyPartListFromAPI,
+  fetchEquipmentListFromAPI,
+  fetchTargetListFromAPI
 } from '@/utils/apiConfig';
 
 type FetchExercisesParams = {
@@ -60,106 +64,72 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
       // If we have filters, use the appropriate endpoints
       if (params?.bodyPart && params?.equipment) {
         // First fetch by bodyPart with maximum limit
-        const endpoint = `${EXERCISE_DB_API_URL}/bodyPart/${encodeURIComponent(params.bodyPart)}?limit=${maxLimit}`;
         console.log(`Fetching ExerciseDB with bodyPart filter: ${params.bodyPart} and limit: ${maxLimit}`);
         
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: getExerciseDBHeaders()
-        });
-
-        if (!response.ok) {
-          throw new Error(`ExerciseDB API error: ${response.status}`);
+        try {
+          const data = await fetchFromExerciseDB(`/exercises/bodyPart/${encodeURIComponent(params.bodyPart)}?limit=${maxLimit}`);
+          console.log(`Got ${data.length} exercises for bodyPart: ${params.bodyPart}`);
+          
+          // Filter the results to match the equipment filter
+          results = data.filter((exercise: ExerciseDBExercise) => 
+            exercise.equipment.toLowerCase() === params.equipment?.toLowerCase()
+          );
+          console.log(`After equipment filter (${params.equipment}), ${results.length} exercises remain`);
+        } catch (error) {
+          console.error(`Error fetching by bodyPart and equipment:`, error);
+          throw new Error(`Failed to fetch exercises for ${params.bodyPart} with ${params.equipment}`);
         }
-
-        const data: ExerciseDBExercise[] = await response.json();
-        console.log(`Got ${data.length} exercises for bodyPart: ${params.bodyPart}`);
-        
-        // Filter the results to match the equipment filter
-        results = data.filter(exercise => 
-          exercise.equipment.toLowerCase() === params.equipment?.toLowerCase()
-        );
-        console.log(`After equipment filter (${params.equipment}), ${results.length} exercises remain`);
       }
       // Otherwise use the API's built-in filtering by single criterion
       else if (params?.bodyPart) {
-        const endpoint = `${EXERCISE_DB_API_URL}/bodyPart/${encodeURIComponent(params.bodyPart)}?limit=${maxLimit}`;
         console.log(`Fetching ExerciseDB with bodyPart filter: ${params.bodyPart} and limit: ${maxLimit}`);
         
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: getExerciseDBHeaders()
-        });
-
-        if (!response.ok) {
-          throw new Error(`ExerciseDB API error: ${response.status}`);
+        try {
+          results = await fetchFromExerciseDB(`/exercises/bodyPart/${encodeURIComponent(params.bodyPart)}?limit=${maxLimit}`);
+          console.log(`Got ${results.length} exercises for bodyPart: ${params.bodyPart}`);
+        } catch (error) {
+          console.error(`Error fetching by bodyPart:`, error);
+          throw new Error(`Failed to fetch exercises for bodyPart: ${params.bodyPart}`);
         }
-
-        results = await response.json();
-        console.log(`Got ${results.length} exercises for bodyPart: ${params.bodyPart}`);
       } 
       else if (params?.equipment) {
-        const endpoint = `${EXERCISE_DB_API_URL}/equipment/${encodeURIComponent(params.equipment)}?limit=${maxLimit}`;
         console.log(`Fetching ExerciseDB with equipment filter: ${params.equipment} and limit: ${maxLimit}`);
         
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: getExerciseDBHeaders()
-        });
-
-        if (!response.ok) {
-          throw new Error(`ExerciseDB API error: ${response.status}`);
+        try {
+          results = await fetchFromExerciseDB(`/exercises/equipment/${encodeURIComponent(params.equipment)}?limit=${maxLimit}`);
+          console.log(`Got ${results.length} exercises for equipment: ${params.equipment}`);
+        } catch (error) {
+          console.error(`Error fetching by equipment:`, error);
+          throw new Error(`Failed to fetch exercises for equipment: ${params.equipment}`);
         }
-
-        results = await response.json();
-        console.log(`Got ${results.length} exercises for equipment: ${params.equipment}`);
       }
       else if (params?.target) {
-        const endpoint = `${EXERCISE_DB_API_URL}/target/${encodeURIComponent(params.target)}?limit=${maxLimit}`;
         console.log(`Fetching ExerciseDB with target filter: ${params.target} and limit: ${maxLimit}`);
         
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: getExerciseDBHeaders()
-        });
-
-        if (!response.ok) {
-          throw new Error(`ExerciseDB API error: ${response.status}`);
+        try {
+          results = await fetchFromExerciseDB(`/exercises/target/${encodeURIComponent(params.target)}?limit=${maxLimit}`);
+          console.log(`Got ${results.length} exercises for target: ${params.target}`);
+        } catch (error) {
+          console.error(`Error fetching by target:`, error);
+          throw new Error(`Failed to fetch exercises for target: ${params.target}`);
         }
-
-        results = await response.json();
-        console.log(`Got ${results.length} exercises for target: ${params.target}`);
       }
       else if (params?.name) {
-        const endpoint = `${EXERCISE_DB_API_URL}/name/${encodeURIComponent(params.name)}?limit=${maxLimit}`;
         console.log(`Fetching ExerciseDB with name filter: ${params.name} and limit: ${maxLimit}`);
         
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: getExerciseDBHeaders()
-        });
-
-        if (!response.ok) {
-          throw new Error(`ExerciseDB API error: ${response.status}`);
+        try {
+          results = await fetchFromExerciseDB(`/exercises/name/${encodeURIComponent(params.name)}?limit=${maxLimit}`);
+          console.log(`Got ${results.length} exercises for name: ${params.name}`);
+        } catch (error) {
+          console.error(`Error fetching by name:`, error);
+          throw new Error(`Failed to fetch exercises for name: ${params.name}`);
         }
-
-        results = await response.json();
-        console.log(`Got ${results.length} exercises for name: ${params.name}`);
       }
       else {
         // Fetch all exercises with maximum limit
         console.log(`Fetching all exercises from ExerciseDB with limit: ${maxLimit}`);
         try {
-          const response = await fetch(`${EXERCISE_DB_API_URL}?limit=${maxLimit}`, {
-            method: 'GET',
-            headers: getExerciseDBHeaders()
-          });
-
-          if (!response.ok) {
-            throw new Error(`ExerciseDB API error: ${response.status}`);
-          }
-
-          results = await response.json();
+          results = await fetchFromExerciseDB(`/exercises?limit=${maxLimit}`, `/exercises/all`);
           console.log(`Successfully fetched ${results.length} exercises from ExerciseDB`);
         } catch (error) {
           console.error("Error fetching from ExerciseDB:", error);
@@ -246,16 +216,7 @@ export const useBodyParts = () => {
         return;
       }
 
-      const response = await fetch(`${EXERCISE_DB_API_URL}/bodyPartList`, {
-        method: 'GET',
-        headers: getExerciseDBHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch body parts: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchBodyPartListFromAPI();
       setBodyParts(data);
     } catch (err) {
       console.error('Error fetching body parts:', err);
@@ -289,16 +250,7 @@ export const useEquipment = () => {
         return;
       }
 
-      const response = await fetch('https://exercisedb.p.rapidapi.com/exercises/equipmentList', {
-        method: 'GET',
-        headers: getExerciseDBHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch equipment: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchEquipmentListFromAPI();
       setEquipment(data);
     } catch (err) {
       console.error('Error fetching equipment:', err);
@@ -332,16 +284,7 @@ export const useTargets = () => {
         return;
       }
 
-      const response = await fetch(`${EXERCISE_DB_API_URL}/targetList`, {
-        method: 'GET',
-        headers: getExerciseDBHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch target muscles: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchTargetListFromAPI();
       setTargets(data);
     } catch (err) {
       console.error('Error fetching target muscles:', err);

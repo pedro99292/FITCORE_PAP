@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
+import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Platform, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -260,8 +260,9 @@ const HomeScreen = () => {
   const statsOpacity = useSharedValue(0);
   const silhouetteScale = useSharedValue(0.95);
   
-  // Add state for button cooldown
+  // Add state for button cooldown and loading overlay
   const [isFlipCooldown, setIsFlipCooldown] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Preload silhouette images
   useEffect(() => {
@@ -321,17 +322,29 @@ const HomeScreen = () => {
         Alert.alert('Not logged in', 'Please log in to generate a workout');
         return;
       }
-
+      
+      setIsLoading(true);
+      
       Alert.alert(
         'Generate AI Workout',
         'This will create a personalized workout plan based on your profile data. Continue?',
         [
-          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Cancel', 
+            style: 'cancel',
+            onPress: () => setIsLoading(false)
+          },
           { 
             text: 'Generate', 
             onPress: async () => {
               try {
+                // Show loading indicator
+                setIsLoading(true);
+                
                 const workoutId = await generateAndSaveWorkout(userData.user.id);
+                
+                // Hide loading indicator
+                setIsLoading(false);
                 
                 if (workoutId) {
                   Alert.alert(
@@ -343,20 +356,34 @@ const HomeScreen = () => {
                     ]
                   );
                 } else {
-                  Alert.alert('Error', 'Failed to generate workout plan. Please try again.');
+                  // More specific error handling for null workoutId
+                  Alert.alert(
+                    'Generation Failed',
+                    'We couldn\'t create your workout plan. This might be due to missing profile data or exercise matching issues.',
+                    [
+                      { text: 'Update Profile', onPress: () => router.push('/edit-profile') },
+                      { text: 'OK' }
+                    ]
+                  );
                 }
               } catch (error: any) {
+                // Hide loading indicator on error
+                setIsLoading(false);
                 console.error('Error generating workout:', error);
                 
                 // Provide more specific error messages
                 let errorMessage = 'An unexpected error occurred while generating your workout.';
                 
-                if (error.message.includes('profile data')) {
+                if (error.message?.includes('profile data')) {
                   errorMessage = 'Unable to fetch your profile data. Please complete your profile setup first by going to Profile > Edit Profile.';
-                } else if (error.message.includes('fetch exercises')) {
+                } else if (error.message?.includes('fetch exercises')) {
                   errorMessage = 'Unable to fetch exercise database. Please check your internet connection and try again.';
-                } else if (error.message.includes('save')) {
+                } else if (error.message?.includes('match')) {
+                  errorMessage = 'There was an issue matching exercises. Please try again later.';
+                } else if (error.message?.includes('save')) {
                   errorMessage = 'Failed to save the workout. Please try again.';
+                } else if (error.message?.includes('does not exist')) {
+                  errorMessage = 'There was an issue with your profile data. Please update your profile by going to Profile > Edit Profile.';
                 }
                 
                 Alert.alert('Error', errorMessage);
@@ -366,6 +393,7 @@ const HomeScreen = () => {
         ]
       );
     } catch (error) {
+      setIsLoading(false);
       console.error('Error in handleGenerateWorkout:', error);
       Alert.alert('Error', 'An unexpected error occurred.');
     }
@@ -451,7 +479,7 @@ const HomeScreen = () => {
             end={[1, 0]}
             style={styles.mainButtonGradient}
           >
-            <Text style={styles.mainButtonText}>🤖 GERAR TREINO IA</Text>
+            <Text style={styles.mainButtonText}>Generate workout</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -474,6 +502,16 @@ const HomeScreen = () => {
           <MaterialCommunityIcons name="rotate-3d-variant" size={26} color="#fff" />
         </LinearGradient>
       </TouchableOpacity>
+      
+      {/* Loading Overlay */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4a90e2" />
+            <Text style={styles.loadingText}>Generating workout plan...</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -621,6 +659,32 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 200,
+  },
+  loadingText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
     textAlign: 'center',
   },
 });

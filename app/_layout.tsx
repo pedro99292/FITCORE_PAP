@@ -19,6 +19,7 @@ import { SubscriptionProvider } from '../contexts/SubscriptionContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import SubscriptionModal from '../components/SubscriptionModal';
 import SurveyModal from '../components/SurveyModal';
+import { initializeAppResources } from '../utils/appInit';
 
 // Disable specific LogBox warnings
 LogBox.ignoreLogs([
@@ -215,6 +216,15 @@ const RootLayout = () => {
           cacheFonts(),
           cacheImages()
         ]);
+        
+        // Initialize app resources (including exercise pre-caching)
+        // This is done after other resources to not delay initial loading
+        try {
+          await initializeAppResources();
+        } catch (error) {
+          console.warn('App resource initialization failed:', error);
+          // App can still function without these resources
+        }
         
         // Remove artificial delay in production
         if (__DEV__ && Platform.OS !== 'web') {

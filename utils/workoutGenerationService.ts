@@ -8,7 +8,24 @@ import {
   SplitTemplate 
 } from '@/types/workoutGeneration';
 import { supabase } from './supabase';
-import { EXERCISE_DB_API_URL, getExerciseDBHeaders } from './apiConfig';
+import { fetchExercisesFromAPI } from './apiConfig';
+import { getExercisesWithFallback, preloadExercises } from './exerciseCaching';
+import { 
+  splitTemplates,
+  recommendedSplitsByGoal,
+  templateMap
+} from '@/constants/workoutSplits';
+import {
+  workoutRules,
+  repRanges,
+  setsPerExercise,
+  restTimeByGoal,
+  cardioRecommendations,
+  ageAdaptations,
+  genderAdaptations,
+  experienceAdaptations
+} from '@/constants/workoutRules';
+import { findBestExerciseMatch } from './exerciseMatching';
 
 // Utility function to shuffle array
 function shuffleArray<T>(arr: T[]): T[] {
@@ -20,180 +37,186 @@ function shuffleArray<T>(arr: T[]): T[] {
   return copy;
 }
 
+// Helper function to find matching exercises
+function findMatchingExercises(allExercises: Exercise[], targetNames: string[]): Exercise[] {
+  const normalizedTargetNames = targetNames.map(name => name.toLowerCase());
+  
+  return allExercises.filter(exercise => {
+    const exerciseName = exercise.name.toLowerCase();
+    return normalizedTargetNames.some(targetName => 
+      exerciseName.includes(targetName) || 
+      exerciseName === targetName ||
+      // Handle variations like "barbell bench press" matching "bench press"
+      targetName.split(' ').length > 1 && 
+      targetName.split(' ').slice(1).join(' ') === exerciseName
+    );
+  });
+}
+
+// Helper function to adjust template sets based on goal requirements
+function adjustTemplateSets(template: any, goal: string, isFullBodyOrUpperLower: boolean): any {
+  const targetSets = setsPerExercise[goal as keyof typeof setsPerExercise] || 2;
+  
+  // For Upper/Lower/Full Body workouts, we cap at 2 sets regardless of goal
+  const effectiveSets = isFullBodyOrUpperLower ? 
+    Math.min(targetSets, workoutRules.maxSetsForFullBodyUpperLower) : 
+    Math.min(targetSets, workoutRules.maxSetsPerExercise);
+  
+  // If template already has the right number of sets, return as is
+  if (template.exercises.male[0].sets === effectiveSets) {
+    return template;
+  }
+  
+  // Create a copy of the template with adjusted sets
+  const adjustedTemplate = JSON.parse(JSON.stringify(template));
+  
+  // Adjust sets for each gender
+  ['male', 'female', 'senior'].forEach(gender => {
+    if (adjustedTemplate.exercises[gender]) {
+      adjustedTemplate.exercises[gender].forEach((exercise: any) => {
+        exercise.sets = effectiveSets;
+      });
+    }
+  });
+  
+  return adjustedTemplate;
+}
+
 // Main workout generation function
 export function generateWorkoutPlan(userProfile: UserProfile, allExercises: Exercise[]): GeneratedWorkoutPlan {
   const { age, gender, goal, experience, daysPerWeek } = userProfile;
 
-  // Define volume, rest and rep ranges based on the strategy
-  const goalSettings: Record<string, GoalSettings> = {
-    "Lose weight": { sets: 2, reps: 12, rest: 60, focus: ["full body", "core", "legs"], cardio: true },
-    "Gain muscle": { sets: 3, reps: 10, rest: 90, focus: ["chest", "back", "legs", "arms", "shoulders"] },
-    "Gain strength": { sets: 3, reps: 5, rest: 150, focus: ["compound", "legs", "back", "chest"] },
-    "Maintain muscle": { sets: 2, reps: 10, rest: 75, focus: ["full body", "core", "chest", "back"] },
-  };
-
-  // Define workout splits based on days per week
-  const splitTemplates: Record<number, string[]> = {
-    3: ["push", "pull", "legs"],
-    4: ["upper", "lower", "upper", "lower"],
-    5: ["push", "pull", "legs", "core", "full body"],
-    6: ["chest", "back", "legs", "shoulders", "arms", "core"],
-  };
-
-  const settings = goalSettings[goal];
-  const split = splitTemplates[daysPerWeek] || splitTemplates[3];
-
-  // Gender prioritization
-  const genderFocus = gender === "Female"
-    ? ["glutes", "hamstrings", "core"]
-    : ["chest", "arms", "shoulders"];
-
-  // Age and experience adjustments
-  const reduceVolume = age >= 50;
-  const maxSetsPerExercise = 3; // As per strategy
-
+  // Determine if user is senior (50+)
+  const isSenior = age >= 50;
+  
+  // Determine which gender-specific workouts to use
+  const genderKey = isSenior ? 'senior' : gender === 'Female' ? 'female' : 'male';
+  
+  // Get recommended split for this goal and days per week
+  const splitIndex = recommendedSplitsByGoal[goal as keyof typeof recommendedSplitsByGoal]?.[daysPerWeek] || 0;
+  const recommendedSplit = splitTemplates[daysPerWeek]?.[splitIndex] || splitTemplates[3][0];
+  
+  // Get rest time based on goal
+  const restTime = restTimeByGoal[goal as keyof typeof restTimeByGoal] || 120;
+  
+  // Get rep range based on goal and experience
+  const repRange = repRanges[goal as keyof typeof repRanges]?.[experience as keyof typeof experienceAdaptations] || { min: 8, max: 12 };
+  
+  // Determine if cardio is recommended
+  const cardioRecommended = cardioRecommendations[goal as keyof typeof cardioRecommendations]?.recommended || false;
+  
+  // Generate workout plan
   const dailyPlan: WorkoutDay[] = [];
 
   for (let i = 0; i < daysPerWeek; i++) {
-    const dayFocus = split[i % split.length];
+    // Get template name for this day
+    const templateName = recommendedSplit[i % recommendedSplit.length];
+    let template = templateMap[templateName];
     
-    // Create focus areas based on day and user preferences
-    let focusAreas: string[] = [];
+    if (!template) {
+      console.error(`Template not found for ${templateName}`);
+      continue;
+    }
     
-    // Map split days to body parts
-    switch (dayFocus) {
-      case "push":
-        focusAreas = ["chest", "shoulders", "triceps"];
-        break;
-      case "pull":
-        focusAreas = ["back", "biceps"];
-        break;
-      case "legs":
-        focusAreas = ["legs", "quads", "hamstrings", "glutes", "calves"];
-        break;
-      case "upper":
-        focusAreas = ["chest", "back", "shoulders", "arms", "biceps", "triceps"];
-        break;
-      case "lower":
-        focusAreas = ["legs", "quads", "hamstrings", "glutes", "calves"];
-        break;
-      case "core":
-        focusAreas = ["abs", "core", "waist"];
-        break;
-      case "full body":
-        focusAreas = ["chest", "back", "legs", "shoulders", "arms"];
-        break;
-      default:
-        focusAreas = [dayFocus];
-    }
-
-    // Add gender-specific focus if relevant
-    if (gender === "Female" && (dayFocus === "legs" || dayFocus === "lower")) {
-      focusAreas.push("glutes", "hamstrings");
-    }
-
-    // Filter exercises matching current day's focus
-    const dayExercises = allExercises
-      .filter(ex => {
-        const bodyPartMatch = focusAreas.some(focus => 
-          ex.bodyPart.toLowerCase().includes(focus.toLowerCase()) ||
-          ex.target.toLowerCase().includes(focus.toLowerCase())
-        );
-        return bodyPartMatch;
-      })
-      .filter(ex => {
-        // Experience-based filtering
-        if (experience === "Novice") {
-          // For novices, prefer bodyweight, machine, and cable exercises
-          const equipment = ex.equipment.toLowerCase();
-          return ["body weight", "machine", "cable", "dumbbell"].includes(equipment) || 
-                 equipment.includes("assisted");
-        }
-        
-        // Age-based filtering
-        if (age >= 50) {
-          const equipment = ex.equipment.toLowerCase();
-          // Avoid high-impact or complex equipment for older users
-          return !["barbell", "olympic"].includes(equipment);
-        }
-        
-        return true;
-      });
-
-    // Shuffle and pick unique exercises (max 5 per day)
-    const selected = shuffleArray(dayExercises).slice(0, 5);
-
-    const exercises: GeneratedExercise[] = selected.map(ex => {
-      // Adjust sets based on experience and age
-      let sets = settings.sets;
-      if (reduceVolume) {
-        sets = Math.max(1, sets - 1);
-      }
-      sets = Math.min(sets, maxSetsPerExercise); // Cap at 3 sets as per strategy
-
-      // Adjust reps based on goal and experience
-      let reps = settings.reps;
-      if (experience === "Novice" && goal === "Gain strength") {
-        reps = Math.min(reps + 3, 8); // Novices do slightly higher reps even for strength
+    // Adjust template sets based on goal and type of workout
+    const isFullBodyOrUpperLower = templateName.includes('Upper') || 
+                                templateName.includes('Lower') || 
+                                templateName.includes('Full Body');
+    template = adjustTemplateSets(template, goal, isFullBodyOrUpperLower);
+    
+    // Get exercises for this template based on gender
+    const templateExercises = template.exercises[genderKey];
+    
+    // Create exercises array
+    const exercises: GeneratedExercise[] = [];
+    
+    // Process each exercise in the template
+    for (const templateExercise of templateExercises) {
+      // Find matching exercise using our specialized matching utility
+      const matchingExercise = findBestExerciseMatch(templateExercise.name, allExercises);
+      
+      if (!matchingExercise) {
+        console.warn(`No matching exercise found for ${templateExercise.name}`);
+        // Create placeholder with template data
+        exercises.push({
+          name: templateExercise.name,
+          bodyPart: 'unknown',
+          target: 'unknown',
+          equipment: 'unknown',
+          sets: templateExercise.sets,
+          reps: templateExercise.reps,
+          rest: templateExercise.rest || restTime,
+          exerciseId: `placeholder-${templateExercise.name.toLowerCase().replace(/\s+/g, '-')}`
+        });
+        continue;
       }
       
-      return {
-        name: ex.name,
-        bodyPart: ex.bodyPart,
-        target: ex.target,
-        equipment: ex.equipment,
-        sets,
-        reps,
-        rest: settings.rest,
-        exerciseId: ex.id,
-      };
-    });
-
+      // Set number of sets based on template (already adjusted earlier)
+      let sets = templateExercise.sets;
+      
+      // Adjust sets for seniors if they're still greater than 2
+      if (isSenior && sets > 2) {
+        sets -= 1;
+      }
+      
+      // Add the exercise to our plan
+      exercises.push({
+        name: matchingExercise.name,
+        bodyPart: matchingExercise.bodyPart,
+        target: matchingExercise.target,
+        equipment: matchingExercise.equipment,
+        sets: sets,
+        reps: templateExercise.reps,
+        rest: templateExercise.rest || restTime,
+        exerciseId: matchingExercise.id
+      });
+    }
+    
+    // Add the day to our plan
     dailyPlan.push({
-      day: `Day ${i + 1}`,
-      focus: dayFocus,
-      exercises,
+      day: `Day ${i + 1}: ${templateName}`,
+      focus: template.focus.join(', '),
+      exercises: exercises
     });
   }
 
   return {
     plan: dailyPlan,
     notes: {
-      cardio: settings.cardio || false,
-      recommendation: generateRecommendation(goal, experience, age, gender),
-    },
+      cardio: cardioRecommended,
+      recommendation: generateRecommendation(goal, experience, age, gender)
+    }
   };
 }
 
 // Helper function to generate personalized recommendations
 function generateRecommendation(goal: string, experience: string, age: number, gender: string): string {
-  const baseRecommendations: Record<string, string> = {
-    "Lose weight": "Prioritize diet and cardio sessions 3–5x/week. Focus on progressive overload with moderate weights.",
-    "Gain muscle": "Progressively increase weights over time. Aim for 8-12 reps with challenging weights.",
-    "Gain strength": "Focus on compound movements with heavy weights. Rest 2-3 minutes between sets.",
-    "Maintain muscle": "Keep consistent with your routine. Focus on movement quality and mind-muscle connection."
-  };
-
-  let recommendation = baseRecommendations[goal] || "Stay consistent with your training.";
-
-  // Add experience-specific advice
-  if (experience === "Novice") {
-    recommendation += " Focus on learning proper form before increasing weights.";
-  } else if (experience === "Advanced") {
-    recommendation += " Consider periodization and advanced techniques like supersets.";
+  // Get base recommendation from goal
+  const cardioInfo = cardioRecommendations[goal as keyof typeof cardioRecommendations] || cardioRecommendations['Maintain muscle'];
+  const baseRecommendation = cardioInfo.note;
+  
+  // Get age adaptation note
+  let ageNote = '';
+  if (age < 30) {
+    ageNote = ageAdaptations.under30.note;
+  } else if (age < 50) {
+    ageNote = ageAdaptations.age30to49.note;
+  } else {
+    ageNote = ageAdaptations.age50Plus.note;
   }
-
-  // Add age-specific advice
-  if (age >= 50) {
-    recommendation += " Prioritize warm-up and mobility work. Listen to your body and allow adequate recovery.";
-  }
-
-  // Add gender-specific advice
-  if (gender === "Female") {
-    recommendation += " Don't neglect upper body training alongside lower body focus.";
-  }
-
-  return recommendation;
+  
+  // Get gender adaptation note
+  const genderKey = gender as keyof typeof genderAdaptations;
+  const genderInfo = genderAdaptations[genderKey] || genderAdaptations['Prefer not to say'];
+  const genderNote = genderInfo.note;
+  
+  // Get experience adaptation note
+  const experienceKey = experience as keyof typeof experienceAdaptations;
+  const experienceInfo = experienceAdaptations[experienceKey] || experienceAdaptations['Novice'];
+  const experienceNote = experienceInfo.note;
+  
+  // Combine recommendations
+  return `${baseRecommendation} ${experienceNote}. ${ageNote}. ${genderNote}.`;
 }
 
 // Function to fetch user profile data
@@ -248,8 +271,23 @@ export async function saveGeneratedWorkout(
     for (let dayIndex = 0; dayIndex < workoutPlan.plan.length; dayIndex++) {
       const day = workoutPlan.plan[dayIndex];
       
-      // Create individual workout for this day
-      const dayTitle = `${title} - ${day.focus.charAt(0).toUpperCase() + day.focus.slice(1)} (Day ${dayIndex + 1})`;
+      // Extract the template name from the day information
+      let templateName = day.day.split(': ')[1];
+      
+      // Remove A/B suffix if there's only one workout of this type in the plan
+      const baseType = templateName.replace(/\s[AB]$/, ''); // Remove A or B suffix
+      const hasDuplicateTypes = workoutPlan.plan
+        .map(d => d.day.split(': ')[1].replace(/\s[AB]$/, ''))
+        .filter(name => name === baseType)
+        .length > 1;
+        
+      // If there's only one workout of this type, use the base name without A/B
+      if (!hasDuplicateTypes) {
+        templateName = baseType;
+      }
+      
+      // Use simple workout name (e.g., "Pull", "Push", "Lower", "Full Body")
+      const dayTitle = templateName;
       
       const { data: workout, error: workoutError } = await supabase
         .from('workouts')
@@ -289,7 +327,7 @@ export async function saveGeneratedWorkout(
             exercise_bodypart: exercise.bodyPart,
             exercise_target: exercise.target,
             exercise_equipment: exercise.equipment,
-            planned_reps: exercise.reps,
+            planned_reps: exercise.reps.max,
             rest_time: exercise.rest,
             set_order: setOrder++,
           });
@@ -325,68 +363,41 @@ export async function saveGeneratedWorkout(
 // Main function to generate and save workout for a user
 export async function generateAndSaveWorkout(userId: string): Promise<string | null> {
   try {
-    console.log('Starting workout generation for user:', userId);
-    
-    // Get user profile
+    // Fetch user profile data
     const userProfile = await fetchUserProfileData(userId);
     if (!userProfile) {
-      console.error('Unable to fetch user profile data for user:', userId);
-      throw new Error('Unable to fetch user profile data. Please make sure your profile is complete.');
+      console.error('Failed to fetch user profile data');
+      return null;
     }
-
-    console.log('User profile fetched successfully:', userProfile);
-
-    // Fetch exercises from the API using existing configuration
-    console.log('Fetching exercises from API...');
-    const exerciseResponse = await fetch(`${EXERCISE_DB_API_URL}?limit=1000`, {
-      headers: getExerciseDBHeaders()
-    });
-
-    if (!exerciseResponse.ok) {
-      console.error('Exercise API response not ok:', exerciseResponse.status, exerciseResponse.statusText);
-      throw new Error(`Failed to fetch exercises: ${exerciseResponse.status}`);
-    }
-
-    const exercisesData = await exerciseResponse.json();
-    console.log(`Fetched ${exercisesData.length} exercises from API`);
     
-    // Transform to our Exercise type
-    const exercises: Exercise[] = exercisesData.map((ex: any) => ({
-      id: ex.id,
-      name: ex.name,
-      bodyPart: ex.bodyPart,
-      target: ex.target,
-      equipment: ex.equipment,
-      gifUrl: ex.gifUrl,
-      instructions: ex.instructions || [],
-      secondaryMuscles: ex.secondaryMuscles || [],
-      source: 'exercisedb' as const
-    }));
-
-    console.log(`Transformed ${exercises.length} exercises`);
-
-    // Generate workout plan
-    console.log('Generating workout plan...');
-    const workoutPlan = generateWorkoutPlan(userProfile, exercises);
-    console.log(`Generated workout plan with ${workoutPlan.plan.length} days`);
-
-    // Save to database
-    console.log('Saving workout to database...');
-    const workoutId = await saveGeneratedWorkout(
-      userId, 
-      workoutPlan, 
-      `AI Generated ${userProfile.goal} Plan`
-    );
-
-    if (workoutId) {
-      console.log('Workout saved successfully with ID:', workoutId);
-    } else {
-      console.error('Failed to save workout to database');
+    // Get exercises from cache or API with our improved utility
+    let exercises: Exercise[] = [];
+    
+    try {
+      // Try to preload exercises first (this is a no-op if already loaded)
+      await preloadExercises();
+      
+      // Get exercises with fallback mechanism
+      exercises = await getExercisesWithFallback();
+      console.log(`Using ${exercises.length} exercises for workout generation`);
+      
+      // If no exercises available, something is wrong
+      if (exercises.length === 0) {
+        throw new Error('No exercises available');
+      }
+    } catch (error) {
+      console.error('Error getting exercises:', error);
+      throw new Error('Failed to get exercises. Please try again later.');
     }
-
+    
+    // Generate workout plan
+    const workoutPlan = generateWorkoutPlan(userProfile, exercises);
+    
+    // Save workout plan to database
+    const workoutId = await saveGeneratedWorkout(userId, workoutPlan);
     return workoutId;
   } catch (error) {
-    console.error('Error in generateAndSaveWorkout:', error);
-    throw error; // Re-throw to let the calling function handle the user-facing message
+    console.error('Error generating and saving workout:', error);
+    return null;
   }
 } 

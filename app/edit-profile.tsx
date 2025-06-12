@@ -45,21 +45,41 @@ export default function EditProfileScreen() {
         return;
       }
 
-      const { data, error } = await supabase
+      // First get basic profile data from users table
+      const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('username, full_name, age, bio, avatar_url')
+        .select('username, full_name, bio, avatar_url')
         .eq('id', user.id)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-      } else if (data) {
-        // Populate the form with existing data
-        setUsername(data.username || '');
-        setName(data.full_name || user?.user_metadata?.full_name || '');
-        setAge(data.age ? data.age.toString() : '');
-        setBio(data.bio || '');
-        setAvatarUrl(data.avatar_url);
+      if (userError) {
+        console.error('Error fetching profile:', userError);
+        throw userError;
+      }
+
+      // Then get extended profile data from users_data table
+      const { data: userDataExtended, error: userDataError } = await supabase
+        .from('users_data')
+        .select('age')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userDataError && userDataError.code !== 'PGRST116') { // Ignore "not found" errors
+        console.error('Error fetching user data:', userDataError);
+        // Continue with partial data
+      }
+
+      // Populate the form with existing data
+      if (userData) {
+        setUsername(userData.username || '');
+        setName(userData.full_name || user?.user_metadata?.full_name || '');
+        setBio(userData.bio || '');
+        setAvatarUrl(userData.avatar_url);
+      }
+
+      // Add age from extended data if available
+      if (userDataExtended) {
+        setAge(userDataExtended.age ? userDataExtended.age.toString() : '');
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -137,7 +157,7 @@ export default function EditProfileScreen() {
       if (publicUrlData?.publicUrl) {
         setAvatarUrl(publicUrlData.publicUrl);
         
-        // Update profile immediately with new avatar URL
+        // Update users table with new avatar URL (this is still correct since avatar_url is in users table)
         const { error: updateError } = await supabase
           .from('users')
           .update({ avatar_url: publicUrlData.publicUrl })
@@ -179,13 +199,12 @@ export default function EditProfileScreen() {
 
       if (authError) throw authError;
 
-      // Update profile in custom users table
+      // Update basic profile in users table
       const { error: profileError } = await supabase
         .from('users')
         .update({
           username: username.trim(),
           full_name: name.trim(),
-          age: age ? parseInt(age) : null,
           bio: bio.trim(),
           avatar_url: avatarUrl,
           updated_at: new Date()
@@ -193,6 +212,41 @@ export default function EditProfileScreen() {
         .eq('id', user.id);
 
       if (profileError) throw profileError;
+
+      // Update extended profile in users_data table
+      // First check if record exists
+      const { data: existingData, error: checkError } = await supabase
+        .from('users_data')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // Not a "not found" error
+        throw checkError;
+      }
+
+      // Update or insert age in users_data table
+      if (existingData) {
+        // Update existing record
+        const { error: updateDataError } = await supabase
+          .from('users_data')
+          .update({
+            age: age ? parseInt(age) : null,
+          })
+          .eq('user_id', user.id);
+
+        if (updateDataError) throw updateDataError;
+      } else {
+        // Insert new record
+        const { error: insertDataError } = await supabase
+          .from('users_data')
+          .insert({
+            user_id: user.id,
+            age: age ? parseInt(age) : null,
+          });
+
+        if (insertDataError) throw insertDataError;
+      }
 
       Alert.alert('Success', 'Profile updated successfully');
       // Use direct navigation instead of router.back()
