@@ -46,14 +46,18 @@ export const fetchActiveStories = async (currentUserId: string | null): Promise<
     const followingIds = followingData?.map(f => f.followed_id) || [];
     const userIdsToShow = [...followingIds, currentUserId]; // Include current user's stories
 
+    // Current time to check for expired stories
+    const currentTime = new Date().toISOString();
+
     // If user doesn't follow anyone, only show their own stories
     if (userIdsToShow.length === 1 && userIdsToShow[0] === currentUserId) {
-      // Check if current user has any stories
+      // Check if current user has any active, non-expired stories
       const { count: userStoryCount } = await supabase
         .from('user_stories')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', currentUserId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .gt('expires_at', currentTime); // Only stories that haven't expired
 
       if (!userStoryCount || userStoryCount === 0) {
         return [];
@@ -61,11 +65,13 @@ export const fetchActiveStories = async (currentUserId: string | null): Promise<
     }
 
     // Fetch stories only from followed users and current user
+    // Only fetch active stories that haven't expired
     const { data: stories, error } = await supabase
       .from('user_stories')
       .select('*')
       .in('user_id', userIdsToShow)
       .eq('is_active', true)
+      .gt('expires_at', currentTime) // Only stories that haven't expired
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -107,6 +113,14 @@ export const fetchActiveStories = async (currentUserId: string | null): Promise<
     const userStoriesMap: Record<string, UserWithStories> = {};
 
     stories.forEach((story: any) => {
+      // Check if story has expired (just an additional check)
+      const expiresAt = new Date(story.expires_at);
+      const now = new Date();
+      if (expiresAt < now) {
+        // Skip expired stories (this is a safety check in case the database query didn't filter properly)
+        return;
+      }
+
       const userId = story.user_id;
       
       // Get username from the map or use a default

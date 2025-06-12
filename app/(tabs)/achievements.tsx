@@ -10,7 +10,8 @@ import {
   Dimensions,
   ActivityIndicator,
   Image,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { Ionicons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -199,17 +200,6 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
     color: "#FF5722",
     category: "Progress"
   },
-  {
-    id: 18,
-    title: "Workout Historian",
-    description: "Review your workout history 25 times.",
-    icon: "library-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#607D8B",
-    category: "Progress"
-  },
-
   // 🔥 Consistency
   {
     id: 19,
@@ -292,16 +282,6 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
     category: "Consistency"
   },
   {
-    id: 27,
-    title: "Routine Ritualist",
-    description: "Maintain the same workout schedule for a month.",
-    icon: "repeat-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#00BCD4",
-    category: "Consistency"
-  },
-  {
     id: 28,
     title: "Consistency Champion",
     description: "Complete 200 total workouts.",
@@ -351,16 +331,6 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#2196F3",
-    category: "Goals & Milestones"
-  },
-  {
-    id: 33,
-    title: "Weight Wizard",
-    description: "Successfully track and manage your weight for 3 months.",
-    icon: "fitness-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#9C27B0",
     category: "Goals & Milestones"
   },
   {
@@ -535,16 +505,6 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "fontawesome",
     progress: 0,
     color: "#00BCD4",
-    category: "Special Trophies"
-  },
-  {
-    id: 52,
-    title: "Transformation Triumph",
-    description: "Document an extraordinary physical transformation.",
-    icon: "refresh",
-    iconType: "fontawesome",
-    progress: 0,
-    color: "#4CAF50",
     category: "Special Trophies"
   },
   {
@@ -877,8 +837,18 @@ const AchievementsPage = () => {
       if (newUnlocks.length > 0) {
         userAchievementsData = await getUserAchievements(userId);
         
-        // Show notification for new unlocks (you can enhance this)
-        console.log('New achievements unlocked:', newUnlocks);
+        // Show notification for new unlocks
+        if (Platform.OS === 'web') {
+          // For web, use alert
+          alert(`🏆 Parabéns! Você desbloqueou ${newUnlocks.length} ${newUnlocks.length === 1 ? 'conquista' : 'conquistas'} nova${newUnlocks.length === 1 ? '' : 's'}!`);
+        } else {
+          // For mobile, use Alert API
+          Alert.alert(
+            '🏆 Nova conquista desbloqueada!',
+            `Parabéns! Você desbloqueou ${newUnlocks.length} ${newUnlocks.length === 1 ? 'conquista' : 'conquistas'} nova${newUnlocks.length === 1 ? '' : 's'}!`,
+            [{ text: 'Ver', style: 'default' }]
+          );
+        }
       }
 
       setUserAchievements(userAchievementsData);
