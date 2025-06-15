@@ -724,12 +724,12 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
           {isCompleted ? (
             <View style={styles.completedBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-              <Text style={styles.completedText}>Concluído</Text>
+              <Text style={styles.completedText}>Completed</Text>
                 </View>
           ) : (
             <View style={styles.inProgressBadge}>
               <Ionicons name="time-outline" size={16} color="#FF9800" />
-              <Text style={styles.inProgressText}>Em progresso</Text>
+              <Text style={styles.inProgressText}>In Progress</Text>
             </View>
           )}
           
@@ -781,8 +781,8 @@ const CategoryFilter = ({
   return (
     <View style={styles.categoryFilterContainer}>
       <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
         style={styles.categoryScroll}
         contentContainerStyle={styles.categoryScrollContent}
         data={categories}
@@ -815,11 +815,6 @@ const CategoryFilter = ({
           </TouchableOpacity>
         )}
       />
-      
-      {/* Indicator can be removed or optimized */}
-      {selectedCategory === 'All' && (
-        <View style={styles.selectionIndicator} />
-      )}
     </View>
   );
 };
@@ -837,45 +832,45 @@ const StatusFilter = ({
       <TouchableOpacity 
         style={[
           styles.statusTab,
-          currentFilter === 'Todas' && styles.activeStatusTab
+          currentFilter === 'All' && styles.activeStatusTab
         ]}
-        onPress={() => onFilterChange('Todas')}
+        onPress={() => onFilterChange('All')}
       >
         <Text style={[
           styles.statusTabText,
-          currentFilter === 'Todas' && styles.activeStatusTabText
+          currentFilter === 'All' && styles.activeStatusTabText
         ]}>
-          Todas
+          All
         </Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={[
           styles.statusTab,
-          currentFilter === 'Concluídas' && styles.activeStatusTab
+          currentFilter === 'Completed' && styles.activeStatusTab
         ]}
-        onPress={() => onFilterChange('Concluídas')}
+        onPress={() => onFilterChange('Completed')}
       >
         <Text style={[
           styles.statusTabText,
-          currentFilter === 'Concluídas' && styles.activeStatusTabText
+          currentFilter === 'Completed' && styles.activeStatusTabText
         ]}>
-          Concluídas
+          Completed
         </Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={[
           styles.statusTab,
-          currentFilter === 'Em Progresso' && styles.activeStatusTab
+          currentFilter === 'In Progress' && styles.activeStatusTab
         ]}
-        onPress={() => onFilterChange('Em Progresso')}
+        onPress={() => onFilterChange('In Progress')}
       >
         <Text style={[
           styles.statusTabText,
-          currentFilter === 'Em Progresso' && styles.activeStatusTabText
+          currentFilter === 'In Progress' && styles.activeStatusTabText
         ]}>
-          Em Progresso
+          In Progress
         </Text>
       </TouchableOpacity>
         </View>
@@ -888,18 +883,20 @@ const AchievementsPage = () => {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('Todas');
-  const [filter, setFilter] = useState('Todas');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [filter, setFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [loadedAllItems, setLoadedAllItems] = useState(false);
   
   // For trophies section
   const trophies = useMemo(() => [
     { id: 1, title: 'Bronze', color: '#CD7F32', unlocked: achievements.filter(a => a.progress === 100).length >= 5 },
-    { id: 2, title: 'Prata', color: '#C0C0C0', unlocked: achievements.filter(a => a.progress === 100).length >= 10 },
-    { id: 3, title: 'Ouro', color: '#FFD700', unlocked: achievements.filter(a => a.progress === 100).length >= 15 },
-    { id: 4, title: 'Platina', color: '#E5E4E2', unlocked: achievements.filter(a => a.progress === 100).length >= 20 },
-    { id: 5, title: 'Diamante', color: '#B9F2FF', unlocked: achievements.filter(a => a.progress === 100).length >= 25 },
+    { id: 2, title: 'Silver', color: '#C0C0C0', unlocked: achievements.filter(a => a.progress === 100).length >= 10 },
+    { id: 3, title: 'Gold', color: '#FFD700', unlocked: achievements.filter(a => a.progress === 100).length >= 15 },
+    { id: 4, title: 'Platinum', color: '#E5E4E2', unlocked: achievements.filter(a => a.progress === 100).length >= 20 },
+    { id: 5, title: 'Diamond', color: '#B9F2FF', unlocked: achievements.filter(a => a.progress === 100).length >= 25 },
   ], [achievements]);
   
   // Format value with K suffix if over 1000
@@ -945,7 +942,7 @@ const AchievementsPage = () => {
     try {
       // Don't show loading if we already have cached data
       if (achievements.length === 0) {
-        setLoading(true);
+      setLoading(true);
       }
       
       // Get current user
@@ -963,7 +960,7 @@ const AchievementsPage = () => {
       // If no achievements exist, initialize them
       if (userAchievementsData.length === 0) {
         await initializeUserAchievements(userId);
-        
+
         userAchievementsData = await getUserAchievements(userId);
       }
 
@@ -976,7 +973,7 @@ const AchievementsPage = () => {
         return {
           ...staticAchievement,
           progress: userProgress?.progress || 0,
-          date: userProgress?.unlocked_at ? new Date(userProgress.unlocked_at).toLocaleDateString('pt-PT') : undefined
+          date: userProgress?.unlocked_at ? new Date(userProgress.unlocked_at).toLocaleDateString('en-US') : undefined
         };
       });
 
@@ -994,12 +991,12 @@ const AchievementsPage = () => {
           if (newUnlocks.length > 0) {
             // Show notification for new unlocks
             if (Platform.OS === 'web') {
-              alert(`🏆 Parabéns! Você desbloqueou ${newUnlocks.length} ${newUnlocks.length === 1 ? 'conquista' : 'conquistas'} nova${newUnlocks.length === 1 ? '' : 's'}!`);
+              alert(`🏆 Congratulations! You unlocked ${newUnlocks.length} new achievement${newUnlocks.length === 1 ? '' : 's'}!`);
             } else {
               Alert.alert(
-                '🏆 Nova conquista desbloqueada!',
-                `Parabéns! Você desbloqueou ${newUnlocks.length} ${newUnlocks.length === 1 ? 'conquista' : 'conquistas'} nova${newUnlocks.length === 1 ? '' : 's'}!`,
-                [{ text: 'Ver', style: 'default' }]
+                '🏆 New Achievement Unlocked!',
+                `Congratulations! You unlocked ${newUnlocks.length} new achievement${newUnlocks.length === 1 ? '' : 's'}!`,
+                [{ text: 'View', style: 'default' }]
               );
             }
             
@@ -1025,7 +1022,7 @@ const AchievementsPage = () => {
   
   // Initialize categories from static data
   useEffect(() => {
-    const uniqueCategories = ['Todas', ...new Set(ACHIEVEMENTS_DATA.map(item => item.category))];
+    const uniqueCategories = ['All', ...new Set(ACHIEVEMENTS_DATA.map(item => item.category))];
     setCategories(uniqueCategories);
   }, []);
   
@@ -1034,21 +1031,42 @@ const AchievementsPage = () => {
     let filtered = achievements;
     
     // Apply category filter
-    if (selectedCategory !== 'Todas') {
+    if (selectedCategory !== 'All') {
       filtered = filtered.filter(achievement => achievement.category === selectedCategory);
     }
     
     // Apply progress filter
-    if (filter === 'Concluídas') {
+    if (filter === 'Completed') {
       filtered = filtered.filter(achievement => achievement.progress === 100);
-    } else if (filter === 'Em Progresso') {
+    } else if (filter === 'In Progress') {
       filtered = filtered.filter(achievement => achievement.progress < 100);
     }
     
+    // Return the complete filtered list (no pagination)
     return filtered;
-  }, [achievements, selectedCategory, filter]);
+  }, [achievements, selectedCategory, filter, itemsPerPage]);
 
-  // Calcular conquistas concluídas e em progresso
+  // Get the paginated achievements for display
+  const paginatedAchievements = useMemo(() => {
+    return filteredAchievements.slice(0, itemsPerPage);
+  }, [filteredAchievements, itemsPerPage]);
+  
+  // Update loadedAllItems state when filteredAchievements or itemsPerPage changes
+  useEffect(() => {
+    setLoadedAllItems(filteredAchievements.length <= itemsPerPage);
+  }, [filteredAchievements, itemsPerPage]);
+
+  // Load more items when button is clicked
+  const handleLoadMore = useCallback(() => {
+    setItemsPerPage(prev => prev + 10);
+  }, []);
+  
+  // Reset pagination when filters change
+  useEffect(() => {
+    setItemsPerPage(10);
+    setLoadedAllItems(false);
+  }, [selectedCategory, filter]);
+
   const completedAchievements = useMemo(() => 
     achievements.filter(achievement => achievement.progress === 100),
   [achievements]);
@@ -1089,9 +1107,9 @@ const AchievementsPage = () => {
     ));
   };
     
-  return (
+    return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="light-content" />
+            <StatusBar barStyle="light-content" />
       
       {/* Header */}
       <Animated.View 
@@ -1104,29 +1122,17 @@ const AchievementsPage = () => {
           style={styles.headerGradient}
         >
           <View style={styles.headerTop}>
-            <Text style={styles.headerTitle}>Conquistas</Text>
-            <TouchableOpacity 
-              onPress={refreshAchievements}
-              style={styles.refreshButton}
-              disabled={refreshing}
-            >
-              <Ionicons 
-                name="refresh" 
-                size={24} 
-                color="#fff" 
-                style={refreshing ? { opacity: 0.5 } : {}}
-              />
-            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Achievements</Text>
           </View>
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{formatValue(completedAchievements.length)}</Text>
-              <Text style={styles.statLabel}>Concluídas</Text>
+              <Text style={styles.statLabel}>Completed</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{formatValue(inProgressAchievements.length)}</Text>
-              <Text style={styles.statLabel}>Em Progresso</Text>
+              <Text style={styles.statLabel}>In Progress</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
@@ -1152,7 +1158,7 @@ const AchievementsPage = () => {
       
       {/* Main Content - FlatList instead of ScrollView */}
       <FlatList
-        data={loading ? [] : filteredAchievements}
+        data={loading ? [] : paginatedAchievements}
         keyExtractor={(item) => `achievement-${item.id}`}
         renderItem={renderAchievementItem}
         contentContainerStyle={styles.contentContainer}
@@ -1160,46 +1166,61 @@ const AchievementsPage = () => {
         showsVerticalScrollIndicator={false}
         refreshing={refreshing}
         onRefresh={refreshAchievements}
-        ListHeaderComponent={() => (
-          <>
-          </>
-        )}
         ListEmptyComponent={() => (
-          <View style={styles.sectionContainer}>
-            {loading ? (
-              <View style={styles.achievementsList}>
+        <View style={styles.sectionContainer}>
+          {loading ? (
+            <View style={styles.achievementsList}>
                 {renderSkeletons()}
-              </View>
-            ) : (
-              <View style={styles.emptyStateContainer}>
-                <Ionicons name="trophy-outline" size={64} color="rgba(255,255,255,0.3)" />
-                <Text style={styles.emptyStateText}>
-                  Nenhuma conquista encontrada
-                </Text>
-                <Text style={styles.emptyStateSubtext}>
-                  Tente alterar os filtros ou complete mais desafios
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-        ListFooterComponent={() => (
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Coleção de Troféus</Text>
-              <Text style={styles.sectionSubtitle}>
-                Complete mais conquistas para desbloquear troféus
+            </View>
+          ) : (
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="trophy-outline" size={64} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.emptyStateText}>
+                  No achievements found
+              </Text>
+              <Text style={styles.emptyStateSubtext}>
+                  Try changing filters or complete more challenges
               </Text>
             </View>
-            
-            <FlatList
-              data={trophies}
-              keyExtractor={(item) => `trophy-${item.id}`}
-              renderItem={renderTrophyItem}
-              numColumns={2}
-              columnWrapperStyle={styles.trophiesContainer}
-            />
-          </View>
+          )}
+        </View>
+        )}
+        ListFooterComponent={() => (
+          <>
+            {!loading && filteredAchievements.length > paginatedAchievements.length && (
+              <TouchableOpacity 
+                style={styles.loadMoreButton}
+                onPress={handleLoadMore}
+                activeOpacity={0.7}
+              >
+                <LinearGradient
+                  colors={['#4a90e2', '#3570b2']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.loadMoreGradient}
+                >
+                  <Text style={styles.loadMoreText}>Load More</Text>
+                  <Ionicons name="chevron-down" size={16} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Trophy Collection</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Complete more achievements to unlock trophies
+                </Text>
+              </View>
+              
+              <FlatList
+                data={trophies}
+                keyExtractor={(item) => `trophy-${item.id}`}
+                renderItem={renderTrophyItem}
+                numColumns={2}
+                columnWrapperStyle={styles.trophiesContainer}
+              />
+            </View>
+          </>
         )}
       />
     </SafeAreaView>
@@ -1302,13 +1323,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   selectionIndicator: {
-    position: 'absolute',
-    bottom: -6,
-    left: 28, // Posição aproximada para "Todas"
-    width: 40,
-    height: 3,
-    backgroundColor: '#FF9800',
-    borderRadius: 2,
   },
   activeCategoryChip: {
     boxShadow: '0px 2px 3px rgba(74, 144, 226, 0.3)',
@@ -1541,6 +1555,31 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  loadMoreButton: {
+    marginVertical: 20,
+    alignSelf: 'center',
+    borderRadius: 25,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  loadMoreGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  loadMoreText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 8,
   },
 });
 
