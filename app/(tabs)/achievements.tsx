@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
@@ -28,6 +28,7 @@ import Animated, {
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/utils/supabase';
 import { BlurView } from 'expo-blur';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   getUserAchievements, 
   updateAllAchievements, 
@@ -37,6 +38,9 @@ import {
 } from '@/utils/achievementService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+const CACHE_KEY = 'user_achievements_cache';
+const CACHE_EXPIRY = 1000 * 60 * 30; // 30 minutes
 
 type IconType = 'fontawesome' | 'ionicons' | 'material';
 
@@ -188,7 +192,7 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#E91E63",
-    category: "Progress"
+    category: "Social"
   },
   {
     id: 17,
@@ -529,7 +533,112 @@ const ACHIEVEMENTS_DATA: Achievement[] = [
   }
 ];
 
-// Componente de item de conquista modernizado
+// Skeleton loading component for achievements
+const AchievementSkeleton = () => {
+  const styles = StyleSheet.create({
+    achievementCard: {
+      borderRadius: 16,
+      overflow: 'hidden',
+      boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.2)',
+      elevation: 8,
+    },
+    cardGradient: {
+      borderRadius: 16,
+      padding: 15,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    iconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    titleContainer: {
+      flex: 1,
+    },
+    categoryBadge: {
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      alignSelf: 'flex-start',
+    },
+    progressContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    progressBackground: {
+      flex: 1,
+      height: 8,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      borderRadius: 4,
+      overflow: 'hidden',
+      marginRight: 10,
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: 4,
+    },
+    cardFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    inProgressBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 152, 0, 0.2)',
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    }
+  });
+
+  return (
+    <Animated.View 
+      entering={FadeIn.duration(400)}
+      style={styles.achievementCard}
+    >
+      <View style={[styles.cardGradient, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
+          
+          <View style={styles.titleContainer}>
+            <View style={{ width: '70%', height: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4 }} />
+            <View style={[styles.categoryBadge, { width: '40%', marginTop: 8, backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+              <View style={{ width: '100%', height: 12, backgroundColor: 'transparent' }} />
+            </View>
+          </View>
+        </View>
+        
+        <View style={{ width: '90%', height: 12, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, marginVertical: 10 }} />
+        <View style={{ width: '60%', height: 12, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, marginBottom: 15 }} />
+        
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBackground}>
+            <View style={[styles.progressFill, { width: '30%', backgroundColor: 'rgba(255,255,255,0.2)' }]} />
+          </View>
+          <View style={{ width: 30, height: 12, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4 }} />
+        </View>
+        
+        <View style={styles.cardFooter}>
+          <View style={[styles.inProgressBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+            <View style={{ width: 70, height: 12, backgroundColor: 'transparent' }} />
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
+// Component for achievement item remains mostly the same
 const AchievementItem: React.FC<AchievementItemProps> = ({ 
   title, 
   description, 
@@ -659,7 +768,7 @@ const TrophyCard = ({ color, title, unlocked }: { color: string, title: string, 
   );
 };
 
-// Componente para os filtros de categoria
+// CategoryFilter now with horizontal FlatList
 const CategoryFilter = ({ 
   categories, 
   selectedCategory, 
@@ -671,23 +780,23 @@ const CategoryFilter = ({
 }) => {
   return (
     <View style={styles.categoryFilterContainer}>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false} 
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
         style={styles.categoryScroll}
         contentContainerStyle={styles.categoryScrollContent}
-      >
-        {categories.map((category, index) => (
+        data={categories}
+        keyExtractor={(item) => item}
+        renderItem={({ item }) => (
           <TouchableOpacity 
-            key={category} 
             style={[
               styles.categoryChip,
-              selectedCategory === category && styles.activeCategoryChip,
+              selectedCategory === item && styles.activeCategoryChip,
             ]}
-            onPress={() => onSelect(category)}
+            onPress={() => onSelect(item)}
           >
             <LinearGradient
-              colors={selectedCategory === category 
+              colors={selectedCategory === item 
                 ? ['#4a90e2', '#3570b2'] 
                 : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
               start={{ x: 0, y: 0 }}
@@ -697,17 +806,17 @@ const CategoryFilter = ({
               <Text 
                 style={[
                   styles.categoryChipText,
-                  selectedCategory === category && styles.activeCategoryChipText
+                  selectedCategory === item && styles.activeCategoryChipText
                 ]}
               >
-                {category}
+                {item}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        )}
+      />
       
-      {/* Indicador de seleção separado, em vez de estender a borda */}
+      {/* Indicator can be removed or optimized */}
       {selectedCategory === 'All' && (
         <View style={styles.selectionIndicator} />
       )}
@@ -773,7 +882,7 @@ const StatusFilter = ({
     );
 };
 
-// Memoized AchievementsPage component to improve performance
+// Main component with optimizations
 const AchievementsPage = () => {
   const { colors } = useTheme();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -797,20 +906,47 @@ const AchievementsPage = () => {
   const formatValue = (val: number): string => {
     if (val >= 1000) {
       if (val < 10000) {
-        // Format with one decimal place (like 1.2K)
         return (val / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
       } else {
-        // Format without decimal places (like 10K)
         return Math.floor(val / 1000) + 'K';
       }
     }
     return val.toString();
   };
 
-  // Fetch user achievements from database
+  // Load data from cache first, then update from server
+  useEffect(() => {
+    const loadCachedData = async () => {
+      try {
+        const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          const { achievements: cachedAchievements, timestamp } = JSON.parse(cachedData);
+          const now = Date.now();
+          
+          // Use cached data if not expired
+          if (now - timestamp < CACHE_EXPIRY && cachedAchievements.length > 0) {
+            setAchievements(cachedAchievements);
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading cached achievements:', error);
+      }
+      
+      // Fetch fresh data in background
+      fetchUserAchievements();
+    };
+    
+    loadCachedData();
+  }, []);
+
+  // Optimized fetch function
   const fetchUserAchievements = useCallback(async () => {
     try {
-      setLoading(true);
+      // Don't show loading if we already have cached data
+      if (achievements.length === 0) {
+        setLoading(true);
+      }
       
       // Get current user
       const { data: userData } = await supabase.auth.getUser();
@@ -821,39 +957,17 @@ const AchievementsPage = () => {
 
       const userId = userData.user.id;
 
-      // Try to get existing achievements
+      // Get user achievements using the service function
       let userAchievementsData = await getUserAchievements(userId);
       
       // If no achievements exist, initialize them
       if (userAchievementsData.length === 0) {
         await initializeUserAchievements(userId);
-        userAchievementsData = await getUserAchievements(userId);
-      }
-
-      // Update all achievements based on current user progress
-      const newUnlocks = await updateAllAchievements(userId);
-      
-      // If there were new unlocks, fetch updated data
-      if (newUnlocks.length > 0) {
-        userAchievementsData = await getUserAchievements(userId);
         
-        // Show notification for new unlocks
-        if (Platform.OS === 'web') {
-          // For web, use alert
-          alert(`🏆 Parabéns! Você desbloqueou ${newUnlocks.length} ${newUnlocks.length === 1 ? 'conquista' : 'conquistas'} nova${newUnlocks.length === 1 ? '' : 's'}!`);
-        } else {
-          // For mobile, use Alert API
-          Alert.alert(
-            '🏆 Nova conquista desbloqueada!',
-            `Parabéns! Você desbloqueou ${newUnlocks.length} ${newUnlocks.length === 1 ? 'conquista' : 'conquistas'} nova${newUnlocks.length === 1 ? '' : 's'}!`,
-            [{ text: 'Ver', style: 'default' }]
-          );
-        }
+        userAchievementsData = await getUserAchievements(userId);
       }
 
-      setUserAchievements(userAchievementsData);
-
-      // Merge static achievement data with user progress
+      // Process achievements data
       const mergedAchievements = ACHIEVEMENTS_DATA.map(staticAchievement => {
         const userProgress = userAchievementsData.find(
           ua => ua.achievement_id === staticAchievement.id
@@ -868,17 +982,44 @@ const AchievementsPage = () => {
 
       setAchievements(mergedAchievements);
       
+      // Cache the data
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
+        achievements: mergedAchievements,
+        timestamp: Date.now()
+      }));
+      
+      // Update achievements in background without blocking UI
+      setTimeout(() => {
+        updateAllAchievements(userId).then(newUnlocks => {
+          if (newUnlocks.length > 0) {
+            // Show notification for new unlocks
+            if (Platform.OS === 'web') {
+              alert(`🏆 Parabéns! Você desbloqueou ${newUnlocks.length} ${newUnlocks.length === 1 ? 'conquista' : 'conquistas'} nova${newUnlocks.length === 1 ? '' : 's'}!`);
+            } else {
+              Alert.alert(
+                '🏆 Nova conquista desbloqueada!',
+                `Parabéns! Você desbloqueou ${newUnlocks.length} ${newUnlocks.length === 1 ? 'conquista' : 'conquistas'} nova${newUnlocks.length === 1 ? '' : 's'}!`,
+                [{ text: 'Ver', style: 'default' }]
+              );
+            }
+            
+            // Refresh data after unlocking new achievements
+            fetchUserAchievements();
+          }
+        });
+      }, 100);
     } catch (error) {
       console.error('Error fetching achievements:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [achievements.length]);
 
   // Refresh achievements
   const refreshAchievements = useCallback(async () => {
     setRefreshing(true);
+    await AsyncStorage.removeItem(CACHE_KEY); // Clear cache on manual refresh
     await fetchUserAchievements();
   }, [fetchUserAchievements]);
   
@@ -887,11 +1028,6 @@ const AchievementsPage = () => {
     const uniqueCategories = ['Todas', ...new Set(ACHIEVEMENTS_DATA.map(item => item.category))];
     setCategories(uniqueCategories);
   }, []);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchUserAchievements();
-  }, [fetchUserAchievements]);
   
   // Filter achievements based on selected category and status
   const filteredAchievements = useMemo(() => {
@@ -913,12 +1049,49 @@ const AchievementsPage = () => {
   }, [achievements, selectedCategory, filter]);
 
   // Calcular conquistas concluídas e em progresso
-  const completedAchievements = achievements.filter(achievement => achievement.progress === 100);
-  const inProgressAchievements = achievements.filter(achievement => achievement.progress < 100);
+  const completedAchievements = useMemo(() => 
+    achievements.filter(achievement => achievement.progress === 100),
+  [achievements]);
+  
+  const inProgressAchievements = useMemo(() => 
+    achievements.filter(achievement => achievement.progress < 100),
+  [achievements]);
+
+  // Render item for FlatList
+  const renderAchievementItem = useCallback(({ item }: { item: Achievement }) => (
+    <AchievementItem 
+      title={item.title} 
+      description={item.description} 
+      date={item.date || ''} 
+      icon={item.icon}
+      iconType={item.iconType} 
+      progress={item.progress}
+      color={item.color}
+      category={item.category} 
+    />
+  ), []);
+
+  // Render trophy item
+  const renderTrophyItem = useCallback(({ item }: { item: any }) => (
+    <TrophyCard 
+      color={item.color}
+      title={item.title}
+      unlocked={item.unlocked}
+    />
+  ), []);
+
+  // Render loading skeletons
+  const renderSkeletons = () => {
+    return Array(6).fill(0).map((_, index) => (
+      <View key={`skeleton-${index}`} style={{ marginBottom: 15 }}>
+        <AchievementSkeleton />
+      </View>
+    ));
+  };
     
-    return (
+  return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" />
       
       {/* Header */}
       <Animated.View 
@@ -977,77 +1150,58 @@ const AchievementsPage = () => {
         onSelect={setSelectedCategory}
       />
       
-      {/* Main Content */}
-      <ScrollView 
-        style={styles.scrollView}
+      {/* Main Content - FlatList instead of ScrollView */}
+      <FlatList
+        data={loading ? [] : filteredAchievements}
+        keyExtractor={(item) => `achievement-${item.id}`}
+        renderItem={renderAchievementItem}
         contentContainerStyle={styles.contentContainer}
+        ItemSeparatorComponent={() => <View style={{ height: 15 }} />}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Achievements Section */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {selectedCategory === 'Todas' 
-                ? 'Todas as Conquistas' 
-                : `Conquistas: ${selectedCategory}`}
-            </Text>
+        refreshing={refreshing}
+        onRefresh={refreshAchievements}
+        ListHeaderComponent={() => (
+          <>
+          </>
+        )}
+        ListEmptyComponent={() => (
+          <View style={styles.sectionContainer}>
+            {loading ? (
+              <View style={styles.achievementsList}>
+                {renderSkeletons()}
+              </View>
+            ) : (
+              <View style={styles.emptyStateContainer}>
+                <Ionicons name="trophy-outline" size={64} color="rgba(255,255,255,0.3)" />
+                <Text style={styles.emptyStateText}>
+                  Nenhuma conquista encontrada
+                </Text>
+                <Text style={styles.emptyStateSubtext}>
+                  Tente alterar os filtros ou complete mais desafios
+                </Text>
+              </View>
+            )}
           </View>
-                
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4a90e2" />
-              <Text style={styles.loadingText}>Carregando conquistas...</Text>
-            </View>
-          ) : filteredAchievements.length > 0 ? (
-            <View style={styles.achievementsList}>
-              {filteredAchievements.map((achievement) => (
-                <AchievementItem 
-                  key={achievement.id} 
-                  title={achievement.title} 
-                  description={achievement.description} 
-                  date={achievement.date || ''} 
-                  icon={achievement.icon}
-                  iconType={achievement.iconType} 
-                  progress={achievement.progress}
-                  color={achievement.color}
-                  category={achievement.category} 
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyStateContainer}>
-              <Ionicons name="trophy-outline" size={64} color="rgba(255,255,255,0.3)" />
-              <Text style={styles.emptyStateText}>
-                Nenhuma conquista encontrada
-              </Text>
-              <Text style={styles.emptyStateSubtext}>
-                Tente alterar os filtros ou complete mais desafios
+        )}
+        ListFooterComponent={() => (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Coleção de Troféus</Text>
+              <Text style={styles.sectionSubtitle}>
+                Complete mais conquistas para desbloquear troféus
               </Text>
             </View>
-          )}
-        </View>
-                
-        {/* Trophies Section */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Coleção de Troféus</Text>
-            <Text style={styles.sectionSubtitle}>
-              Complete mais conquistas para desbloquear troféus
-            </Text>
+            
+            <FlatList
+              data={trophies}
+              keyExtractor={(item) => `trophy-${item.id}`}
+              renderItem={renderTrophyItem}
+              numColumns={2}
+              columnWrapperStyle={styles.trophiesContainer}
+            />
           </View>
-          
-          <View style={styles.trophiesContainer}>
-            {trophies.map((trophy) => (
-              <TrophyCard 
-                key={trophy.id}
-                color={trophy.color}
-                title={trophy.title}
-                unlocked={trophy.unlocked}
-              />
-            ))}
-          </View>
-        </View>
-      </ScrollView>
+        )}
+      />
     </SafeAreaView>
   );
 };
@@ -1179,7 +1333,8 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 40,
+    paddingTop: 10,
   },
   sectionContainer: {
     marginTop: 20,
@@ -1340,10 +1495,8 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   trophiesContainer: {
-        flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 10,
+    paddingHorizontal: 10,
   },
   trophyCard: {
     width: (screenWidth - 50) / 2.5,
