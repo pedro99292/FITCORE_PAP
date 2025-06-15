@@ -2,14 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, ScrollView, SafeAreaView, StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/utils/supabase';
+import { ACHIEVEMENTS_DATA } from '../(tabs)/achievements';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const AVATAR_SIZE = screenWidth * 0.26; 
+
+// Define IconType to match the one in achievements.tsx
+type IconType = 'fontawesome' | 'ionicons' | 'material';
 
 // Add these type definitions before the component
 interface UserData {
@@ -18,6 +23,29 @@ interface UserData {
   bio: string;
   avatar: any; // Using any for the require() image type
   avatarUrl: string | null;
+}
+
+// Achievement interface
+interface RecentAchievement {
+  id: number;
+  title: string;
+  description: string;
+  icon: string;
+  iconType: IconType;
+  color: string;
+  unlocked_at: string;
+}
+
+// Interface for the achievement data in the achievements.tsx file
+interface AchievementData {
+  id: number;
+  title: string;
+  description: string;
+  icon: string;
+  iconType: IconType;
+  color: string;
+  category: string;
+  progress: number;
 }
 
 export default function ProfileScreen() {
@@ -32,12 +60,14 @@ export default function ProfileScreen() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [workoutDays, setWorkoutDays] = useState<number[]>([]);
+  const [recentAchievements, setRecentAchievements] = useState<RecentAchievement[]>([]);
 
   // Fetch user data from database when component mounts
   useEffect(() => {
     if (user) {
       fetchUserProfile();
       fetchWorkoutDays();
+      fetchRecentAchievements();
     } else {
       setIsLoading(false);
     }
@@ -135,6 +165,57 @@ export default function ProfileScreen() {
     }
   };
 
+  // Fetch recent achievements
+  const fetchRecentAchievements = async () => {
+    try {
+      if (!user) return;
+      
+      // Get most recent unlocked achievements
+      const { data: userAchievements, error: userAchievementsError } = await supabase
+        .from('user_achievements')
+        .select('*')
+        .eq('user_id', user.id)
+        .not('unlocked_at', 'is', null)
+        .order('unlocked_at', { ascending: false })
+        .limit(2);
+      
+      if (userAchievementsError) {
+        console.error('Error fetching recent achievements:', userAchievementsError);
+        return;
+      }
+
+      if (userAchievements && userAchievements.length > 0) {
+        // Map user achievements with achievement data from the imported ACHIEVEMENTS_DATA
+        const achievements = userAchievements.map(userAchievement => {
+          const achievementData = ACHIEVEMENTS_DATA.find(
+            a => a.id === userAchievement.achievement_id
+          );
+          
+          if (achievementData) {
+            return {
+              id: userAchievement.achievement_id,
+              title: achievementData.title,
+              description: achievementData.description,
+              icon: achievementData.icon,
+              iconType: achievementData.iconType,
+              color: achievementData.color,
+              unlocked_at: new Date(userAchievement.unlocked_at).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              })
+            } as RecentAchievement;
+          }
+          return null;
+        }).filter((item): item is RecentAchievement => item !== null);
+        
+        setRecentAchievements(achievements);
+      }
+    } catch (error) {
+      console.error('Error in fetchRecentAchievements:', error);
+    }
+  };
+
   // Generate an array of days for the calendar preview (showing current week)
   const generateCalendarDays = () => {
     const today = new Date();
@@ -164,6 +245,17 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push("/edit-profile");
+  };
+
+  // Render achievement icon
+  const renderAchievementIcon = (icon: string, iconType: string, color: string) => {
+    if (iconType === 'fontawesome') {
+      return <FontAwesome name={icon as any} size={22} color={color} />;
+    } else if (iconType === 'material') {
+      return <MaterialCommunityIcons name={icon as any} size={22} color={color} />;
+    } else {
+      return <Ionicons name={icon as any} size={22} color={color} />;
+    }
   };
 
   if (isLoading) {
@@ -319,31 +411,36 @@ export default function ProfileScreen() {
           {/* Achievements Section */}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Achievements</Text>
           <View style={[styles.achievementsSection, { backgroundColor: colors.surface }]}>
-            <View style={[styles.achievement, { borderBottomColor: 'rgba(200, 200, 200, 0.2)' }]}>
-              <View style={[styles.achievementIconContainer, { backgroundColor: 'rgba(247, 151, 30, 0.15)' }]}>
-                <FontAwesome name="trophy" size={22} color="#F7971E" />
+            {recentAchievements.length > 0 ? (
+              recentAchievements.map((achievement, index) => (
+                <View 
+                  key={`achievement-${achievement.id}`} 
+                  style={[
+                    styles.achievement, 
+                    index < recentAchievements.length - 1 && { 
+                      borderBottomColor: 'rgba(200, 200, 200, 0.2)',
+                      borderBottomWidth: 1
+                    }
+                  ]}
+                >
+                  <View style={[styles.achievementIconContainer, { backgroundColor: `${achievement.color}33` }]}>
+                    {renderAchievementIcon(achievement.icon, achievement.iconType, achievement.color)}
+                  </View>
+                  <View style={styles.achievementInfo}>
+                    <Text style={[styles.achievementTitle, { color: colors.text }]}>{achievement.title}</Text>
+                    <Text style={styles.achievementDate}>Completed on {achievement.unlocked_at}</Text>
+                  </View>
+                  <View style={styles.pointsContainer}>
+                    <Text style={styles.achievementPoints}>+250</Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyAchievements}>
+                <Ionicons name="trophy-outline" size={36} color="rgba(255,255,255,0.3)" />
+                <Text style={styles.emptyAchievementsText}>No achievements yet</Text>
               </View>
-              <View style={styles.achievementInfo}>
-                <Text style={[styles.achievementTitle, { color: colors.text }]}>10 Days in a Row</Text>
-                <Text style={styles.achievementDate}>Completed on Jan 15, 2024</Text>
-              </View>
-              <View style={styles.pointsContainer}>
-                <Text style={styles.achievementPoints}>+250</Text>
-              </View>
-            </View>
-            
-            <View style={styles.achievement}>
-              <View style={[styles.achievementIconContainer, { backgroundColor: 'rgba(255, 71, 87, 0.15)' }]}>
-                <FontAwesome name="fire" size={22} color="#FF4757" />
-              </View>
-              <View style={styles.achievementInfo}>
-                <Text style={[styles.achievementTitle, { color: colors.text }]}>5000 Calories Burned</Text>
-                <Text style={styles.achievementDate}>Completed on Jan 10, 2024</Text>
-              </View>
-              <View style={styles.pointsContainer}>
-                <Text style={styles.achievementPoints}>+500</Text>
-              </View>
-            </View>
+            )}
           </View>
           
           <View style={{ height: 20 }} />
@@ -579,8 +676,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(200, 200, 200, 0.1)',
   },
   achievementIconContainer: {
     width: 50,
@@ -614,5 +709,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#38EF7D',
+  },
+  emptyAchievements: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 30,
+  },
+  emptyAchievementsText: {
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 10,
+    fontSize: 14,
   },
 }); 

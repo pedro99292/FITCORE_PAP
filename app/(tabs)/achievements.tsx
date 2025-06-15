@@ -70,7 +70,7 @@ interface Achievement {
 }
 
 // Static achievements data
-const ACHIEVEMENTS_DATA: Achievement[] = [
+export const ACHIEVEMENTS_DATA: Achievement[] = [
   // 🏋️‍♂️ Workout Mastery
   {
     id: 1,
