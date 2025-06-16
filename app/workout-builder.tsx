@@ -74,6 +74,28 @@ export default function WorkoutBuilderScreen() {
   const [description, setDescription] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<WorkoutExercise[]>([]);
   
+  // Track expanded exercises
+  const [expandedExercises, setExpandedExercises] = useState<{[key: string]: boolean}>({});
+  
+  // Add state for cardio exercises
+  const [selectedCardioExercises, setSelectedCardioExercises] = useState<WorkoutExercise[]>([]);
+  const [expandedCardioExercises, setExpandedCardioExercises] = useState<{[key: string]: boolean}>({});
+  
+  // Toggle exercise expansion
+  const toggleExerciseExpansion = (exerciseId: string) => {
+    setExpandedExercises(prev => ({
+      ...prev,
+      [exerciseId]: !prev[exerciseId]
+    }));
+  };
+  
+  const toggleCardioExerciseExpansion = (exerciseId: string) => {
+    setExpandedCardioExercises(prev => ({
+      ...prev,
+      [exerciseId]: !prev[exerciseId]
+    }));
+  };
+  
   // Enhanced state for exercise library
   const [activeTarget, setActiveTarget] = useState('');
   const [activeEquipment, setActiveEquipment] = useState('');
@@ -88,6 +110,9 @@ export default function WorkoutBuilderScreen() {
   const [loadingMoreExercises, setLoadingMoreExercises] = useState(false);
   const [displayedExercises, setDisplayedExercises] = useState<Exercise[]>([]);
   const [displayLimit, setDisplayLimit] = useState(20);
+  
+  // Add state to track cardio selection mode
+  const [isCardioSelectionMode, setIsCardioSelectionMode] = useState(false);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -217,23 +242,31 @@ export default function WorkoutBuilderScreen() {
     }
   };
 
-  const toggleExerciseSelection = (exercise: Exercise) => {
-    const isSelected = selectedExercises.some(e => e.exerciseId === exercise.id);
+  const toggleExerciseSelection = (exercise: Exercise, isCardio: boolean = false) => {
+    // Automatically detect if it's a cardio exercise based on bodyPart
+    const exerciseIsCardio = isCardio || 
+      exercise.bodyPart.toLowerCase() === 'cardio' || 
+      exercise.target.toLowerCase().includes('cardiovascular');
+    
+    const selectedArray = exerciseIsCardio ? selectedCardioExercises : selectedExercises;
+    const setSelectedArray = exerciseIsCardio ? setSelectedCardioExercises : setSelectedExercises;
+    
+    const isSelected = selectedArray.some(e => e.exerciseId === exercise.id);
     
     if (isSelected) {
-      const updatedExercises = selectedExercises.filter(e => e.exerciseId !== exercise.id);
+      const updatedExercises = selectedArray.filter(e => e.exerciseId !== exercise.id);
       // Re-number the remaining exercises to maintain 1-based ordering
       const reorderedExercises = updatedExercises.map((ex, idx) => ({
         ...ex,
         order: idx + 1
       }));
-      setSelectedExercises(reorderedExercises);
+      setSelectedArray(reorderedExercises);
     } else {
       const newWorkoutExercise: WorkoutExercise = {
         id: `temp-${Date.now()}-${exercise.id}`, // Temporary ID until saved to DB
         exerciseId: exercise.id,
         workoutId: '', // Will be set when workout is created
-        order: selectedExercises.length + 1, // 1-based ordering
+        order: selectedArray.length + 1, // 1-based ordering
         exerciseDetails: exercise, // Store the complete exercise details
         sets: [
           {
@@ -247,7 +280,7 @@ export default function WorkoutBuilderScreen() {
         ]
       };
       
-      setSelectedExercises([...selectedExercises, newWorkoutExercise]);
+      setSelectedArray([...selectedArray, newWorkoutExercise]);
     }
   };
 
@@ -348,6 +381,103 @@ export default function WorkoutBuilderScreen() {
     setSelectedExercises(reorderedExercises);
   };
 
+  const addCardioSet = (exerciseIndex: number) => {
+    const updatedExercises = [...selectedCardioExercises];
+    const exercise = updatedExercises[exerciseIndex];
+
+    // Create a new set
+    const newSet: WorkoutSet = {
+      id: `temp-set-${Date.now()}-${exercise.exerciseId}`,
+      exerciseId: exercise.id,
+      reps: 10, // Default values
+      weight: 0,
+      duration: 60, // Default rest time in seconds
+      setOrder: exercise.sets.length + 1 // Set order based on position
+    };
+
+    // Add the new set to the exercise
+    updatedExercises[exerciseIndex] = {
+      ...exercise,
+      sets: [...exercise.sets, newSet],
+    };
+
+    setSelectedCardioExercises(updatedExercises);
+  };
+
+  const updateCardioSet = (exerciseIndex: number, setIndex: number, setData: Partial<WorkoutSet>) => {
+    const updatedExercises = [...selectedCardioExercises];
+    const exercise = updatedExercises[exerciseIndex];
+    const updatedSets = [...exercise.sets];
+    
+    updatedSets[setIndex] = {
+      ...updatedSets[setIndex],
+      ...setData,
+    };
+    
+    updatedExercises[exerciseIndex] = {
+      ...exercise,
+      sets: updatedSets,
+    };
+    
+    setSelectedCardioExercises(updatedExercises);
+  };
+
+  const removeCardioSet = (exerciseIndex: number, setIndex: number) => {
+    const updatedExercises = [...selectedCardioExercises];
+    const exercise = updatedExercises[exerciseIndex];
+    
+    // If this is the last set, don't remove it
+    if (exercise.sets.length === 1) {
+      Alert.alert('Cannot Remove', 'You need at least one set per exercise.');
+      return;
+    }
+    
+    const updatedSets = exercise.sets.filter((_, index) => index !== setIndex);
+    
+    updatedExercises[exerciseIndex] = {
+      ...exercise,
+      sets: updatedSets,
+    };
+    
+    setSelectedCardioExercises(updatedExercises);
+  };
+
+  const removeCardioExercise = (exerciseIndex: number) => {
+    const updatedExercises = selectedCardioExercises.filter((_, index) => index !== exerciseIndex);
+    
+    // Update order indices to be 1-based (1, 2, 3...)
+    const reorderedExercises = updatedExercises.map((exercise, index) => ({
+      ...exercise,
+      order: index + 1
+    }));
+    
+    setSelectedCardioExercises(reorderedExercises);
+  };
+
+  const moveCardioExercise = (exerciseIndex: number, direction: 'up' | 'down') => {
+    if (
+      (direction === 'up' && exerciseIndex === 0) ||
+      (direction === 'down' && exerciseIndex === selectedCardioExercises.length - 1)
+    ) {
+      return;
+    }
+    
+    const updatedExercises = [...selectedCardioExercises];
+    const newIndex = direction === 'up' ? exerciseIndex - 1 : exerciseIndex + 1;
+    
+    // Swap exercises
+    [updatedExercises[exerciseIndex], updatedExercises[newIndex]] = 
+    [updatedExercises[newIndex], updatedExercises[exerciseIndex]];
+    
+    // Update order indices - make sure they're 1-based (1, 2, 3...)
+    const reorderedExercises = updatedExercises.map((exercise, index) => ({
+      ...exercise,
+      order: index + 1
+    }));
+    
+    setSelectedCardioExercises(reorderedExercises);
+  };
+
   // State for edit mode and workout ID
   const [isEditMode, setIsEditMode] = useState(false);
   const [workoutId, setWorkoutId] = useState<string | null>(null);
@@ -411,19 +541,24 @@ export default function WorkoutBuilderScreen() {
       
       if (!sets || sets.length === 0) {
         setSelectedExercises([]);
+        setSelectedCardioExercises([]);
         return;
       }
       
       // Group sets by exercise first
       const exerciseGroups: Record<string, ExerciseGroup> = {};
+      const cardioExerciseGroups: Record<string, ExerciseGroup> = {};
       
       for (const set of sets) {
         const exerciseId = set.exercise_id;
         const exerciseOrder = Math.floor(set.set_order / 100);
         const setOrder = set.set_order % 100;
+        const isCardio = set.is_cardio === true;
         
-        if (!exerciseGroups[exerciseId]) {
-          exerciseGroups[exerciseId] = {
+        const targetGroups = isCardio ? cardioExerciseGroups : exerciseGroups;
+        
+        if (!targetGroups[exerciseId]) {
+          targetGroups[exerciseId] = {
             exerciseId,
             order: exerciseOrder,
             // Create object with exercise details from the workout_sets table
@@ -440,7 +575,7 @@ export default function WorkoutBuilderScreen() {
           };
         }
         
-        exerciseGroups[exerciseId].sets.push({
+        targetGroups[exerciseId].sets.push({
           id: set.id,
           exerciseId: `workout-${id}-exercise-${exerciseId}`,
           reps: set.planned_reps || 0,
@@ -464,10 +599,26 @@ export default function WorkoutBuilderScreen() {
         };
       });
       
+      // Create cardio exercises
+      const cardioWorkoutExercises: WorkoutExercise[] = Object.values(cardioExerciseGroups).map((group) => {
+        const { exerciseId, order, exerciseDetails, sets } = group;
+        
+        return {
+          id: `workout-${id}-exercise-${exerciseId}-cardio`,
+          exerciseId: exerciseId,
+          workoutId: id,
+          order: order,
+          exerciseDetails: exerciseDetails,
+          sets: sets
+        };
+      });
+      
       // Sort by order
       workoutExercises.sort((a, b) => a.order - b.order);
+      cardioWorkoutExercises.sort((a, b) => a.order - b.order);
       
       setSelectedExercises(workoutExercises);
+      setSelectedCardioExercises(cardioWorkoutExercises);
     } catch (error) {
       console.error('Error loading workout details:', error);
       Alert.alert('Error', 'Failed to load workout');
@@ -483,7 +634,7 @@ export default function WorkoutBuilderScreen() {
         return;
       }
       
-      if (selectedExercises.length === 0) {
+      if (selectedExercises.length === 0 && selectedCardioExercises.length === 0) {
         Alert.alert('No Exercises', 'Please add at least one exercise to your workout.');
         return;
       }
@@ -560,6 +711,7 @@ export default function WorkoutBuilderScreen() {
       
       // 2. Add workout sets directly
       try {
+        // Save regular exercises
         for (const exercise of selectedExercises) {
           // Get exercise details to store in workout_sets
           const exerciseDetails = exercise.exerciseDetails || {
@@ -578,6 +730,7 @@ export default function WorkoutBuilderScreen() {
                 planned_reps: set.reps || 0,
                 rest_time: set.duration || 60,
                 set_order: (exercise.order * 100) + (set.setOrder || 1),
+                is_cardio: false,
                 // Add exercise details directly to the workout_sets table
                 exercise_name: exerciseDetails.name,
                 exercise_bodypart: exerciseDetails.bodyPart,
@@ -592,10 +745,45 @@ export default function WorkoutBuilderScreen() {
           }
         }
         
+        // Save cardio exercises
+        for (const exercise of selectedCardioExercises) {
+          // Get exercise details to store in workout_sets
+          const exerciseDetails = exercise.exerciseDetails || {
+            name: 'Unknown Cardio Exercise',
+            bodyPart: 'Cardio',
+            target: 'Cardiovascular System',
+            equipment: 'Body weight'
+          };
+          
+          for (const set of exercise.sets) {
+            const { data: setData, error: setError } = await supabase
+              .from('workout_sets')
+              .insert({
+                workout_id: workoutData.workout_id,
+                exercise_id: exercise.exerciseId,
+                planned_reps: set.reps || 0,
+                rest_time: set.duration || 60,
+                set_order: (exercise.order * 100) + (set.setOrder || 1),
+                is_cardio: true,
+                // Add exercise details directly to the workout_sets table
+                exercise_name: exerciseDetails.name,
+                exercise_bodypart: exerciseDetails.bodyPart,
+                exercise_target: exerciseDetails.target,
+                exercise_equipment: exerciseDetails.equipment
+              });
+            
+            if (setError) {
+              console.error('Error saving cardio set:', setError);
+              throw new Error(`Failed to save cardio set: ${setError.message}`);
+            }
+          }
+        }
+        
         // Clear form data
         setTitle('');
         setDescription('');
         setSelectedExercises([]);
+        setSelectedCardioExercises([]);
         
         // Show success message
         Alert.alert(
@@ -642,6 +830,8 @@ export default function WorkoutBuilderScreen() {
       })
     ]).start(() => {
       setShowExerciseSelection(false);
+      // Reset cardio selection mode when closing
+      setIsCardioSelectionMode(false);
     });
   };
   
@@ -697,10 +887,12 @@ export default function WorkoutBuilderScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.libraryTitle}>Exercise Library</Text>
+            <Text style={styles.libraryTitle}>
+              {isCardioSelectionMode ? 'Cardio Exercises' : 'Exercise Library'}
+            </Text>
             <View style={styles.headerRight}>
               <Text style={styles.selectionCount}>
-                {selectedExercises.length} selected
+                {selectedExercises.length + selectedCardioExercises.length} selected
               </Text>
             </View>
           </LinearGradient>
@@ -806,9 +998,16 @@ export default function WorkoutBuilderScreen() {
                 <TouchableOpacity 
                   style={[
                     styles.exerciseListItem,
-                    selectedExercises.some(e => e.exerciseId === item.id) && styles.selectedExerciseItem
+                    (selectedExercises.some(e => e.exerciseId === item.id) || 
+                     selectedCardioExercises.some(e => e.exerciseId === item.id)) && 
+                    styles.selectedExerciseItem
                   ]}
-                  onPress={() => toggleExerciseSelection(item)}
+                  onPress={() => {
+                    // Check if it's a cardio exercise based on bodyPart or target
+                    const isCardio = item.bodyPart.toLowerCase() === 'cardio' || 
+                                    item.target.toLowerCase().includes('cardiovascular');
+                    toggleExerciseSelection(item, isCardio);
+                  }}
                   activeOpacity={0.7}
                 >
                   <View style={styles.exerciseImageWrapper}>
@@ -841,7 +1040,8 @@ export default function WorkoutBuilderScreen() {
                     </TouchableOpacity>
                     
                     <View style={styles.exerciseItemRight}>
-                      {selectedExercises.some(e => e.exerciseId === item.id) ? (
+                      {(selectedExercises.some(e => e.exerciseId === item.id) || 
+                        selectedCardioExercises.some(e => e.exerciseId === item.id)) ? (
                         <View style={styles.checkboxChecked}>
                           <Ionicons name="checkmark" size={18} color="#fff" />
                         </View>
@@ -1050,6 +1250,8 @@ export default function WorkoutBuilderScreen() {
                 style={styles.addExerciseButton}
                 onPress={() => {
                   Keyboard.dismiss();
+                  // Ensure cardio selection mode is off
+                  setIsCardioSelectionMode(false);
                   setShowExerciseSelection(true);
                 }}
                   activeOpacity={0.8}
@@ -1077,6 +1279,9 @@ export default function WorkoutBuilderScreen() {
                 const exerciseToUse = exercise || exercises.find(e => e.id === workoutExercise.exerciseId);
                 
                 if (!exerciseToUse) return null;
+                
+                // Check if this exercise is expanded
+                const isExpanded = expandedExercises[workoutExercise.id] || false;
                 
                 return (
                   <View key={workoutExercise.id} style={styles.exerciseItem}>
@@ -1142,12 +1347,169 @@ export default function WorkoutBuilderScreen() {
                       </View>
                     </LinearGradient>
                   
-                    <WorkoutSetEditor
-                      sets={workoutExercise.sets}
-                      onAddSet={() => addSet(index)}
-                      onUpdateSet={(setIndex, setData) => updateSet(index, setIndex, setData)}
-                      onRemoveSet={(setIndex) => removeSet(index, setIndex)}
-                    />
+                    {!isExpanded ? (
+                      <TouchableOpacity 
+                        style={styles.setsCollapseInfo}
+                        onPress={() => toggleExerciseExpansion(workoutExercise.id)}
+                      >
+                        <Text style={styles.setsCollapseText}>
+                          {workoutExercise.sets.length} {workoutExercise.sets.length === 1 ? 'set' : 'sets'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={16} color="rgba(255,255,255,0.6)" />
+                      </TouchableOpacity>
+                    ) : (
+                      <>
+                        <WorkoutSetEditor
+                          sets={workoutExercise.sets}
+                          onAddSet={() => addSet(index)}
+                          onUpdateSet={(setIndex, setData) => updateSet(index, setIndex, setData)}
+                          onRemoveSet={(setIndex) => removeSet(index, setIndex)}
+                        />
+                        <TouchableOpacity 
+                          style={styles.setsExpandedInfo}
+                          onPress={() => toggleExerciseExpansion(workoutExercise.id)}
+                        >
+                          <Text style={styles.setsCollapseText}>Hide sets</Text>
+                          <Ionicons name="chevron-up" size={16} color="rgba(255,255,255,0.6)" />
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </View>
+          
+          {/* Cardio Section */}
+          <View style={styles.cardioCard}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Cardio</Text>
+              <TouchableOpacity
+                style={[styles.addExerciseButton, styles.cardioButton]}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  // Set cardio selection mode
+                  setIsCardioSelectionMode(true);
+                  // Clear other filters
+                  setActiveTarget('');
+                  setActiveEquipment('');
+                  setShowExerciseSelection(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.addExerciseButtonText}>Add Cardio</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {selectedCardioExercises.length === 0 ? (
+              <View style={styles.noExercisesContainer}>
+                <Ionicons name="heart-outline" size={48} color="#9ca3af" />
+                <Text style={styles.noExercisesText}>No cardio added yet</Text>
+                <Text style={styles.noExercisesSubtext}>
+                  Tap "Add Cardio" to include cardiovascular exercises
+                </Text>
+              </View>
+            ) : (
+              selectedCardioExercises.map((workoutExercise, index) => {
+                const exercise = workoutExercise.exerciseDetails;
+                const exerciseToUse = exercise || exercises.find(e => e.id === workoutExercise.exerciseId);
+                
+                if (!exerciseToUse) return null;
+                
+                const isExpanded = expandedCardioExercises[workoutExercise.id] || false;
+                
+                return (
+                  <View key={workoutExercise.id} style={[styles.exerciseItem, styles.cardioExerciseItem]}>
+                    <LinearGradient
+                      colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.2)']}
+                      style={styles.exerciseHeader}
+                    >
+                      <View style={[styles.exerciseIconContainer, styles.cardioIconContainer]}>
+                        <Ionicons name="heart" size={22} color="#e74c3c" />
+                      </View>
+                      
+                      <View style={styles.exerciseInfo}>
+                        <TouchableOpacity 
+                          onPress={() => setSelectedExerciseDetails(exerciseToUse)}
+                          style={styles.exerciseNameTouchable}
+                        >
+                          <Text style={styles.exerciseName}>{exerciseToUse.name}</Text>
+                        </TouchableOpacity>
+                        <View style={styles.exerciseTagsRow}>
+                          <View style={[styles.exerciseTag, styles.cardioTag]}>
+                            <Text style={[styles.exerciseTagText, styles.cardioTagText]}>Cardio</Text>
+                          </View>
+                          <View style={[styles.exerciseTag, styles.cardioTag]}>
+                            <Text style={[styles.exerciseTagText, styles.cardioTagText]}>{exerciseToUse.equipment}</Text>
+                          </View>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.exerciseActions}>
+                        <TouchableOpacity
+                          style={[styles.exerciseActionButton, index === 0 && styles.disabledActionButton]}
+                          onPress={() => moveCardioExercise(index, 'up')}
+                          disabled={index === 0}
+                        >
+                          <Ionicons 
+                            name="chevron-up" 
+                            size={20} 
+                            color={index === 0 ? 'rgba(255,255,255,0.3)' : '#fff'} 
+                          />
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          style={[
+                            styles.exerciseActionButton, 
+                            index === selectedCardioExercises.length - 1 && styles.disabledActionButton
+                          ]}
+                          onPress={() => moveCardioExercise(index, 'down')}
+                          disabled={index === selectedCardioExercises.length - 1}
+                        >
+                          <Ionicons 
+                            name="chevron-down" 
+                            size={20} 
+                            color={index === selectedCardioExercises.length - 1 ? 'rgba(255,255,255,0.3)' : '#fff'} 
+                          />
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          style={styles.exerciseActionButton}
+                          onPress={() => removeCardioExercise(index)}
+                        >
+                          <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </LinearGradient>
+                  
+                    {!isExpanded ? (
+                      <TouchableOpacity 
+                        style={styles.setsCollapseInfo}
+                        onPress={() => toggleCardioExerciseExpansion(workoutExercise.id)}
+                      >
+                        <Text style={styles.setsCollapseText}>
+                          {workoutExercise.sets.length} {workoutExercise.sets.length === 1 ? 'set' : 'sets'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={16} color="rgba(255,255,255,0.6)" />
+                      </TouchableOpacity>
+                    ) : (
+                      <>
+                        <WorkoutSetEditor
+                          sets={workoutExercise.sets}
+                          onAddSet={() => addCardioSet(index)}
+                          onUpdateSet={(setIndex, setData) => updateCardioSet(index, setIndex, setData)}
+                          onRemoveSet={(setIndex) => removeCardioSet(index, setIndex)}
+                        />
+                        <TouchableOpacity 
+                          style={styles.setsExpandedInfo}
+                          onPress={() => toggleCardioExerciseExpansion(workoutExercise.id)}
+                        >
+                          <Text style={styles.setsCollapseText}>Hide sets</Text>
+                          <Ionicons name="chevron-up" size={16} color="rgba(255,255,255,0.6)" />
+                        </TouchableOpacity>
+                      </>
+                    )}
                   </View>
                 );
               })
@@ -1346,8 +1708,15 @@ export default function WorkoutBuilderScreen() {
       // Apply additional client-side filtering to ensure both filters work together
       let filteredExercises = exercises;
       
+      // If in cardio selection mode, filter to only show cardio exercises
+      if (isCardioSelectionMode) {
+        filteredExercises = exercises.filter(exercise => 
+          exercise.bodyPart.toLowerCase() === 'cardio' || 
+          exercise.target.toLowerCase().includes('cardiovascular')
+        );
+      }
       // If both target and equipment are selected, apply AND logic
-      if (activeTarget && activeEquipment) {
+      else if (activeTarget && activeEquipment) {
         filteredExercises = exercises.filter(exercise => 
           exercise.target.toLowerCase().includes(activeTarget.toLowerCase()) &&
           exercise.equipment.toLowerCase().includes(activeEquipment.toLowerCase())
@@ -1377,7 +1746,7 @@ export default function WorkoutBuilderScreen() {
     } else {
       setDisplayedExercises([]);
     }
-  }, [exercises, displayLimit, activeTarget, activeEquipment, debouncedSearchQuery]);
+  }, [exercises, displayLimit, activeTarget, activeEquipment, debouncedSearchQuery, isCardioSelectionMode]);
 
   // Modify the handleLoadMoreExercises function
   const handleLoadMoreExercises = () => {
@@ -1398,7 +1767,14 @@ export default function WorkoutBuilderScreen() {
     let filteredExercises = exercises;
     
     // Apply the same filtering logic as in the useEffect
-    if (activeTarget && activeEquipment) {
+    // If in cardio selection mode, filter to only show cardio exercises
+    if (isCardioSelectionMode) {
+      filteredExercises = exercises.filter(exercise => 
+        exercise.bodyPart.toLowerCase() === 'cardio' || 
+        exercise.target.toLowerCase().includes('cardiovascular')
+      );
+    }
+    else if (activeTarget && activeEquipment) {
       filteredExercises = exercises.filter(exercise => 
         exercise.target.toLowerCase().includes(activeTarget.toLowerCase()) &&
         exercise.equipment.toLowerCase().includes(activeEquipment.toLowerCase())
@@ -2209,6 +2585,57 @@ const styles = StyleSheet.create({
   clearSearch: {
     padding: 4,
     marginLeft: 8,
+  },
+  setsCollapseInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    padding: 10,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  setsCollapseText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  setsExpandedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    padding: 10,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  cardioCard: {
+    backgroundColor: '#3e3e50',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    marginBottom: 20,
+    marginTop: 16,
+  },
+  cardioButton: {
+    backgroundColor: '#e74c3c',
+  },
+  cardioExerciseItem: {
+    borderColor: 'rgba(231, 76, 60, 0.2)',
+  },
+  cardioIconContainer: {
+    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+  },
+  cardioTag: {
+    backgroundColor: 'rgba(231, 76, 60, 0.2)',
+  },
+  cardioTagText: {
+    color: '#e74c3c',
   },
 }); 
 
