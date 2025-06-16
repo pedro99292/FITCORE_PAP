@@ -67,7 +67,7 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
         console.log(`Fetching ExerciseDB with bodyPart filter: ${params.bodyPart} and limit: ${maxLimit}`);
         
         try {
-          const data = await fetchFromExerciseDB(`/exercises/bodyPart/${encodeURIComponent(params.bodyPart)}?limit=${maxLimit}`);
+          const data = await fetchFromExerciseDB(`/bodyPart/${encodeURIComponent(params.bodyPart)}?limit=${maxLimit}`);
           console.log(`Got ${data.length} exercises for bodyPart: ${params.bodyPart}`);
           
           // Filter the results to match the equipment filter
@@ -85,7 +85,7 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
         console.log(`Fetching ExerciseDB with bodyPart filter: ${params.bodyPart} and limit: ${maxLimit}`);
         
         try {
-          results = await fetchFromExerciseDB(`/exercises/bodyPart/${encodeURIComponent(params.bodyPart)}?limit=${maxLimit}`);
+          results = await fetchFromExerciseDB(`/bodyPart/${encodeURIComponent(params.bodyPart)}?limit=${maxLimit}`);
           console.log(`Got ${results.length} exercises for bodyPart: ${params.bodyPart}`);
         } catch (error) {
           console.error(`Error fetching by bodyPart:`, error);
@@ -96,7 +96,7 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
         console.log(`Fetching ExerciseDB with equipment filter: ${params.equipment} and limit: ${maxLimit}`);
         
         try {
-          results = await fetchFromExerciseDB(`/exercises/equipment/${encodeURIComponent(params.equipment)}?limit=${maxLimit}`);
+          results = await fetchFromExerciseDB(`/equipment/${encodeURIComponent(params.equipment)}?limit=${maxLimit}`);
           console.log(`Got ${results.length} exercises for equipment: ${params.equipment}`);
         } catch (error) {
           console.error(`Error fetching by equipment:`, error);
@@ -107,7 +107,7 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
         console.log(`Fetching ExerciseDB with target filter: ${params.target} and limit: ${maxLimit}`);
         
         try {
-          results = await fetchFromExerciseDB(`/exercises/target/${encodeURIComponent(params.target)}?limit=${maxLimit}`);
+          results = await fetchFromExerciseDB(`/target/${encodeURIComponent(params.target)}?limit=${maxLimit}`);
           console.log(`Got ${results.length} exercises for target: ${params.target}`);
         } catch (error) {
           console.error(`Error fetching by target:`, error);
@@ -118,7 +118,7 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
         console.log(`Fetching ExerciseDB with name filter: ${params.name} and limit: ${maxLimit}`);
         
         try {
-          results = await fetchFromExerciseDB(`/exercises/name/${encodeURIComponent(params.name)}?limit=${maxLimit}`);
+          results = await fetchFromExerciseDB(`/name/${encodeURIComponent(params.name)}?limit=${maxLimit}`);
           console.log(`Got ${results.length} exercises for name: ${params.name}`);
         } catch (error) {
           console.error(`Error fetching by name:`, error);
@@ -129,7 +129,7 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
         // Fetch all exercises with maximum limit
         console.log(`Fetching all exercises from ExerciseDB with limit: ${maxLimit}`);
         try {
-          results = await fetchFromExerciseDB(`/exercises?limit=${maxLimit}`, `/exercises/all`);
+          results = await fetchFromExerciseDB(`?limit=${maxLimit}`, `/all`);
           console.log(`Successfully fetched ${results.length} exercises from ExerciseDB`);
         } catch (error) {
           console.error("Error fetching from ExerciseDB:", error);

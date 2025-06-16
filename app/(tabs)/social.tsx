@@ -2128,7 +2128,10 @@ export default function SocialScreen() {
           >
             <Feather name="user-plus" size={22} color={isDarkMode ? "#fff" : "#333"} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+          <TouchableOpacity 
+            style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+            onPress={() => router.push('/chat')}
+          >
             <Feather name="message-circle" size={22} color={isDarkMode ? "#fff" : "#333"} />
           </TouchableOpacity>
         </View>
