@@ -15,7 +15,7 @@ import {
   Pressable
 } from 'react-native';
 import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
-import { router, useRouter, Stack } from 'expo-router';
+import { router, useRouter, Stack, useFocusEffect } from 'expo-router';
 import { supabase } from '@/utils/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
@@ -34,6 +34,9 @@ type Conversation = {
   last_message_time: string;
   last_message_read: boolean;
   last_message_sender_id: string | null;
+  last_message_id: string | null;
+  has_attachment: boolean;
+  attachment_type: string | null;
 };
 
 export default function ChatScreen() {
@@ -84,6 +87,8 @@ export default function ChatScreen() {
         return;
       }
 
+      console.log('Fetching conversations for user:', userId);
+
       // Get conversations where the current user is a participant
       const { data: conversationsData, error } = await supabase
         .from('conversations')
@@ -122,7 +127,7 @@ export default function ChatScreen() {
         // Get the last message in this conversation
         const { data: lastMessageData, error: messageError } = await supabase
           .from('messages')
-          .select('content, created_at, sender_id, read')
+          .select('id, content, created_at, sender_id, read, attachments')
           .eq('conversation_id', conversation.id)
           .order('created_at', { ascending: false })
           .limit(1);
@@ -135,7 +140,7 @@ export default function ChatScreen() {
         // Get count of unread messages where the current user is not the sender
         const { count: unreadCount, error: countError } = await supabase
           .from('messages')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .eq('conversation_id', conversation.id)
           .eq('read', false)
           .neq('sender_id', userId);
@@ -159,10 +164,14 @@ export default function ChatScreen() {
             ? formatTimeAgo(lastMessage.created_at) 
             : '',
           last_message_read: lastMessage?.read || false,
-          last_message_sender_id: lastMessage?.sender_id || null
+          last_message_sender_id: lastMessage?.sender_id || null,
+          last_message_id: lastMessage?.id || null,
+          has_attachment: lastMessage?.attachments?.length > 0 || false,
+          attachment_type: lastMessage?.attachments?.[0]?.type || null
         });
       }
       
+      console.log(`Processed ${processedConversations.length} conversations, refreshing UI`);
       setConversations(processedConversations);
     } catch (error) {
       console.error('Error in fetchConversations:', error);
@@ -172,10 +181,74 @@ export default function ChatScreen() {
     }
   };
   
-  // Fetch conversations on component mount
+  // Fetch conversations on component mount and set up real-time subscriptions
   useEffect(() => {
     fetchConversations();
+    
+    // Set up real-time subscriptions for new messages
+    const setupMessageSubscription = async () => {
+      const userId = await getCurrentUser();
+      
+      if (!userId) return;
+      
+      console.log('Setting up real-time subscriptions for user:', userId);
+      
+      // Create a broader subscription for all relevant changes
+      const subscription = supabase
+        .channel('chats-list-updates')
+        // Subscribe to new messages (sent to or from the user)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        }, async (payload) => {
+          console.log('New message inserted:', payload);
+          // Immediately update conversations to show the new message
+          await fetchConversations();
+        })
+        // Subscribe to message updates (read status changes)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+        }, async (payload) => {
+          console.log('Message updated:', payload);
+          await fetchConversations();
+        })
+        // Subscribe to conversation updates
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversations',
+        }, async (payload) => {
+          console.log('Conversation updated:', payload);
+          await fetchConversations();
+        })
+        .subscribe((status) => {
+          console.log(`Real-time subscription status: ${status}`);
+        });
+      
+      // Cleanup subscription on unmount
+      return () => {
+        console.log('Cleaning up real-time subscriptions');
+        supabase.removeChannel(subscription);
+      };
+    };
+    
+    setupMessageSubscription();
   }, []);
+  
+  // Add useFocusEffect to refresh conversations when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Chat list screen focused - refreshing conversations');
+      fetchConversations();
+      
+      return () => {
+        console.log('Chat list screen unfocused');
+      };
+    }, [])
+  );
   
   // Handle refresh
   const handleRefresh = async () => {
@@ -191,6 +264,23 @@ export default function ChatScreen() {
       toValue: focused ? 1 : 0,
       useNativeDriver: false,
     }).start();
+  };
+
+  // Get message preview text based on message type
+  const getMessagePreview = (conversation: Conversation): string => {
+    if (conversation.has_attachment) {
+      if (conversation.attachment_type?.startsWith('image')) {
+        return '📷 Image';
+      } else if (conversation.attachment_type?.startsWith('video')) {
+        return '🎥 Video';
+      } else if (conversation.attachment_type?.startsWith('audio')) {
+        return '🎵 Audio';
+      } else if (conversation.attachment_type) {
+        return '📎 Attachment';
+      }
+    }
+    
+    return conversation.last_message || 'No messages yet';
   };
 
   // Filter conversations based on search query
@@ -267,10 +357,6 @@ export default function ChatScreen() {
                 </Text>
               </LinearGradient>
             )}
-            {/* Online indicator dot placeholder - could be connected to real online status */}
-            {index % 3 === 0 && (
-              <View style={styles.onlineIndicator} />
-            )}
           </View>
           
           <View style={styles.conversationInfo}>
@@ -302,7 +388,7 @@ export default function ChatScreen() {
                   ]}
                   numberOfLines={1}
                 >
-                  {item.last_message || 'No messages yet'}
+                  {getMessagePreview(item)}
                 </Text>
               </View>
               
@@ -564,17 +650,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 22,
     fontWeight: 'bold',
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#4CD964',
-    borderWidth: 2,
-    borderColor: '#fff',
   },
   conversationInfo: {
     flex: 1,

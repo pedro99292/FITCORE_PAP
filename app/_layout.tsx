@@ -27,6 +27,10 @@ LogBox.ignoreLogs([
   'Fallback font will be used',
   /http:\/\/localhost:8081\/assets\//,
   '[Intervention]',
+  'Unknown event handler property',
+  'entry.bundleIsolationFor.routerRoot=app:4987',
+  /Unknown event handler property `entry\.bundleIsolationFor\.routerRoot=app:\d+`/,
+  /onStart.*onResponder.*onGrant.*onMove.*onEnd.*onTerminate.*onTerminationRequest/,
 ]);
 
 // Keep the splash screen visible while we fetch resources
@@ -98,7 +102,16 @@ if (__DEV__) {
     'text node',
     'is not a valid icon name',
     'Slow network is detected',
-    'Fallback font'
+    'Fallback font',
+    'Unknown event handler property',
+    'entry.bundleIsolationFor.routerRoot',
+    'onStartShouldSetResponder',
+    'onMoveShouldSetResponder',
+    'onResponderGrant',
+    'onResponderMove',
+    'onResponderEnd',
+    'onResponderTerminate',
+    'onResponderTerminationRequest'
   ];
   
   // Fix the type issues with console methods

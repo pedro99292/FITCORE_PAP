@@ -15,10 +15,11 @@ import {
   Animated,
   Pressable,
   Dimensions,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  Modal
 } from 'react-native';
-import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams, Stack } from 'expo-router';
+import { Feather, FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { router, useLocalSearchParams, Stack, useFocusEffect } from 'expo-router';
 import { supabase } from '@/utils/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
@@ -66,9 +67,16 @@ export default function ConversationScreen() {
   const optionsAnim = useRef(new Animated.Value(0)).current;
   
   const flatListRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
   const realtimeSubscription = useRef<RealtimeChannel | null>(null);
   const windowWidth = Dimensions.get('window').width;
   const typingTimeout = useRef<number | null>(null);
+  
+  // Add state to track keyboard visibility and height
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
   
   // Format date for messages
   const formatMessageTime = (dateString: string) => {
@@ -113,10 +121,20 @@ export default function ConversationScreen() {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Focus the text input after animation completes
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 500);
   }, []);
   
   // Toggle attachment options animation
   const toggleAttachmentOptions = () => {
+    // Dismiss keyboard when showing attachment options
+    if (!showAttachmentOptions) {
+      Keyboard.dismiss();
+    }
+    
     setShowAttachmentOptions(!showAttachmentOptions);
     Animated.timing(optionsAnim, {
       toValue: showAttachmentOptions ? 0 : 1,
@@ -182,19 +200,48 @@ export default function ConversationScreen() {
     };
   }, [conversationId]);
   
-  // Simulate typing
-  const handleTyping = () => {
-    // In a real implementation, you would broadcast typing status via Supabase
-    // For now, we'll just simulate it randomly
-    if (Math.random() > 0.7) {
-      setIsTyping(true);
-      
-      if (typingTimeout.current) {
-        clearTimeout(typingTimeout.current);
-      }
-      
+  // Send typing status to the other user
+  const sendTypingStatus = async (isTyping: boolean) => {
+    if (!currentUserId || !realtimeSubscription.current) return;
+    
+    try {
+      // Use the existing channel to send typing status
+      realtimeSubscription.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { 
+          user_id: currentUserId,
+          is_typing: isTyping,
+          conversation_id: conversationId
+        }
+      });
+    } catch (error) {
+      console.error('Error sending typing status:', error);
+    }
+  };
+
+  // Handle user typing in the input field
+  const handleTyping = (text: string) => {
+    if (!currentUserId) return;
+    
+    // Update the message text
+    setMessageText(text);
+    
+    // Only send typing status if there's actual text
+    const isCurrentlyTyping = text.trim().length > 0;
+    
+    // Send typing status to the other user
+    sendTypingStatus(isCurrentlyTyping);
+    
+    // Clear any existing timeout
+    if (typingTimeout.current) {
+      clearTimeout(typingTimeout.current);
+    }
+    
+    // Set a timeout to clear typing status after 3 seconds of inactivity
+    if (isCurrentlyTyping) {
       typingTimeout.current = setTimeout(() => {
-        setIsTyping(false);
+        sendTypingStatus(false);
       }, 3000);
     }
   };
@@ -233,15 +280,53 @@ export default function ConversationScreen() {
     if (!currentUserId) return;
     
     try {
+      // Find unread messages that are not from the current user
+      const unreadMessages = messages.filter(
+        msg => !msg.read && msg.sender_id !== currentUserId
+      );
+      
+      if (unreadMessages.length === 0) return;
+      
+      console.log(`Attempting to mark ${unreadMessages.length} messages as read. User ID: ${currentUserId}, Conversation ID: ${conversationId}`);
+
+      // Extract IDs of unread messages not sent by current user
+      const unreadMessageIds = unreadMessages.map(msg => msg.id);
+      
+      // Use a batch update with in() operator
       const { error } = await supabase
         .from('messages')
         .update({ read: true })
-        .eq('conversation_id', conversationId)
-        .neq('sender_id', currentUserId);
-      
+        .in('id', unreadMessageIds);
+        
       if (error) {
         console.error('Error marking messages as read:', error);
+        
+        // Fallback to individual updates if batch update fails
+        console.log('Falling back to individual message updates');
+        for (const msg of unreadMessages) {
+          console.log(`Processing message ${msg.id} from sender ${msg.sender_id}`);
+          
+          const { error: individualError } = await supabase
+            .from('messages')
+            .update({ read: true })
+            .eq('id', msg.id);
+            
+          if (individualError) {
+            console.error(`Error marking message ${msg.id} as read:`, individualError);
+          } else {
+            console.log(`Successfully marked message ${msg.id} as read`);
+          }
+        }
+      } else {
+        console.log(`Successfully marked ${unreadMessageIds.length} messages as read in batch`);
       }
+      
+      // Also update local state for immediate UI feedback
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.sender_id !== currentUserId ? { ...msg, read: true } : msg
+        )
+      );
     } catch (error) {
       console.error('Error in markMessagesAsRead:', error);
     }
@@ -254,56 +339,107 @@ export default function ConversationScreen() {
       realtimeSubscription.current.unsubscribe();
     }
     
-    // Subscribe to new messages
-    realtimeSubscription.current = supabase
-      .channel(`conversation:${conversationId}`)
-      .on(
-        'postgres_changes',
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`
-        },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          
-          setMessages((currentMessages) => [...currentMessages, newMessage]);
-          
-          // If the message is from the other user, mark it as read
-          if (newMessage.sender_id !== userId) {
-            markMessageAsRead(newMessage.id);
-            setIsTyping(false);
-            
-            // Play sound here if needed
-          } else {
-            // Message sent by current user
-          }
-          
-          // Scroll to the new message
-          setTimeout(() => {
-            if (flatListRef.current) {
-              flatListRef.current.scrollToEnd({ animated: true });
-            }
-          }, 100);
-        }
-      )
-      .subscribe();
+    // Create a new channel for this conversation
+    const channel = supabase.channel(`conversation:${conversationId}`);
     
-    // Additionally, subscribe to typing indicators
-    // This would be a real implementation if backend supported it
+    // Subscribe to new messages
+    channel.on(
+      'postgres_changes',
+      { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      },
+      (payload) => {
+        console.log('New message received:', payload);
+        const newMessage = payload.new as Message;
+        
+        setMessages((currentMessages) => [...currentMessages, newMessage]);
+        
+        // If the message is from the other user, mark it as read
+        if (newMessage.sender_id !== userId) {
+          markMessageAsRead(newMessage.id);
+          setIsTyping(false); // Clear typing indicator when message arrives
+          
+          // Play sound here if needed
+        } else {
+          // Message sent by current user
+        }
+        
+        // Scroll to the new message
+        setTimeout(() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      }
+    );
+    
+    // Subscribe to message updates (e.g., read status changes)
+    channel.on(
+      'postgres_changes',
+      { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      },
+      (payload) => {
+        console.log('Message updated:', payload);
+        const updatedMessage = payload.new as Message;
+        
+        // Update the message in our state
+        setMessages((currentMessages) => 
+          currentMessages.map(msg => 
+            msg.id === updatedMessage.id ? updatedMessage : msg
+          )
+        );
+      }
+    );
+    
+    // Subscribe to typing indicators
+    channel.on(
+      'broadcast',
+      { event: 'typing' },
+      (payload) => {
+        // Only show typing indicator if it's from the other user
+        if (payload.payload.user_id !== userId && 
+            payload.payload.conversation_id === conversationId) {
+          console.log('Other user typing status changed:', payload.payload.is_typing);
+          setIsTyping(payload.payload.is_typing);
+        }
+      }
+    );
+    
+    // Subscribe to the channel
+    channel.subscribe((status) => {
+      console.log(`Realtime subscription status: ${status}`);
+    });
+    
+    // Store the reference
+    realtimeSubscription.current = channel;
   };
   
   // Mark a single message as read
   const markMessageAsRead = async (messageId: string) => {
     try {
+      console.log(`Marking single message ${messageId} as read`);
+      
       const { error } = await supabase
         .from('messages')
         .update({ read: true })
         .eq('id', messageId);
       
       if (error) {
-        console.error('Error marking message as read:', error);
+        console.error(`Error marking message ${messageId} as read:`, error);
+      } else {
+        // Update local state for immediate UI feedback
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === messageId ? { ...msg, read: true } : msg
+          )
+        );
       }
     } catch (error) {
       console.error('Error in markMessageAsRead:', error);
@@ -331,7 +467,15 @@ export default function ConversationScreen() {
   
   // Send a message
   const sendMessage = async () => {
-    if ((!messageText.trim() && !attachment) || !currentUserId) return;
+    if ((!messageText.trim() && !attachment) || !currentUserId) {
+      console.log("Cannot send message: ", {
+        hasText: messageText.trim().length > 0,
+        hasAttachment: !!attachment,
+        hasUserId: !!currentUserId,
+        userId: currentUserId
+      });
+      return;
+    }
     
     try {
       setSending(true);
@@ -352,35 +496,59 @@ export default function ConversationScreen() {
           // Generate a unique file name
           const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${attachment.uri.split('.').pop()}`;
           
-          // Read file as base64
-          const fileContent = await FileSystem.readAsStringAsync(attachment.uri, { encoding: FileSystem.EncodingType.Base64 });
-          
-          // Convert base64 to ArrayBuffer
-          const arrayBuffer = decode(fileContent);          
-          // Upload to Supabase Storage
-          const { data: uploadData, error: uploadError } = await supabase
-            .storage
-            .from('chat-attachments')
-            .upload(fileName, arrayBuffer, {
-              contentType: attachment.type,
-              upsert: true
-            });
+          // Handle file upload differently based on platform
+          if (Platform.OS === 'web') {
+            // For web, we need a different approach since FileSystem.readAsStringAsync isn't available
+            console.log("File uploads not yet implemented for web");
+            // Skip the attachment on web for now
+          } else {
+            // Native platforms can use FileSystem
+            // Read file as base64
+            const fileContent = await FileSystem.readAsStringAsync(attachment.uri, { encoding: FileSystem.EncodingType.Base64 });
             
-          if (uploadError) {
-            throw uploadError;
+            // Convert base64 to ArrayBuffer
+            const arrayBuffer = decode(fileContent);          
+            
+            try {
+              // Upload to Supabase Storage
+              const { data: uploadData, error: uploadError } = await supabase
+                .storage
+                .from('chat-attachments')
+                .upload(fileName, arrayBuffer, {
+                  contentType: attachment.type,
+                  upsert: true
+                });
+                
+              if (uploadError) {
+                if (uploadError.message.includes("Bucket not found")) {
+                  // Specific error for missing bucket
+                  console.error('Storage bucket not found. Please create a "chat-attachments" bucket in your Supabase project.');
+                  alert('File uploading is not available at the moment. Your message will be sent without the attachment.');
+                } else if (uploadError.message.includes("violates row-level security policy") || uploadError.message.includes("Unauthorized")) {
+                  // RLS policy error
+                  console.error('Supabase storage RLS policy is preventing file uploads:', uploadError);
+                  alert('Permission denied: You need to configure storage permissions in Supabase. Your message will be sent without the attachment.');
+                } else {
+                  throw uploadError;
+                }
+              } else {
+                // Get public URL
+                const { data: urlData } = supabase
+                  .storage
+                  .from('chat-attachments')
+                  .getPublicUrl(fileName);
+                  
+                // Add attachment to message
+                newMessage.attachments = [{
+                  url: urlData.publicUrl,
+                  type: attachment.type
+                }];
+              }
+            } catch (uploadErr) {
+              console.error('Error in file upload:', uploadErr);
+              alert('Could not upload file. Your message will be sent without the attachment.');
+            }
           }
-          
-          // Get public URL
-          const { data: urlData } = supabase
-            .storage
-            .from('chat-attachments')
-            .getPublicUrl(fileName);
-            
-          // Add attachment to message
-          newMessage.attachments = [{
-            url: urlData.publicUrl,
-            type: attachment.type
-          }];
         } catch (e) {
           console.error('Error uploading file:', e);
           // Continue sending the message without the attachment
@@ -401,6 +569,9 @@ export default function ConversationScreen() {
       setMessageText('');
       setAttachment(null);
       
+      // Clear typing indicator
+      sendTypingStatus(false);
+      
     } catch (error) {
       console.error('Error in sendMessage:', error);
     } finally {
@@ -411,10 +582,16 @@ export default function ConversationScreen() {
   // Pick an image from the library
   const pickImage = async () => {
     try {
+      if (Platform.OS === 'web') {
+        alert('Image picking is not yet supported on web');
+        return;
+      }
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsEditing: true,
+        allowsEditing: false, // Disable editing to allow full image selection
         quality: 0.8,
+        allowsMultipleSelection: false
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -432,6 +609,11 @@ export default function ConversationScreen() {
   // Take a photo
   const takePhoto = async () => {
     try {
+      if (Platform.OS === 'web') {
+        alert('Camera is not available on web');
+        return;
+      }
+      
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       
       if (status !== 'granted') {
@@ -441,8 +623,8 @@ export default function ConversationScreen() {
       
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
+        allowsEditing: false, // Disable editing to allow full photo capture
+        quality: 0.8
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -501,12 +683,15 @@ export default function ConversationScreen() {
   const renderMessageItem = ({ item, index }: { item: Message, index: number }) => {
     const isCurrentUser = item.sender_id === currentUserId;
     const isLastMessage = index === messages.length - 1;
+    const hasAttachments = item.attachments && item.attachments.length > 0;
+    const hasImageAttachments = hasAttachments && item.attachments?.some(att => att.type.startsWith('image'));
     
     return (
       <Animated.View
         style={[
           styles.messageContainer,
           isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage,
+          hasImageAttachments ? { maxWidth: '85%' } : { maxWidth: '75%' },
           {
             opacity: fadeAnim,
             transform: [
@@ -540,6 +725,7 @@ export default function ConversationScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.messageBubble,
+            hasImageAttachments && { padding: 6 },
             isCurrentUser 
               ? [styles.currentUserBubble, { 
                 backgroundColor: pressed ? 
@@ -562,31 +748,49 @@ export default function ConversationScreen() {
           {item.attachments && item.attachments.length > 0 && (
             <View style={styles.attachmentContainer}>
               {item.attachments.map((att, index) => (
-                <Pressable 
-                  key={index} 
-                  style={({ pressed }) => [
-                    styles.imageContainer,
-                    { opacity: pressed ? 0.9 : 1 }
-                  ]}
-                >
+                <View key={index}>
                   {att.type.startsWith('image') ? (
-                    <Image 
-                      source={{ uri: att.url }} 
-                      style={styles.attachmentImage}
-                      resizeMode="cover"
-                    />
+                    <Pressable 
+                      style={({ pressed }) => [
+                        styles.imageContainer,
+                        { opacity: pressed ? 0.9 : 1 }
+                      ]}
+                      onPress={() => {
+                        setSelectedImage(att.url);
+                        setImageModalVisible(true);
+                      }}
+                    >
+                      <Image 
+                        source={{ uri: att.url }} 
+                        style={styles.attachmentImage}
+                        resizeMode="cover"
+                      />
+                      <View style={[styles.imageOverlay, { opacity: 0.3 }]}>
+                        <MaterialIcons name="zoom-out-map" size={24} color="#fff" />
+                      </View>
+                    </Pressable>
                   ) : att.type.startsWith('video') ? (
-                    <View style={styles.videoPlaceholder}>
-                      <Feather name="video" size={24} color="#fff" />
-                      <Text style={styles.videoText}>Video</Text>
-                    </View>
+                    <Pressable 
+                      style={styles.imageContainer}
+                    >
+                      <View style={styles.videoPlaceholder}>
+                        <View style={styles.playButtonContainer}>
+                          <Feather name="play" size={24} color="#fff" />
+                        </View>
+                        <Text style={styles.videoText}>Video</Text>
+                      </View>
+                    </Pressable>
                   ) : (
-                    <View style={styles.filePlaceholder}>
-                      <Feather name="file" size={24} color="#fff" />
-                      <Text style={styles.fileText}>File</Text>
-                    </View>
+                    <Pressable 
+                      style={styles.imageContainer}
+                    >
+                      <View style={styles.filePlaceholder}>
+                        <Feather name="file" size={24} color="#fff" />
+                        <Text style={styles.fileText}>File</Text>
+                      </View>
+                    </Pressable>
                   )}
-                </Pressable>
+                </View>
               ))}
             </View>
           )}
@@ -680,12 +884,16 @@ export default function ConversationScreen() {
   const renderAttachmentOptions = () => {
     if (!showAttachmentOptions) return null;
 
+    // Calculate bottom position based on keyboard
+    const bottomPosition = isKeyboardVisible ? keyboardHeight : 0;
+
     return (
       <Animated.View
         style={[
           styles.attachmentOptionsContainer,
           {
             opacity: optionsAnim,
+            bottom: bottomPosition,
             transform: [
               { scale: optionsAnim.interpolate({
                   inputRange: [0, 1],
@@ -698,21 +906,39 @@ export default function ConversationScreen() {
       >
         <BlurView intensity={isDarkMode ? 30 : 50} style={styles.blurOverlay} tint={isDarkMode ? "dark" : "light"}>
           <View style={styles.optionsRow}>
-            <TouchableOpacity style={styles.optionButton} onPress={pickImage}>
+            <TouchableOpacity 
+              style={styles.optionButton} 
+              onPress={() => {
+                pickImage();
+                setShowAttachmentOptions(false);
+              }}
+            >
               <View style={[styles.optionIconContainer, {backgroundColor: '#4A90E2'}]}>
                 <Feather name="image" size={24} color="#fff" />
               </View>
               <Text style={[styles.optionText, {color: isDarkMode ? '#fff' : '#000'}]}>Gallery</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionButton} onPress={takePhoto}>
+            <TouchableOpacity 
+              style={styles.optionButton} 
+              onPress={() => {
+                takePhoto();
+                setShowAttachmentOptions(false);
+              }}
+            >
               <View style={[styles.optionIconContainer, {backgroundColor: '#4CD964'}]}>
                 <Feather name="camera" size={24} color="#fff" />
               </View>
               <Text style={[styles.optionText, {color: isDarkMode ? '#fff' : '#000'}]}>Camera</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionButton}>
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={() => {
+                // Document picker functionality would go here
+                setShowAttachmentOptions(false);
+              }}
+            >
               <View style={[styles.optionIconContainer, {backgroundColor: '#FF9500'}]}>
                 <Feather name="file" size={24} color="#fff" />
               </View>
@@ -730,6 +956,60 @@ export default function ConversationScreen() {
       </Animated.View>
     );
   };
+  
+  // Add useFocusEffect to mark messages as read when the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (currentUserId && !loading && messages.length > 0) {
+        console.log('Screen focused - marking messages as read');
+        markMessagesAsRead();
+      }
+      
+      return () => {
+        // When screen is unfocused (like navigating away)
+        console.log('Screen unfocused');
+      };
+    }, [currentUserId, loading, messages])
+  );
+  
+  // Add useEffect to mark messages as read when the conversation is viewed
+  useEffect(() => {
+    if (currentUserId && !loading && messages.length > 0) {
+      markMessagesAsRead();
+      
+      // Set up a timer to periodically mark messages as read
+      const readInterval = setInterval(() => {
+        markMessagesAsRead();
+      }, 5000); // Check and mark as read every 5 seconds
+      
+      return () => {
+        clearInterval(readInterval);
+      };
+    }
+  }, [currentUserId, loading, messages]);
+  
+  // Add keyboard event listeners
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardVisible(true);
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false);
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
   
   return (
     <TouchableWithoutFeedback onPress={() => {
@@ -782,14 +1062,17 @@ export default function ConversationScreen() {
             },
             headerShadowVisible: false,
             headerTintColor: isDarkMode ? '#fff' : '#000',
-            headerBackTitle: 'Back',
-            headerBackVisible: true,
-            headerLeft: ({ canGoBack }) => 
-              canGoBack ? (
-                <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 10 }}>
-                  <Feather name="arrow-left" size={24} color={isDarkMode ? "#fff" : "#000"} />
-                </TouchableOpacity>
-              ) : undefined,
+            headerBackVisible: false,
+            headerLeft: () => (
+              <TouchableOpacity 
+                onPress={() => router.back()} 
+                style={{ marginLeft: 10, padding: 5 }}
+                accessibilityLabel="Back"
+                accessibilityRole="button"
+              >
+                <Feather name="arrow-left" size={24} color={isDarkMode ? "#fff" : "#000"} />
+              </TouchableOpacity>
+            ),
             headerRight: () => (
               <TouchableOpacity style={{ marginRight: 10 }}>
                 <Feather name="more-vertical" size={24} color={isDarkMode ? "#fff" : "#000"} />
@@ -813,6 +1096,8 @@ export default function ConversationScreen() {
               contentContainerStyle={styles.messagesList}
               onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
               onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+              onMomentumScrollEnd={() => markMessagesAsRead()}
+              onScrollEndDrag={() => markMessagesAsRead()}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <LinearGradient
@@ -872,22 +1157,31 @@ export default function ConversationScreen() {
               <Feather name="plus" size={24} color={isDarkMode ? "#8e8e93" : "#666"} />
             </TouchableOpacity>
             
-            {/* Text Input */}
-            <TextInput
-              style={[styles.input, { 
-                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                color: isDarkMode ? '#fff' : '#000'
-              }]}
-              placeholder="Type a message..."
-              placeholderTextColor={isDarkMode ? "#8e8e93" : "#666"}
-              value={messageText}
-              onChangeText={text => {
-                setMessageText(text);
-                handleTyping();
-              }}
-              multiline
-              maxLength={1000}
-            />
+            {/* Text Input - Wrap in a TouchableOpacity to allow tapping to focus */}
+            <TouchableOpacity 
+              activeOpacity={1} 
+              style={{flex: 1}}
+              onPress={() => inputRef.current?.focus()}
+            >
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  color: isDarkMode ? '#fff' : '#000'
+                }]}
+                placeholder="Type a message..."
+                placeholderTextColor={isDarkMode ? "#8e8e93" : "#666"}
+                value={messageText}
+                onChangeText={handleTyping}
+                editable={true}
+                autoCapitalize="sentences"
+                keyboardType="default"
+                multiline
+                maxLength={1000}
+                returnKeyType="default"
+                blurOnSubmit={false}
+                ref={inputRef}
+              />
+            </TouchableOpacity>
             
             {/* Emoji button */}
             <TouchableOpacity 
@@ -918,6 +1212,30 @@ export default function ConversationScreen() {
         
         {/* Attachment Options Panel */}
         {renderAttachmentOptions()}
+        
+        {/* Image Preview */}
+        <Modal
+          visible={imageModalVisible}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setImageModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setImageModalVisible(false)}
+            >
+              <Feather name="x" size={24} color="#fff" />
+            </TouchableOpacity>
+            {selectedImage && (
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.modalImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -951,14 +1269,13 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   messagesList: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
     paddingTop: 10,
     paddingBottom: 10,
   },
   messageContainer: {
     flexDirection: 'row',
     marginVertical: 5,
-    maxWidth: '80%',
   },
   currentUserMessage: {
     alignSelf: 'flex-end',
@@ -985,16 +1302,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   messageBubble: {
-    borderRadius: 18,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     maxWidth: '100%',
   },
   currentUserBubble: {
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 2,
   },
   otherUserBubble: {
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 2,
   },
   messageText: {
     fontSize: 16,
@@ -1055,7 +1372,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 100,
     height: 100,
-    borderRadius: 10,
+    borderRadius: 6,
     marginBottom: 10,
     overflow: 'hidden',
   },
@@ -1088,11 +1405,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 8,
     maxHeight: 100,
     fontSize: 16,
+    minHeight: 40,
+    textAlignVertical: 'center',
   },
   sendButton: {
     width: 38,
@@ -1104,11 +1423,27 @@ const styles = StyleSheet.create({
   },
   attachmentContainer: {
     marginBottom: 8,
+    width: '100%',
   },
   imageContainer: {
-    width: '100%',
+    width: 260,
     height: 200,
-    borderRadius: 12,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 5,
+    position: 'relative',
+  },
+  videoContainer: {
+    width: 260,
+    height: 200,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 5,
+  },
+  fileContainer: {
+    width: 260,
+    height: 80,
+    borderRadius: 6,
     overflow: 'hidden',
     marginBottom: 5,
   },
@@ -1116,10 +1451,29 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0,
+  },
   videoPlaceholder: {
     width: '100%',
     height: '100%',
     backgroundColor: '#3d3d3d',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playButtonContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1169,10 +1523,11 @@ const styles = StyleSheet.create({
   },
   attachmentOptionsContainer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     padding: 20,
+    zIndex: 1000,
+    elevation: 5,
   },
   blurOverlay: {
     padding: 20,
@@ -1206,5 +1561,27 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 16,
     fontWeight: '600',
-  }
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  modalImage: {
+    width: '90%',
+    height: '70%',
+  },
 }); 

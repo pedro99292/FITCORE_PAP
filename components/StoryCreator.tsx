@@ -99,8 +99,13 @@ const STICKER_CATEGORIES = {
   objects: ['💎', '👑', '💄', '👗', '👠', '⌚', '📱', '💻', '🎯', '💡', '🔮', '🗝️']
 };
 
-// Template configurations
+// Enhanced template configurations
 const STORY_TEMPLATES = [
+  {
+    id: 'solid_white',
+    name: 'White',
+    background: { type: 'solid', color: '#FFFFFF' }
+  },
   {
     id: 'gradient_1',
     name: 'Sunset',
@@ -118,8 +123,8 @@ const STORY_TEMPLATES = [
   },
   {
     id: 'solid_1',
-    name: 'Pure',
-    background: { type: 'solid', color: '#FFFFFF' }
+    name: 'Black',
+    background: { type: 'solid', color: '#000000' }
   }
 ];
 
@@ -132,8 +137,8 @@ interface TextElement {
   color: string;
   fontSize: number;
   fontFamily: string;
-  fontWeight: string;
-  fontStyle: string;
+  fontWeight: "normal" | "bold" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900";
+  fontStyle: "normal" | "italic";
   rotation: number;
   opacity: number;
 }
@@ -164,6 +169,7 @@ interface HistoryState {
   imageScale: number;
   imageOffset: { x: number; y: number };
   imageRotation: number;
+  backgroundColor: string;
 }
 
 interface StoryCreatorProps {
@@ -182,12 +188,22 @@ const debounce = (func: Function, wait: number) => {
   };
 };
 
+// Calculate distance between two points for pinch gesture
+const distance = (x1: number, y1: number, x2: number, y2: number) => {
+  return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+};
+
 const StoryCreator: React.FC<StoryCreatorProps> = ({
   visible,
   onClose,
   onStoryCreated,
   userId
 }) => {
+  // IMPORTANT: Check visibility BEFORE any hooks to prevent hook order violations
+  if (!visible) {
+    return null;
+  }
+
   const { isDarkMode, colors } = useTheme();
   
   // Core media state
@@ -196,7 +212,8 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [isLoading, setIsLoading] = useState(false);
   const [isPickerVisible, setIsPickerVisible] = useState(true);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>('solid_white'); // Default to white background
+  const [backgroundColor, setBackgroundColor] = useState('#FFFFFF'); // Default white background
   
   // Animation and UI state
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -211,7 +228,7 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
   
   // Tool state
-  const [activeTab, setActiveTab] = useState<'filters' | 'text' | 'draw' | 'stickers' | 'crop' | 'templates'>('filters');
+  const [activeTab, setActiveTab] = useState<'filters' | 'text' | 'draw' | 'stickers' | 'templates'>('filters');
   const [activeFilter, setActiveFilter] = useState<keyof typeof FILTERS>('Normal');
   const [showTextInput, setShowTextInput] = useState(false);
   const [currentTextColor, setCurrentTextColor] = useState('#FFFFFF');
@@ -230,6 +247,11 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
   const [imageOffset, setImageOffset] = useState<{x: number, y: number}>({x: 0, y: 0});
   const [imageRotation, setImageRotation] = useState(0);
   
+  // Add pinch gesture state
+  const initialPinchDistance = useRef<number | null>(null);
+  const initialScale = useRef<number>(1.2);
+  const lastOffset = useRef<{x: number, y: number}>({x: 0, y: 0});
+  
   // History/Undo-Redo state
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -237,6 +259,9 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
   // Performance optimizations
   const [isProcessing, setIsProcessing] = useState(false);
   const [renderOptimized, setRenderOptimized] = useState(true);
+
+  // Add a visual touch indicator state
+  const [touchActive, setTouchActive] = useState(false);
 
   // Memoized calculations
   const currentState = useMemo((): HistoryState => ({
@@ -246,25 +271,74 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
     activeFilter,
     imageScale,
     imageOffset,
-    imageRotation
-  }), [textElements, drawPaths, stickerElements, activeFilter, imageScale, imageOffset, imageRotation]);
+    imageRotation,
+    backgroundColor
+  }), [textElements, drawPaths, stickerElements, activeFilter, imageScale, imageOffset, imageRotation, backgroundColor]);
 
-  // Optimized pan responders with useCallback
-  const imagePanResponder = useMemo(() => 
+  // Optimized pan responder for smooth image manipulation
+  const imagePanResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => activeTab === 'crop',
-      onPanResponderMove: (_, gesture) => {
-        if (activeTab === 'crop') {
-          setImageOffset({
-            x: gesture.dx,
-            y: gesture.dy
-          });
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Start responding immediately for better responsiveness
+        return Math.abs(gestureState.dx) > 1 || Math.abs(gestureState.dy) > 1;
+      },
+      
+      onPanResponderGrant: (evt) => {
+        setTouchActive(true);
+        lastOffset.current = { x: imageOffset.x, y: imageOffset.y };
+        
+        const touches = evt.nativeEvent.touches;
+        if (touches && touches.length >= 2) {
+          const [touch1, touch2] = touches;
+          const dist = Math.sqrt(
+            Math.pow(touch2.pageX - touch1.pageX, 2) + 
+            Math.pow(touch2.pageY - touch1.pageY, 2)
+          );
+          initialPinchDistance.current = dist;
+          initialScale.current = imageScale;
         }
       },
-    }), [activeTab]
-  );
+      
+      onPanResponderMove: (evt, gestureState) => {
+        const touches = evt.nativeEvent.touches;
+        
+        if (touches && touches.length >= 2) {
+          // Pinch to zoom
+          const [touch1, touch2] = touches;
+          const currentDist = Math.sqrt(
+            Math.pow(touch2.pageX - touch1.pageX, 2) + 
+            Math.pow(touch2.pageY - touch1.pageY, 2)
+          );
+          
+          if (initialPinchDistance.current && initialPinchDistance.current > 0) {
+            const scale = (currentDist / initialPinchDistance.current) * initialScale.current;
+            const clampedScale = Math.max(0.5, Math.min(3.0, scale));
+            setImageScale(clampedScale);
+          }
+        } else {
+          // Single finger drag - always update position based on gesture delta
+          const newX = lastOffset.current.x + gestureState.dx;
+          const newY = lastOffset.current.y + gestureState.dy;
+          setImageOffset({ x: newX, y: newY });
+        }
+      },
+      
+      onPanResponderRelease: () => {
+        setTouchActive(false);
+        initialPinchDistance.current = null;
+        saveToHistory();
+      },
+      
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderTerminate: () => {
+        setTouchActive(false);
+        initialPinchDistance.current = null;
+      }
+    })
+  ).current;
 
-  const drawPanResponder = useMemo(() =>
+  const drawPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => activeTab === 'draw',
       onPanResponderGrant: (evt) => {
@@ -295,8 +369,8 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
           saveToHistory();
         }
       }
-    }), [activeTab, isDrawing, currentDrawPath, brushColor, brushSize, brushOpacity]
-  );
+    })
+  ).current;
 
   // History management
   const saveToHistory = useCallback(() => {
@@ -499,8 +573,8 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
       color: currentTextColor,
       fontSize: currentTextSize,
       fontFamily: currentFont.fontFamily,
-      fontWeight: currentFont.fontWeight || 'normal',
-      fontStyle: currentFont.fontStyle || 'normal',
+      fontWeight: (currentFont.fontWeight as "normal" | "bold" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900") || "normal",
+      fontStyle: (currentFont.fontStyle as "normal" | "italic") || "normal",
       rotation: 0,
       opacity: 1
     };
@@ -559,28 +633,42 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
     }
   }, []);
 
-  // Enhanced create story with all elements
-  const handleCreateStory = useCallback(async () => {
-    if (!mediaUri && !selectedTemplate) {
-      Alert.alert('Missing Content', 'Please select media or choose a template.');
-      return;
-    }
+  // Add custom background color picker function
+  const handleBackgroundColorChange = (color: string) => {
+    setBackgroundColor(color);
+    setSelectedTemplate(null); // Clear template selection when custom color is picked
+    saveToHistory();
+  };
 
+  // Enhanced create story with all elements and background
+  const handleCreateStory = useCallback(async () => {
     try {
       setIsLoading(true);
       setIsProcessing(true);
       
       // Here you would implement the actual composition logic
-      // This would involve rendering all elements onto the base image/video
-      // For now, we'll use the existing createStory function
+      // This would involve rendering all elements onto the base background/image/video
       
+      // Create a story with the current state
       if (mediaUri) {
-        // Create the story first
+        // For a complete implementation, you would need to render the background, media, and elements to a single image
+        // This would typically involve using a library like react-native-view-shot to capture the composed view
+        
+        // For now, we'll use the existing createStory function
         await createStory(userId, mediaUri, null, mediaType, mediaBase64 || undefined);
         
         // Call the callback immediately after successful creation to refresh stories
         console.log('Story created successfully, refreshing stories...');
         onStoryCreated();
+      } else if (selectedTemplate || backgroundColor) {
+        // If no media but has a background, you would create a story with just the background and elements
+        // For a complete implementation, you would need to generate an image from the composed view
+        
+        // For now, we'll show an alert indicating this functionality isn't fully implemented
+        Alert.alert('Feature Coming Soon', 'Creating stories with custom backgrounds without media will be available soon.');
+        setIsLoading(false);
+        setIsProcessing(false);
+        return;
       }
       
       // Then handle the animation and closing
@@ -610,7 +698,7 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
       setIsLoading(false);
       setIsProcessing(false);
     }
-  }, [mediaUri, selectedTemplate, userId, mediaType, mediaBase64, resetState, onStoryCreated, fadeAnim, scaleAnim]);
+  }, [mediaUri, selectedTemplate, backgroundColor, userId, mediaType, mediaBase64, resetState, onStoryCreated, fadeAnim, scaleAnim]);
 
   // Editing features handlers
   const handleAddText = () => {
@@ -900,7 +988,7 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
               style={styles.stickerItem}
               onPress={() => addStickerElement(emoji)}
             >
-              <Text style={styles.stickerEmoji}>{emoji}</Text>
+              <Text style={styles.stickerEmojiText}>{emoji}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -924,97 +1012,66 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
 
   const renderTemplateSelector = () => {
     return (
-      <View style={styles.templateSelector}>
-        <Text style={styles.toolSectionTitle}>Choose a Template</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templateRow}>
-          {STORY_TEMPLATES.map((template) => (
+      <View style={styles.toolsContainer}>
+        <Text style={styles.toolTitle}>Background</Text>
+        
+        <View style={styles.templateGrid}>
+          {STORY_TEMPLATES.map(template => (
             <TouchableOpacity
               key={template.id}
               style={[
-                styles.templateOption,
-                selectedTemplate === template.id && styles.activeTemplateOption
+                styles.templateItem,
+                selectedTemplate === template.id && styles.selectedTemplateItem
               ]}
-              onPress={() => applyTemplate(template.id)}
+              onPress={() => {
+                setSelectedTemplate(template.id);
+                if (template.background.type === 'solid') {
+                  setBackgroundColor(template.background.color || '#FFFFFF');
+                }
+              }}
             >
-              <View style={styles.templatePreview}>
-                {template.background.type === 'gradient' && template.background.colors ? (
+              {template.background.type === 'gradient' ? (
                   <LinearGradient
-                    colors={template.background.colors as [string, string, ...string[]]}
-                    style={styles.templateGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                                      colors={(template.background.colors || ['#FFFFFF', '#CCCCCC']) as [string, string, ...string[]]}
+                  style={styles.templatePreview}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
                   />
                 ) : (
-                  <View style={[
-                    styles.templateSolid,
-                    { backgroundColor: template.background.color || '#333' }
-                  ]} />
-                )}
-              </View>
+                <View 
+                  style={[
+                    styles.templatePreview, 
+                    {backgroundColor: template.background.color}
+                  ]} 
+                />
+              )}
               <Text style={styles.templateName}>{template.name}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
-        
-        {selectedTemplate && (
+          
+          {/* Custom color picker */}
+          <View style={styles.colorPickerContainer}>
+            <Text style={styles.toolSubtitle}>Custom Color</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorScroll}>
+              {['#FFFFFF', '#000000', '#FF5252', '#FFD740', '#69F0AE', '#448AFF', '#E040FB', '#FF9800', '#4CAF50', '#9C27B0'].map(color => (
           <TouchableOpacity 
-            style={styles.continueWithTemplateButton}
-            onPress={() => {
-              setIsPickerVisible(false);
-              saveToHistory();
-            }}
-          >
-            <Text style={styles.continueWithTemplateText}>Continue with Template</Text>
-          </TouchableOpacity>
-        )}
+                  key={color}
+                  style={[
+                    styles.bgColorOption,
+                    {backgroundColor: color},
+                    backgroundColor === color && styles.selectedColorOption
+                  ]}
+                  onPress={() => handleBackgroundColorChange(color)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        </View>
       </View>
     );
   };
 
-  const renderCropTools = () => {
-    return (
-      <View style={styles.cropTools}>
-        <Text style={styles.cropTitle}>Adjust for Story (9:16)</Text>
-        
-        <Text style={styles.cropInstructions}>
-          Drag to reposition • Use controls to resize and rotate
-        </Text>
-        
-        <View style={styles.cropControlRow}>
-          <TouchableOpacity style={styles.cropButton} onPress={() => debouncedScaleChange(imageScale - 0.1)}>
-            <Feather name="minus" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          
-          <Text style={styles.scaleText}>{`${Math.round(imageScale * 100)}%`}</Text>
-          
-          <TouchableOpacity style={styles.cropButton} onPress={() => debouncedScaleChange(imageScale + 0.1)}>
-            <Feather name="plus" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-        
-        <TouchableOpacity style={styles.rotateButton} onPress={() => {
-          setImageRotation(prev => (prev + 90) % 360);
-          saveToHistory();
-        }}>
-          <MaterialCommunityIcons name="rotate-right" size={24} color="#FFFFFF" />
-          <Text style={styles.buttonText}>Rotate</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.resetButton} 
-          onPress={() => {
-            setImageScale(1.2);
-            setImageOffset({x: 0, y: 0});
-            setImageRotation(0);
-            saveToHistory();
-          }}
-        >
-          <MaterialCommunityIcons name="refresh" size={24} color="#FFFFFF" />
-          <Text style={styles.buttonText}>Reset</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
+
   
   const renderEditingTools = () => {
     return (
@@ -1063,13 +1120,7 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
             <Text style={[styles.tabText, activeTab === 'text' && styles.activeTabText]}>Text</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'crop' && styles.activeTab]} 
-            onPress={() => setActiveTab('crop')}
-          >
-            <MaterialCommunityIcons name="crop" size={24} color={activeTab === 'crop' ? colors.primary : "#FFFFFF"} />
-            <Text style={[styles.tabText, activeTab === 'crop' && styles.activeTabText]}>Size</Text>
-          </TouchableOpacity>
+
           
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'draw' && styles.activeTab]} 
@@ -1093,17 +1144,12 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
           {activeTab === 'templates' && renderTemplateSelector()}
           {activeTab === 'filters' && renderFilterOptions()}
           {activeTab === 'text' && renderTextTools()}
-          {activeTab === 'crop' && renderCropTools()}
           {activeTab === 'draw' && renderDrawTools()}
           {activeTab === 'stickers' && renderStickerTools()}
         </View>
       </View>
     );
   };
-
-  if (!visible) {
-    return null;
-  }
 
   // Render the media selection view
   if (isPickerVisible) {
@@ -1115,6 +1161,7 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
         statusBarTranslucent={true}
         onRequestClose={handleClose}
       >
+        <SafeAreaViewRN style={{ flex: 1 }}>
         <BlurView intensity={80} style={styles.modalOverlay} tint={isDarkMode ? "dark" : "light"}>
           <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff' }]}>
             <View style={[styles.modalHeader, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}>
@@ -1172,6 +1219,7 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
             </View>
           </View>
         </BlurView>
+        </SafeAreaViewRN>
       </Modal>
     );
   }
@@ -1185,10 +1233,10 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
       statusBarTranslucent={true}
       onRequestClose={handleClose}
     >
+      <SafeAreaViewRN style={styles.safeAreaContainer} edges={['top', 'bottom']}>
       <Animated.View style={[styles.editorContainer, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
         
-        <SafeAreaViewRN style={styles.safeAreaContainer} edges={['top']}>
           {/* Header */}
           <View style={styles.editorHeader}>
             <TouchableOpacity onPress={handleClose}>
@@ -1207,19 +1255,41 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
               )}
             </TouchableOpacity>
           </View>
-        </SafeAreaViewRN>
         
-        {/* Media Preview with Filter */}
-        <View style={styles.mediaContainer}>
-          {/* Story Frame Guide */}
-          <View style={styles.storyFrame}>
-            {/* Main media */}
-            {mediaType === 'image' ? (
-              <View style={styles.imageContainer} {...imagePanResponder.panHandlers}>
-                <Image
-                  source={{ uri: mediaUri || '' }}
+        {/* Story Canvas with Background, Media and Elements */}
+        <View style={styles.canvasContainer}>
+          {/* Background Layer */}
+          <View 
                   style={[
-                    styles.mediaPreview,
+              styles.backgroundLayer, 
+              {backgroundColor: backgroundColor}
+            ]}
+          />
+          
+          {selectedTemplate && STORY_TEMPLATES.find(t => t.id === selectedTemplate)?.background.type === 'gradient' && (
+            <LinearGradient
+              colors={(STORY_TEMPLATES.find(t => t.id === selectedTemplate)?.background.colors || ['#FFFFFF', '#CCCCCC']) as [string, string, ...string[]]}
+              style={[styles.backgroundLayer]}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+            />
+          )}
+          
+          {/* Media Layer - Image or Video on top of background */}
+          {mediaUri && (
+            <View style={styles.mediaWrapper} collapsable={false}>
+              <View 
+                style={[
+                  styles.mediaTransformContainer,
+                  touchActive && styles.mediaTransformActive
+                ]} 
+                {...imagePanResponder.panHandlers} 
+                collapsable={false}
+                hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+              >
+                <Animated.View
+                  style={[
+                    styles.mediaContainer,
                     {
                       transform: [
                         { scale: imageScale },
@@ -1229,35 +1299,26 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
                       ]
                     }
                   ]}
-                  resizeMode="cover"
-                />
-              </View>
-            ) : (
-              <View style={styles.imageContainer} {...imagePanResponder.panHandlers}>
+                >
+                  {mediaType === 'image' ? (
+                    <Image
+                      source={{ uri: mediaUri }}
+                      style={styles.mediaImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
                 <Video
                   ref={videoRef}
-                  source={{ uri: mediaUri || '' }}
-                  style={[
-                    styles.mediaPreview,
-                    {
-                      transform: [
-                        { scale: imageScale },
-                        { translateX: imageOffset.x },
-                        { translateY: imageOffset.y },
-                        { rotate: `${imageRotation}deg` }
-                      ]
-                    }
-                  ]}
-                  useNativeControls
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay={true}
+                      source={{ uri: mediaUri }}
+                      style={styles.mediaVideo}
+                      resizeMode={ResizeMode.CONTAIN}
                   isLooping
+                      shouldPlay
+                      isMuted={true}
                 />
-              </View>
             )}
             
-            {/* Filter overlay */}
-            {FILTERS[activeFilter]?.overlay && (
+                  {activeFilter !== 'Normal' && FILTERS[activeFilter].overlay && (
               <View 
                 style={[
                   styles.filterOverlay, 
@@ -1268,96 +1329,115 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
                 ]} 
               />
             )}
+                </Animated.View>
           </View>
           
-          {/* Story Frame Guide Lines - Removed for simplification */}
+
+            </View>
+          )}
           
-          {/* Text Overlay */}
-          {textElements.length > 0 && textElements.map((textElement) => (
-            <View
-              key={textElement.id}
+          {/* Drawing Layer - Only active when drawing */}
+          {activeTab === 'draw' && (
+            <Svg style={styles.drawingLayer} {...drawPanResponder.panHandlers}>
+              {drawPaths.map(path => (
+                <Path
+                  key={path.id}
+                  d={path.path}
+                  stroke={path.color}
+                  strokeWidth={path.strokeWidth}
+                  strokeOpacity={path.opacity}
+                  fill="none"
+                />
+              ))}
+              {currentDrawPath && (
+                <Path
+                  d={currentDrawPath}
+                  stroke={brushColor}
+                  strokeWidth={brushSize}
+                  strokeOpacity={brushOpacity}
+                  fill="none"
+                />
+              )}
+            </Svg>
+          )}
+          
+          {/* Drawing Paths - Show when not actively drawing */}
+          {activeTab !== 'draw' && drawPaths.length > 0 && (
+            <Svg style={styles.drawingLayer} pointerEvents="none">
+              {drawPaths.map(path => (
+                <Path
+                  key={path.id}
+                  d={path.path}
+                  stroke={path.color}
+                  strokeWidth={path.strokeWidth}
+                  strokeOpacity={path.opacity}
+                  fill="none"
+                />
+              ))}
+            </Svg>
+          )}
+          
+          {/* Text Elements */}
+          {textElements.map(element => (
+            <Animated.View
+              key={element.id}
               style={[
-                styles.textOverlayContainer,
+                styles.textElementContainer,
                 {
-                  top: textElement.y * FINAL_STORY_HEIGHT,
-                  left: textElement.x * FINAL_STORY_WIDTH,
                   transform: [
-                    { translateX: -50 }, 
-                    { translateY: -10 },
-                    { rotate: `${textElement.rotation}deg` }
+                    { translateX: element.x },
+                    { translateY: element.y },
+                    { rotate: `${element.rotation}deg` }
                   ],
-                  opacity: textElement.opacity
+                  opacity: element.opacity
                 }
               ]}
+              pointerEvents={activeTab === 'text' && selectedTextId === element.id ? 'auto' : 'none'}
             >
-              <Text style={[
-                styles.textOverlay, 
-                { 
-                  color: textElement.color,
-                  fontSize: textElement.fontSize,
-                  fontFamily: textElement.fontFamily,
-                  fontWeight: textElement.fontWeight as any,
-                  fontStyle: textElement.fontStyle as any
-                }
-              ]}>
-                {textElement.text}
+              <Text
+                style={[
+                  styles.textElement,
+                  {
+                    color: element.color,
+                    fontSize: element.fontSize,
+                    fontFamily: element.fontFamily,
+                    fontWeight: element.fontWeight as any,
+                    fontStyle: element.fontStyle as any
+                  }
+                ]}
+              >
+                {element.text}
               </Text>
-            </View>
+              {selectedTextId === element.id && (
+                <View style={styles.textSelectionIndicator} />
+              )}
+            </Animated.View>
           ))}
 
           {/* Sticker Elements */}
-          {stickerElements.length > 0 && stickerElements.map((stickerElement) => (
-            <View
-              key={stickerElement.id}
+          {stickerElements.map(sticker => (
+            <Animated.View
+              key={sticker.id}
               style={[
                 styles.stickerContainer,
                 {
-                  top: stickerElement.y * FINAL_STORY_HEIGHT,
-                  left: stickerElement.x * FINAL_STORY_WIDTH,
                   transform: [
-                    { translateX: -25 }, 
-                    { translateY: -25 },
-                    { scale: stickerElement.scale },
-                    { rotate: `${stickerElement.rotation}deg` }
+                    { translateX: sticker.x },
+                    { translateY: sticker.y },
+                    { scale: sticker.scale },
+                    { rotate: `${sticker.rotation}deg` }
                   ],
-                  opacity: stickerElement.opacity
+                  opacity: sticker.opacity
                 }
               ]}
+              pointerEvents={activeTab === 'stickers' && selectedStickerId === sticker.id ? 'auto' : 'none'}
             >
-              <Text style={styles.stickerText}>{stickerElement.emoji}</Text>
-            </View>
+              <Text style={styles.stickerEmojiText}>{sticker.emoji}</Text>
+              {selectedStickerId === sticker.id && (
+                <View style={styles.stickerSelectionIndicator} />
+              )}
+            </Animated.View>
           ))}
-
-          {/* Drawing Canvas */}
-          {(drawPaths.length > 0 || isDrawing) && (
-            <View style={styles.drawingCanvas} {...drawPanResponder.panHandlers}>
-              <Svg style={StyleSheet.absoluteFillObject}>
-                {drawPaths.map((drawPath) => (
-                  <Path
-                    key={drawPath.id}
-                    d={drawPath.path}
-                    stroke={drawPath.color}
-                    strokeWidth={drawPath.strokeWidth}
-                    strokeOpacity={drawPath.opacity}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                ))}
-                {isDrawing && currentDrawPath && (
-                  <Path
-                    d={currentDrawPath}
-                    stroke={brushColor}
-                    strokeWidth={brushSize}
-                    strokeOpacity={brushOpacity}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                )}
-              </Svg>
-            </View>
-          )}
         </View>
         
         {/* Text Input Modal */}
@@ -1393,6 +1473,7 @@ const StoryCreator: React.FC<StoryCreatorProps> = ({
         {/* Editing Tools */}
         {renderEditingTools()}
       </Animated.View>
+    </SafeAreaViewRN>
     </Modal>
   );
 };
@@ -1403,6 +1484,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   modalContent: {
     width: '94%',
     height: '90%',
@@ -1464,20 +1546,12 @@ const styles = StyleSheet.create({
   
   // Story Editor Styles
   editorContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     backgroundColor: '#000000',
-    zIndex: 9999,
   },
   safeAreaContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+    flex: 1,
+    backgroundColor: '#000000',
   },
   editorHeader: {
     flexDirection: 'row',
@@ -1500,7 +1574,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mediaContainer: {
+  canvasContainer: {
     flex: 1,
     position: 'relative',
     overflow: 'hidden',
@@ -1510,44 +1584,95 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#000000',
   },
-  storyFrame: {
-    width: FINAL_STORY_WIDTH,
-    height: FINAL_STORY_HEIGHT,
-    alignSelf: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  imageContainer: {
+  backgroundLayer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 3,
-    pointerEvents: 'auto',
+    backgroundColor: '#FFFFFF', // Default white background
+  },
+  mediaWrapper: {
+    width: FINAL_STORY_WIDTH,
+    height: FINAL_STORY_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+    position: 'relative',
   },
-  mediaPreview: {
-    width: FINAL_STORY_WIDTH * 1.5,
-    height: FINAL_STORY_HEIGHT * 1.5,
-    backgroundColor: '#000',
+  mediaTransformContainer: {
+    width: FINAL_STORY_WIDTH,
+    height: FINAL_STORY_HEIGHT,
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  mediaTransformActive: {
+    borderWidth: 2,
+    borderColor: 'rgba(74, 144, 226, 0.7)',
+    borderRadius: 8,
+  },
+  mediaCropMode: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+  },
+  mediaContainer: {
+    width: FINAL_STORY_WIDTH,
+    height: FINAL_STORY_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gestureHintContainer: {
+    position: 'absolute',
+    bottom: 20,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 16,
+    alignSelf: 'center',
+  },
+  gestureHintText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  mediaImage: {
+    width: FINAL_STORY_WIDTH,
+    height: FINAL_STORY_HEIGHT,
+  },
+  mediaVideo: {
+    width: FINAL_STORY_WIDTH,
+    height: FINAL_STORY_HEIGHT,
   },
   filterOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 3,
   },
-  textOverlayContainer: {
+  drawingLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 4,
+  },
+  textElementContainer: {
     position: 'absolute',
     zIndex: 5,
   },
-  textOverlay: {
+  textElement: {
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 5,
+  },
+  textSelectionIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#4a90e2',
   },
   stickerContainer: {
     position: 'absolute',
@@ -1559,14 +1684,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 5,
   },
-  stickerText: {
-    color: '#FFFFFF',
+  stickerEmojiText: {
     fontSize: 24,
-    fontWeight: 'bold',
   },
-  drawingCanvas: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 4,
+  stickerSelectionIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#4a90e2',
   },
   textInputOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1949,9 +2076,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  stickerEmoji: {
-    fontSize: 24,
-  },
   clearStickersButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1968,20 +2092,27 @@ const styles = StyleSheet.create({
   },
   
   // Template Styles
-  templateSelector: {
+  toolsContainer: {
     alignItems: 'center',
   },
-  templateRow: {
+  toolTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  templateGrid: {
     flexDirection: 'row',
     marginBottom: 15,
   },
-  templateOption: {
+  templateItem: {
     marginHorizontal: 8,
     alignItems: 'center',
     width: 70,
     opacity: 0.7,
   },
-  activeTemplateOption: {
+  selectedTemplateItem: {
     opacity: 1,
     borderWidth: 2,
     borderColor: '#4a90e2',
@@ -1994,28 +2125,47 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
-  templateGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  templateSolid: {
-    ...StyleSheet.absoluteFillObject,
-  },
   templateName: {
     color: '#FFFFFF',
     fontSize: 12,
     marginTop: 4,
     textAlign: 'center',
   },
-  continueWithTemplateButton: {
-    backgroundColor: '#4a90e2',
-    padding: 12,
-    borderRadius: 25,
-    minWidth: 200,
-    alignItems: 'center',
+  colorPickerContainer: {
+    marginTop: 12,
+    width: '100%',
   },
-  continueWithTemplateText: {
+  toolSubtitle: {
     color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  colorScroll: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  bgColorOption: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  selectedColorOption: {
+    borderWidth: 2,
+    borderColor: '#00A3FF',
+  },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginTop: 10,
   },
   
   // Crop Tools Styles
@@ -2030,11 +2180,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: 'center',
   },
-  cropInstructions: {
-    color: 'rgba(255,255,255,0.7)',
-    marginBottom: 12,
+  gestureInstructionsContainer: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 15,
+    width: '90%',
+  },
+  gestureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  gestureInstructionText: {
+    color: 'rgba(255,255,255,0.9)',
+    marginLeft: 8,
     fontSize: 14,
-    textAlign: 'center',
   },
   cropControlRow: {
     flexDirection: 'row',
@@ -2057,27 +2218,24 @@ const styles = StyleSheet.create({
     minWidth: 60,
     textAlign: 'center',
   },
-  rotateButton: {
+  cropActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '90%',
+  },
+  cropActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 25,
+    marginHorizontal: 8,
   },
   buttonText: {
     color: '#FFFFFF',
     marginLeft: 8,
     fontSize: 16,
-  },
-  resetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    marginTop: 10,
   },
 });
 

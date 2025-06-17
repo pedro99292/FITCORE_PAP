@@ -19,12 +19,12 @@ import { supabase } from '@/utils/supabase';
 import { useTheme } from '@/hooks/useTheme';
 import { LinearGradient } from 'expo-linear-gradient';
 
+// Define TypeScript types for data
 type User = {
   id: string;
   username: string;
   full_name?: string | null;
   avatar_url?: string | null;
-  last_online?: string | null;
 };
 
 export default function NewMessageScreen() {
@@ -110,7 +110,7 @@ export default function NewMessageScreen() {
       // Get all users except the current user
       const { data, error } = await supabase
         .from('users')
-        .select('id, username, full_name, avatar_url, last_seen_at')
+        .select('id, username, full_name, avatar_url')
         .neq('id', currentUserId)
         .order('username');
       
@@ -142,7 +142,7 @@ export default function NewMessageScreen() {
       // Search users by username or full name
       const { data, error } = await supabase
         .from('users')
-        .select('id, username, full_name, avatar_url, last_seen_at')
+        .select('id, username, full_name, avatar_url')
         .neq('id', currentUserId)
         .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
         .order('username');
@@ -248,11 +248,6 @@ export default function NewMessageScreen() {
                   {item.username.charAt(0).toUpperCase()}
                 </Text>
               </LinearGradient>
-            )}
-            
-            {/* Online indicator (just for illustration) */}
-            {index % 3 === 0 && (
-              <View style={styles.onlineIndicator} />
             )}
           </View>
           
@@ -535,17 +530,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 22,
     fontWeight: 'bold',
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#4CD964',
-    borderWidth: 2,
-    borderColor: '#fff',
   },
   userInfo: {
     flex: 1,

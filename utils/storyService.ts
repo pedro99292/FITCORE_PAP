@@ -422,8 +422,10 @@ const uploadStoryMedia = async (uri: string, type: 'image' | 'video', base64?: s
         .getPublicUrl(fileName);
         
       return urlData.publicUrl;
-    } else {
-      // For videos, keep the original blob approach as it might work better
+    } 
+    else if (type === 'video') {
+      // For videos, use blob approach
+      console.log('Uploading video...');
       const response = await fetch(uri);
       const blob = await response.blob();
       
@@ -432,10 +434,13 @@ const uploadStoryMedia = async (uri: string, type: 'image' | 'video', base64?: s
       const { data, error } = await supabase
         .storage
         .from('post-images')
-        .upload(fileName, blob);
+        .upload(fileName, blob, {
+          contentType: 'video/mp4',
+          upsert: true,
+        });
         
       if (error) {
-        console.error('Storage upload error:', error);
+        console.error('Video upload error:', error);
         throw error;
       }
       
@@ -443,12 +448,15 @@ const uploadStoryMedia = async (uri: string, type: 'image' | 'video', base64?: s
         .storage
         .from('post-images')
         .getPublicUrl(fileName);
-        
+      
+      console.log('Video uploaded successfully:', urlData.publicUrl);
       return urlData.publicUrl;
     }
+    
+    return null; // Should not reach here, but added for type safety
   } catch (error) {
     console.error('Error uploading story media:', error);
-    throw error;  // Throw the error instead of returning null to see the full error
+    throw error;
   }
 };
 
