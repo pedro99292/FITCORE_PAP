@@ -1,18 +1,14 @@
 import React, { useEffect, memo, useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { router } from 'expo-router';
+import { router, useSegments } from 'expo-router';
 import { ActivityIndicator, View, Platform, Dimensions, ViewStyle } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 
 import { Colors } from '@/constants/Colors';
 import HeaderStats from '@/components/HeaderStats';
-
-// Memoized TabIcon component to prevent unnecessary re-renders
-const TabIcon = memo(({ name, color, size }: { name: string, color: string, size: number }) => (
-  <FontAwesome name={name as any} size={size} color={color} />
-));
+import InteractiveTabButton from '@/components/InteractiveTabButton';
 
 // Helper function to calculate icon size based on screen width
 const getIconSize = () => {
@@ -34,6 +30,10 @@ const LoadingIndicator = () => (
 const TabLayout = () => {
   const { session, loading } = useAuth();
   const { isDarkMode, colors } = useTheme();
+  const segments = useSegments();
+  
+  // Get current route to determine which tab is active
+  const currentRoute = segments[segments.length - 1] || 'home';
 
   useEffect(() => {
     // If not loading and no session, redirect to login
@@ -51,10 +51,15 @@ const TabLayout = () => {
   const tabBarStyle = useMemo(() => ({
     backgroundColor: isDarkMode ? '#2D2B3F' : '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-    height: Platform.OS === 'ios' ? 90 : 75,
-    paddingBottom: Platform.OS === 'ios' ? 25 : 15,
-    paddingTop: 10,
+    borderTopColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+    height: Platform.OS === 'ios' ? 120 : 105, // Further increased height for better spacing
+    paddingBottom: Platform.OS === 'ios' ? 40 : 30, // Increased padding for better spacing
+    paddingTop: 15,
+    elevation: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: isDarkMode ? 0.3 : 0.1,
+    shadowRadius: 10,
   }), [isDarkMode]);
 
   const tabBarItemStyle = useMemo((): ViewStyle => ({
@@ -81,34 +86,86 @@ const TabLayout = () => {
         header: () => <HeaderStats />,
         tabBarStyle,
         tabBarItemStyle,
-        tabBarShowLabel: false, // Hide all labels
+        tabBarShowLabel: false, // Hide default labels since we have custom ones
       }}>
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <TabIcon name="home" size={ICON_SIZE} color={color} />,
+          tabBarButton: (props) => {
+            const isActive = currentRoute === 'home';
+            return (
+              <InteractiveTabButton
+                {...props}
+                iconName="home"
+                label="Home"
+                color={isActive ? colors.primary : '#888'}
+                size={ICON_SIZE}
+                isFocused={isActive}
+                onPress={props.onPress}
+              />
+            );
+          },
         }}
       />
       <Tabs.Screen
         name="achievements"
         options={{
           title: 'Conquistas',
-          tabBarIcon: ({ color }) => <TabIcon name="trophy" size={ICON_SIZE} color={color} />,
+          tabBarButton: (props) => {
+            const isActive = currentRoute === 'achievements';
+            return (
+              <InteractiveTabButton
+                {...props}
+                iconName="trophy"
+                label="Conquistas"
+                color={isActive ? colors.primary : '#888'}
+                size={ICON_SIZE}
+                isFocused={isActive}
+                onPress={props.onPress}
+              />
+            );
+          },
         }}
       />
       <Tabs.Screen
         name="social"
         options={{
           title: 'Social',
-          tabBarIcon: ({ color }) => <TabIcon name="users" size={ICON_SIZE} color={color} />,
+          tabBarButton: (props) => {
+            const isActive = currentRoute === 'social';
+            return (
+              <InteractiveTabButton
+                {...props}
+                iconName="users"
+                label="Social"
+                color={isActive ? colors.primary : '#888'}
+                size={ICON_SIZE}
+                isFocused={isActive}
+                onPress={props.onPress}
+              />
+            );
+          },
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color }) => <TabIcon name="user" size={ICON_SIZE} color={color} />,
+          tabBarButton: (props) => {
+            const isActive = currentRoute === 'profile';
+            return (
+              <InteractiveTabButton
+                {...props}
+                iconName="user"
+                label="Perfil"
+                color={isActive ? colors.primary : '#888'}
+                size={ICON_SIZE}
+                isFocused={isActive}
+                onPress={props.onPress}
+              />
+            );
+          },
         }}
       />
     </Tabs>
