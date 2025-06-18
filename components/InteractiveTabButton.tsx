@@ -37,21 +37,15 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
   const labelScaleAnim = useRef(new Animated.Value(0.8)).current;
   const [showLabel, setShowLabel] = useState(false);
   
-
-
-  // Separate animated value for background effect (JS-driven)
-  const backgroundOpacityAnim = useRef(new Animated.Value(0)).current;
-
-  // Debug logging
-  console.log(`InteractiveTabButton ${label}: isFocused=${isFocused}, showLabel=${showLabel}`);
+  // Remove the conflicting background animation - we'll use a simple state-based background
+  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
     // Use LayoutAnimation for smoother overall UI updates
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     
-    console.log(`Animation triggered for ${label}: isFocused=${isFocused}`);
     if (isFocused) {
-      console.log(`Starting focus animations for ${label}`);
+      setIsActive(true);
       // Animate to focused state
       Animated.parallel([
         Animated.spring(scaleAnim, {
@@ -66,13 +60,6 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
           tension: 300,
           friction: 10,
         }),
-        Animated.spring(backgroundOpacityAnim, {
-          toValue: 1,
-          useNativeDriver: false,
-          tension: 150,
-          friction: 8,
-        }),
-
       ]).start();
 
       // Show label immediately
@@ -92,6 +79,7 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
         }),
       ]).start();
     } else {
+      setIsActive(false);
       // Animate to unfocused state
       setShowLabel(false);
       Animated.parallel([
@@ -107,12 +95,6 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
           tension: 300,
           friction: 15,
         }),
-        Animated.spring(backgroundOpacityAnim, {
-          toValue: 0,
-          useNativeDriver: false,
-          tension: 150,
-          friction: 8,
-        }),
         Animated.timing(labelOpacityAnim, {
           toValue: 0,
           duration: 100,
@@ -123,25 +105,20 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
           duration: 100,
           useNativeDriver: true,
         }),
-
       ]).start();
     }
   }, [isFocused]);
 
   const handlePress = () => {
-    console.log(`Button pressed for ${label}, will be focused soon`);
-    
     // Add haptic feedback
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
     // Trigger focus animations immediately when pressed
-    // This is a fallback in case the useEffect doesn't trigger properly
     if (!isFocused) {
-      console.log(`Triggering immediate animations for ${label}`);
-      
-      // Start the lifting and glow animations
+      setIsActive(true);
+      // Start the lifting animations
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1.15,
@@ -155,13 +132,6 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
           tension: 300,
           friction: 10,
         }),
-        Animated.spring(backgroundOpacityAnim, {
-          toValue: 1,
-          useNativeDriver: false,
-          tension: 150,
-          friction: 8,
-        }),
-
       ]).start();
 
       // Show label
@@ -185,11 +155,10 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
     onPress?.();
   };
 
-  // Create a background color for active tabs
-  const backgroundColorAnim = backgroundOpacityAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['transparent', isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)']
-  });
+  // Simple background color based on state - no animation conflict
+  const backgroundColor = isActive 
+    ? (isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)')
+    : 'transparent';
 
   return (
     <TouchableOpacity
@@ -203,7 +172,7 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
           style={[
             styles.iconContainer,
             {
-              backgroundColor: backgroundColorAnim,
+              backgroundColor,
               transform: [
                 { scale: scaleAnim },
                 { translateY: translateYAnim },
@@ -243,8 +212,6 @@ const InteractiveTabButton: React.FC<InteractiveTabButtonProps> = ({
             </Text>
           </Animated.View>
         )}
-
-
       </View>
     </TouchableOpacity>
   );

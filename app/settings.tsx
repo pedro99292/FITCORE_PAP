@@ -13,7 +13,6 @@ export default function SettingsScreen() {
   const { isDarkMode, toggleTheme, colors } = useTheme();
   const { signOut, loading } = useAuth();
   const [notifications, setNotifications] = useState(true);
-  const [soundEffects, setSoundEffects] = useState(true);
 
   const handleBackToProfile = () => {
     router.replace('/(tabs)/profile');
@@ -112,12 +111,6 @@ export default function SettingsScreen() {
               onPress={() => router.push('/edit-profile')}
             />
             <SettingItem
-              icon="lock"
-              title="Privacy"
-              subtitle="Manage privacy settings"
-              onPress={() => {}}
-            />
-            <SettingItem
               icon="bell"
               title="Notifications"
               hasSwitch
@@ -138,19 +131,6 @@ export default function SettingsScreen() {
               switchValue={isDarkMode}
               onSwitchChange={toggleTheme}
             />
-            <SettingItem
-              icon="volume-up"
-              title="Sounds"
-              hasSwitch
-              switchValue={soundEffects}
-              onSwitchChange={setSoundEffects}
-            />
-            <SettingItem
-              icon="language"
-              title="Language"
-              subtitle="English"
-              onPress={() => {}}
-            />
           </View>
         </View>
 
@@ -159,22 +139,16 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: colors.primary }]}>Support</Text>
           <View style={[styles.sectionContent, { backgroundColor: colors.surface, borderColor: colors.background }]}>
             <SettingItem
-              icon="question-circle"
-              title="Help"
-              subtitle="FAQs and guides"
-              onPress={() => {}}
-            />
-            <SettingItem
               icon="envelope"
               title="Contact"
               subtitle="Contact us"
-              onPress={() => {}}
+              onPress={() => router.push('/contact-us')}
             />
             <SettingItem
               icon="info-circle"
               title="About"
-              subtitle="Version 1.0.0"
-              onPress={() => {}}
+              subtitle="Version 1.6.3"
+              onPress={() => router.push('/about')}
             />
           </View>
         </View>
@@ -182,7 +156,7 @@ export default function SettingsScreen() {
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} disabled={loading}>
           <LinearGradient
-            colors={['#4a90e2', '#3570b2']}
+            colors={['#e24a4a', '#b23535']}
             start={[0, 0]}
             end={[1, 0]}
             style={styles.logoutGradient}>
