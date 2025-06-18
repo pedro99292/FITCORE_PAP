@@ -13,6 +13,8 @@ import {
   Alert,
   ScrollView,
   Pressable,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +23,8 @@ import { useTheme } from '../hooks/useTheme';
 import { subscriptionService } from '../utils/subscriptionService';
 import { useAuth } from '../contexts/AuthContext';
 import HorizontalPicker from 'react-native-picker-horizontal';
+import { generateAndSaveWorkout } from '../utils/workoutGenerationService';
+import { router } from 'expo-router';
 
 interface SurveyModalProps {
   isVisible: boolean;
@@ -158,7 +162,8 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
 
   const [selectedHeight, setSelectedHeight] = useState(formData.height);
   const [selectedWeight, setSelectedWeight] = useState(formData.weight);
-  const [isScrolling, setIsScrolling] = useState(false);
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { user } = useAuth();
 
@@ -169,7 +174,7 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
     if (!isVisible) return;
 
     const initializeScrollPosition = () => {
-      if (heightScrollRef.current && weightScrollRef.current) {
+      if (heightScrollRef.current && weightScrollRef.current && !isScrollingRef.current) {
         const heightIndex = heightOptions.findIndex(h => String(h) === formData.height);
         const weightIndex = weightOptions.findIndex(w => String(w) === formData.weight);
 
@@ -179,73 +184,101 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
 
         // Use requestAnimationFrame for smooth initial positioning
         requestAnimationFrame(() => {
-          heightScrollRef.current?.scrollTo({
-            x: heightOffset,
-            animated: false
-          });
-          weightScrollRef.current?.scrollTo({
-            x: weightOffset,
-            animated: false
-          });
+          if (!isScrollingRef.current) {
+            heightScrollRef.current?.scrollTo({
+              x: heightOffset,
+              animated: false
+            });
+            weightScrollRef.current?.scrollTo({
+              x: weightOffset,
+              animated: false
+            });
+          }
         });
       }
     };
 
-    // Initial positioning
-    initializeScrollPosition();
+    // Only initialize on modal open, not on value changes
+    if (isVisible) {
+      const timer = setTimeout(initializeScrollPosition, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible]); // Removed formData dependencies
 
-    // Backup positioning after a short delay
-    const timer = setTimeout(initializeScrollPosition, 100);
-    return () => clearTimeout(timer);
-  }, [isVisible, formData.height, formData.weight]);
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleScroll = (event: any, type: 'height' | 'weight') => {
+    if (!isScrollingRef.current) return;
+    
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / ITEM_WIDTH);
     const options = type === 'height' ? heightOptions : weightOptions;
     
     if (index >= 0 && index < options.length) {
       const value = String(options[index]);
+      
+      // Update visual state only
       if (type === 'height') {
         setSelectedHeight(value);
-        setFormData(prev => ({ ...prev, height: value }));
       } else {
         setSelectedWeight(value);
-        setFormData(prev => ({ ...prev, weight: value }));
       }
     }
+  };
+
+  const handleScrollBeginDrag = () => {
+    isScrollingRef.current = true;
   };
 
   const handleMomentumScrollEnd = (event: any, type: 'height' | 'weight') => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / ITEM_WIDTH);
-    const scrollRef = type === 'height' ? heightScrollRef : weightScrollRef;
+    const options = type === 'height' ? heightOptions : weightOptions;
     
-    // Ensure perfect alignment
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({
-        x: index * ITEM_WIDTH,
-        animated: true
-      });
-    });
+    // Update final values
+    if (index >= 0 && index < options.length) {
+      const value = String(options[index]);
+      
+      if (type === 'height') {
+        setSelectedHeight(value);
+      } else {
+        setSelectedWeight(value);
+      }
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        [type]: value 
+      }));
+    }
+    
+    isScrollingRef.current = false;
   };
 
   const renderPickerItem = (value: number, isSelected: boolean, unit: string) => (
     <View key={value} style={[styles.pickerItem, { width: ITEM_WIDTH }]}>
-      <Text style={[
-        styles.pickerText,
-        isSelected ? styles.selectedText : styles.unselectedText,
-        { color: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)' }
-      ]}>
-        {value}
-      </Text>
-      <Text style={[
-        styles.unitText,
-        isSelected ? styles.selectedUnitText : styles.unselectedUnitText,
-        { color: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)' }
-      ]}>
-        {unit}
-      </Text>
+      <View style={styles.pickerItemContent}>
+        <Text style={[
+          styles.pickerText,
+          isSelected ? styles.selectedText : styles.unselectedText,
+          { color: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)' }
+        ]}>
+          {value}
+        </Text>
+        <Text style={[
+          styles.unitText,
+          isSelected ? styles.selectedUnitText : styles.unselectedUnitText,
+          { color: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)' }
+        ]}>
+          {unit}
+        </Text>
+      </View>
     </View>
   );
 
@@ -254,44 +287,52 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
       title: "Let's Get Started! 💪",
       subtitle: "First, tell us about yourself",
       content: (
-        <View style={styles.pageContent}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>What's your age?</Text>
-            <TextInput
-              style={[styles.input, { borderColor: extendedColors.inputBorder, color: colors.text }]}
-              keyboardType="numeric"
-              value={formData.age}
-              onChangeText={(value) => setFormData(prev => ({ ...prev, age: value }))}
-              placeholder="Enter your age"
-              placeholderTextColor={extendedColors.textMuted}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>How do you identify?</Text>
-            <View style={styles.optionsContainer}>
-              {['male', 'female', 'prefer not to say'].map((option) => (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionButton,
-                    { borderColor: extendedColors.inputBorder },
-                    formData.gender === option && { backgroundColor: colors.primary, borderColor: colors.primary }
-                  ]}
-                  onPress={() => setFormData(prev => ({ ...prev, gender: option as SurveyData['gender'] }))}
-                >
-                  <Text
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={styles.pageContent}>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>What's your age?</Text>
+              <TextInput
+                style={[styles.input, { borderColor: extendedColors.inputBorder, color: colors.text }]}
+                keyboardType="numeric"
+                value={formData.age}
+                onChangeText={(value) => setFormData(prev => ({ ...prev, age: value }))}
+                placeholder="Enter your age"
+                placeholderTextColor={extendedColors.textMuted}
+                returnKeyType="done"
+                blurOnSubmit={true}
+                onSubmitEditing={() => Keyboard.dismiss()}
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>How do you identify?</Text>
+              <View style={styles.optionsContainer}>
+                {['male', 'female', 'prefer not to say'].map((option) => (
+                  <TouchableOpacity
+                    key={option}
                     style={[
-                      styles.optionText,
-                      { color: formData.gender === option ? 'white' : colors.text }
+                      styles.optionButton,
+                      { borderColor: extendedColors.inputBorder },
+                      formData.gender === option && { backgroundColor: colors.primary, borderColor: colors.primary }
                     ]}
+                    onPress={() => {
+                      setFormData(prev => ({ ...prev, gender: option as SurveyData['gender'] }));
+                      Keyboard.dismiss();
+                    }}
                   >
-                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.optionText,
+                        { color: formData.gender === option ? 'white' : colors.text }
+                      ]}
+                    >
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       )
     },
     {
@@ -307,16 +348,21 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 snapToInterval={ITEM_WIDTH}
-                decelerationRate="normal"
+                snapToAlignment="center"
+                decelerationRate="fast"
                 onScroll={(e) => handleScroll(e, 'height')}
+                onScrollBeginDrag={handleScrollBeginDrag}
                 onMomentumScrollEnd={(e) => handleMomentumScrollEnd(e, 'height')}
                 scrollEventThrottle={16}
                 contentContainerStyle={[
                   styles.pickerContent,
                   { paddingHorizontal: initialPadding }
                 ]}
-                snapToAlignment="center"
-                pagingEnabled={false}
+                bounces={false}
+                overScrollMode="never"
+                disableIntervalMomentum={true}
+                snapToStart={false}
+                snapToEnd={false}
               >
                 {heightOptions.map(height => renderPickerItem(
                   height,
@@ -324,9 +370,6 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
                   'cm'
                 ))}
               </ScrollView>
-              <View style={styles.pickerOverlay}>
-                <View style={[styles.pickerCenter, { borderColor: colors.primary, width: ITEM_WIDTH }]} />
-              </View>
             </View>
           </View>
 
@@ -338,16 +381,21 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 snapToInterval={ITEM_WIDTH}
-                decelerationRate="normal"
+                snapToAlignment="center"
+                decelerationRate="fast"
                 onScroll={(e) => handleScroll(e, 'weight')}
+                onScrollBeginDrag={handleScrollBeginDrag}
                 onMomentumScrollEnd={(e) => handleMomentumScrollEnd(e, 'weight')}
                 scrollEventThrottle={16}
                 contentContainerStyle={[
                   styles.pickerContent,
                   { paddingHorizontal: initialPadding }
                 ]}
-                snapToAlignment="center"
-                pagingEnabled={false}
+                bounces={false}
+                overScrollMode="never"
+                disableIntervalMomentum={true}
+                snapToStart={false}
+                snapToEnd={false}
               >
                 {weightOptions.map(weight => renderPickerItem(
                   weight,
@@ -355,9 +403,6 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
                   'kg'
                 ))}
               </ScrollView>
-              <View style={styles.pickerOverlay}>
-                <View style={[styles.pickerCenter, { borderColor: colors.primary, width: ITEM_WIDTH }]} />
-              </View>
             </View>
           </View>
         </View>
@@ -410,7 +455,7 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
         <View style={styles.pageContent}>
           <Text style={[styles.label, { color: colors.text }]}>How many workouts per week?</Text>
           <View style={styles.weeklySchedule}>
-            {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+            {[1, 2, 3, 4, 5, 6].map((num) => (
               <TouchableOpacity
                 key={num}
                 style={[
@@ -757,8 +802,66 @@ const SurveyModal: React.FC<SurveyModalProps> = ({ isVisible, onClose, onSubmit 
     try {
       const success = await subscriptionService.updateUserProfile(user.id, formData);
       if (success) {
-    onSubmit(formData);
-    onClose();
+        // First close the modal and call onSubmit
+        onSubmit(formData);
+        onClose();
+        
+        // Then try to generate the workout
+        try {
+          Alert.alert(
+            'Profile Saved! 🎉',
+            'Now let\'s create your personalized workout plan. This may take a moment...',
+            [
+              {
+                text: 'Generate Workout',
+                onPress: async () => {
+                  try {
+                    const workoutId = await generateAndSaveWorkout(user.id);
+                    
+                    if (workoutId) {
+                      Alert.alert(
+                        'Welcome to FitCore! 💪',
+                        'Your personalized workout plan has been created! Each training day is now a separate workout that you can start individually.',
+                        [
+                          { text: 'View Workouts', onPress: () => router.push('/workouts') },
+                          { text: 'Continue to App', onPress: () => router.push('/(tabs)/home') }
+                        ]
+                      );
+                    } else {
+                      Alert.alert(
+                        'Generation Failed',
+                        'We couldn\'t create your workout plan automatically. You can always generate one later from the workouts section.',
+                        [
+                          { text: 'Go to Workouts', onPress: () => router.push('/workouts') },
+                          { text: 'Continue to App', onPress: () => router.push('/(tabs)/home') }
+                        ]
+                      );
+                    }
+                  } catch (error: any) {
+                    console.error('Error generating workout after survey:', error);
+                    Alert.alert(
+                      'Workout Generation Error',
+                      'There was an issue creating your workout plan, but your profile has been saved. You can generate a workout later from the workouts section.',
+                      [
+                        { text: 'Go to Workouts', onPress: () => router.push('/workouts') },
+                        { text: 'Continue to App', onPress: () => router.push('/(tabs)/home') }
+                      ]
+                    );
+                  }
+                }
+              },
+              { 
+                text: 'Skip for Now',
+                onPress: () => router.push('/(tabs)/home'),
+                style: 'cancel'
+              }
+            ]
+          );
+        } catch (error) {
+          console.error('Error showing workout generation prompt:', error);
+          // If even the alert fails, just navigate to home
+          router.push('/(tabs)/home');
+        }
       } else {
         Alert.alert('Error', 'Failed to save your profile. Please try again.');
       }
@@ -1216,14 +1319,23 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  pickerItemContent: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
+    width: '100%',
+    position: 'absolute',
+    height: '100%',
   },
   pickerText: {
     fontWeight: '600',
+    textAlign: 'center',
   },
   unitText: {
     fontWeight: '500',
+    textAlign: 'center',
   },
   selectedText: {
     fontSize: 40,
@@ -1253,6 +1365,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'transparent',
     width: ITEM_WIDTH,
+    alignSelf: 'center',
   },
   splitOptionsContainer: {
     flexDirection: 'column',

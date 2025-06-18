@@ -1,6 +1,6 @@
 import React, { useEffect, memo, Suspense } from 'react';
 import { Stack } from 'expo-router';
-import { Platform, StyleSheet, Text, TextProps, View, LogBox, ActivityIndicator, Image } from 'react-native';
+import { Platform, StyleSheet, Text, TextProps, View, LogBox, ActivityIndicator, Image, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Font from 'expo-font';
@@ -111,7 +111,17 @@ if (__DEV__) {
     'onResponderMove',
     'onResponderEnd',
     'onResponderTerminate',
-    'onResponderTerminationRequest'
+    'onResponderTerminationRequest',
+    'findNodeHandle',
+    'findNodeHandle is not supported on web',
+    'Layout children must be of type Screen',
+    'Property [opacity] may be overwritten by a layout animation',
+    'Added non-passive event listener',
+    'silhouette images preloaded successfully',
+    'entry.bundlePlatform',
+    'entry.bundleIsolationFor',
+    '400 (Bad Request)',
+    'Reanimated'
   ];
   
   // Fix the type issues with console methods
@@ -152,7 +162,28 @@ const SubscriptionWrapper = () => {
   if (!user) return null;
 
   const handleSubscribe = async (type: 'monthly' | 'annual' | 'lifetime') => {
-    await subscribe(type);
+    const success = await subscribe(type);
+    
+    // If subscription was successful but survey modal didn't show (user already completed it)
+    if (success && !showSurveyModal) {
+      // Give a brief moment for the survey modal check to complete
+      setTimeout(async () => {
+        // Import and check if survey was completed
+        const { subscriptionService } = await import('@/utils/subscriptionService');
+        const hasCompletedSurvey = await subscriptionService.hasUserCompletedSurvey(user.id);
+        
+        if (hasCompletedSurvey) {
+          // Show success message since user already has complete profile
+          Alert.alert(
+            'Welcome to Premium! 🎉',
+            'You\'re all set! You can now access all premium features including personalized workout generation.',
+            [
+              { text: 'Continue', onPress: () => {} }
+            ]
+          );
+        }
+      }, 500);
+    }
   };
 
   return (

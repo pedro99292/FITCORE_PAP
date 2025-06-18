@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, SafeAreaView, ScrollView, Image, StatusBar, Alert, ActivityIndicator, Dimensions, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, SafeAreaView, ScrollView, Image, StatusBar, Alert, ActivityIndicator, Dimensions, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +17,9 @@ export default function EditProfileScreen() {
   const [name, setName] = useState(user?.user_metadata?.full_name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [age, setAge] = useState('');
+  const [weight, setWeight] = useState('');
+  const [height, setHeight] = useState('');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Prefer not to say'>('Prefer not to say');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -60,7 +63,7 @@ export default function EditProfileScreen() {
       // Then get extended profile data from users_data table
       const { data: userDataExtended, error: userDataError } = await supabase
         .from('users_data')
-        .select('age')
+        .select('age, weight, height, gender')
         .eq('user_id', user.id)
         .single();
 
@@ -77,9 +80,12 @@ export default function EditProfileScreen() {
         setAvatarUrl(userData.avatar_url);
       }
 
-      // Add age from extended data if available
+      // Add extended data from users_data if available
       if (userDataExtended) {
         setAge(userDataExtended.age ? userDataExtended.age.toString() : '');
+        setWeight(userDataExtended.weight ? userDataExtended.weight.toString() : '');
+        setHeight(userDataExtended.height ? userDataExtended.height.toString() : '');
+        setGender(userDataExtended.gender || 'Prefer not to say');
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -178,9 +184,19 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = async () => {
-    // Only validate age if provided
+    // Validate numeric fields if provided
     if (age && isNaN(Number(age))) {
       Alert.alert('Error', 'Age must be a number');
+      return;
+    }
+    
+    if (weight && (isNaN(Number(weight)) || Number(weight) <= 0)) {
+      Alert.alert('Error', 'Weight must be a valid positive number');
+      return;
+    }
+    
+    if (height && (isNaN(Number(height)) || Number(height) <= 0)) {
+      Alert.alert('Error', 'Height must be a valid positive number');
       return;
     }
 
@@ -232,6 +248,9 @@ export default function EditProfileScreen() {
           .from('users_data')
           .update({
             age: age ? parseInt(age) : null,
+            weight: weight ? parseFloat(weight) : null,
+            height: height ? parseFloat(height) : null,
+            gender: gender,
           })
           .eq('user_id', user.id);
 
@@ -243,6 +262,9 @@ export default function EditProfileScreen() {
           .insert({
             user_id: user.id,
             age: age ? parseInt(age) : null,
+            weight: weight ? parseFloat(weight) : null,
+            height: height ? parseFloat(height) : null,
+            gender: gender,
           });
 
         if (insertDataError) throw insertDataError;
@@ -295,12 +317,18 @@ export default function EditProfileScreen() {
         }} 
       />
       
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <View style={styles.mainContainer}>
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollViewContent}
+        >
+          <View style={styles.mainContainer}>
           {/* Profile Image */}
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
@@ -374,28 +402,97 @@ export default function EditProfileScreen() {
               </View>
             </View>
 
-            {/* Bio field if needed */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Bio</Text>
-              <View style={[styles.inputContainer, styles.textAreaContainer]}>
-                <Ionicons name="create-outline" size={20} color="#8e8ea0" style={[styles.inputIcon, {alignSelf: 'flex-start', paddingTop: 12}]} />
+              <Text style={styles.label}>Weight (kg)</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="fitness-outline" size={20} color="#8e8ea0" style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={bio}
-                  onChangeText={setBio}
-                  placeholder="Tell us a bit about yourself"
-                  multiline
-                  numberOfLines={4}
+                  style={styles.input}
+                  value={weight}
+                  onChangeText={setWeight}
+                  placeholder="Enter your weight in kg"
+                  keyboardType="numeric"
+                  maxLength={3}
                   placeholderTextColor="#555"
                   selectionColor="#4a90e2"
-                  textAlignVertical="top"
-                  autoCapitalize="sentences"
                 />
               </View>
             </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Height (cm)</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="resize-outline" size={20} color="#8e8ea0" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={height}
+                  onChangeText={setHeight}
+                  placeholder="Enter your height in cm"
+                  keyboardType="numeric"
+                  maxLength={3}
+                  placeholderTextColor="#555"
+                  selectionColor="#4a90e2"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Gender</Text>
+              <View style={styles.genderContainer}>
+                {(['Male', 'Female', 'Prefer not to say'] as const).map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.genderOption,
+                      gender === option && styles.genderOptionSelected
+                    ]}
+                    onPress={() => setGender(option)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.genderOptionContent}>
+                      <View style={[
+                        styles.genderRadio,
+                        gender === option && styles.genderRadioSelected
+                      ]}>
+                        {gender === option && (
+                          <View style={styles.genderRadioInner} />
+                        )}
+                      </View>
+                      <Text style={[
+                        styles.genderOptionText,
+                        gender === option && styles.genderOptionTextSelected
+                      ]}>
+                        {option}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Bio field */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelWithIcon}>
+                <Ionicons name="create-outline" size={16} color="#8e8ea0" style={styles.labelIcon} />
+                <Text style={styles.label}>Bio</Text>
+              </View>
+              <TextInput
+                style={styles.bioTextArea}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Tell us a bit about yourself..."
+                multiline
+                numberOfLines={4}
+                placeholderTextColor="#666"
+                selectionColor="#4a90e2"
+                textAlignVertical="top"
+                autoCapitalize="sentences"
+              />
+            </View>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
       
       <View style={styles.footerContainer}>
         <TouchableOpacity 
@@ -444,8 +541,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   mainContainer: {
     padding: 16,
@@ -530,14 +634,25 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     height: 'auto',
   },
-  textAreaContainer: {
-    height: 120,
-    alignItems: 'flex-start',
+  labelWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  textArea: {
-    height: 120,
+  labelIcon: {
+    marginRight: 6,
+  },
+  bioTextArea: {
+    backgroundColor: '#1a1f2b',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3a3f4c',
+    padding: 16,
+    fontSize: 14,
+    color: '#ffffff',
     textAlignVertical: 'top',
-    paddingTop: 12,
+    minHeight: 120,
+    maxHeight: 200,
   },
   footerContainer: {
     padding: 16,
@@ -565,5 +680,53 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#9da3b4',
     fontSize: 14,
+  },
+  genderContainer: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  genderOption: {
+    backgroundColor: '#1a1f2b',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3a3f4c',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  genderOptionSelected: {
+    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+    borderColor: '#4a90e2',
+  },
+  genderOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  genderRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#3a3f4c',
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  genderRadioSelected: {
+    borderColor: '#4a90e2',
+  },
+  genderRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4a90e2',
+  },
+  genderOptionText: {
+    fontSize: 16,
+    color: '#ffffff',
+    flex: 1,
+  },
+  genderOptionTextSelected: {
+    color: '#4a90e2',
+    fontWeight: '600',
   },
 });

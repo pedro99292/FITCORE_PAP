@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Platform, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -10,7 +10,6 @@ import { Image as ExpoImage } from 'expo-image';
 import { Asset } from 'expo-asset';
 import { router } from 'expo-router';
 import { supabase } from '@/utils/supabase';
-import { generateAndSaveWorkout } from '@/utils/workoutGenerationService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -262,8 +261,7 @@ const HomeScreen = () => {
   
   // Add state for button cooldown and loading overlay
   const [isFlipCooldown, setIsFlipCooldown] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  
+
   // Preload silhouette images
   useEffect(() => {
     const preloadImages = async () => {
@@ -311,92 +309,6 @@ const HomeScreen = () => {
   // Function to handle starting a workout
   const handleStartWorkout = () => {
     router.push('/workout-select');
-  };
-
-  // Function to handle generating AI workout
-  const handleGenerateWorkout = async () => {
-    try {
-      // Get current user
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user?.id) {
-        Alert.alert('Not logged in', 'Please log in to generate a workout');
-        return;
-      }
-      
-      setIsLoading(true);
-      
-      Alert.alert(
-        'Generate AI Workout',
-        'This will create a personalized workout plan based on your profile data. Continue?',
-        [
-          { 
-            text: 'Cancel', 
-            style: 'cancel',
-            onPress: () => setIsLoading(false)
-          },
-          { 
-            text: 'Generate', 
-            onPress: async () => {
-              try {
-                // Show loading indicator
-                setIsLoading(true);
-                
-                const workoutId = await generateAndSaveWorkout(userData.user.id);
-                
-                // Hide loading indicator
-                setIsLoading(false);
-                
-                if (workoutId) {
-                  Alert.alert(
-                    'Success!',
-                    'Your personalized workout plan has been created! Each training day is now a separate workout that you can start individually.',
-                    [
-                      { text: 'View Workouts', onPress: () => router.push('/workouts') },
-                      { text: 'OK' }
-                    ]
-                  );
-                } else {
-                  // More specific error handling for null workoutId
-                  Alert.alert(
-                    'Generation Failed',
-                    'We couldn\'t create your workout plan. This might be due to missing profile data or exercise matching issues.',
-                    [
-                      { text: 'Update Profile', onPress: () => router.push('/edit-profile') },
-                      { text: 'OK' }
-                    ]
-                  );
-                }
-              } catch (error: any) {
-                // Hide loading indicator on error
-                setIsLoading(false);
-                console.error('Error generating workout:', error);
-                
-                // Provide more specific error messages
-                let errorMessage = 'An unexpected error occurred while generating your workout.';
-                
-                if (error.message?.includes('profile data')) {
-                  errorMessage = 'Unable to fetch your profile data. Please complete your profile setup first by going to Profile > Edit Profile.';
-                } else if (error.message?.includes('fetch exercises')) {
-                  errorMessage = 'Unable to fetch exercise database. Please check your internet connection and try again.';
-                } else if (error.message?.includes('match')) {
-                  errorMessage = 'There was an issue matching exercises. Please try again later.';
-                } else if (error.message?.includes('save')) {
-                  errorMessage = 'Failed to save the workout. Please try again.';
-                } else if (error.message?.includes('does not exist')) {
-                  errorMessage = 'There was an issue with your profile data. Please update your profile by going to Profile > Edit Profile.';
-                }
-                
-                Alert.alert('Error', errorMessage);
-              }
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      setIsLoading(false);
-      console.error('Error in handleGenerateWorkout:', error);
-      Alert.alert('Error', 'An unexpected error occurred.');
-    }
   };
 
   // Memoized animated styles for front silhouette
@@ -470,18 +382,6 @@ const HomeScreen = () => {
             <Text style={styles.mainButtonText}>INICIAR TREINO</Text>
           </LinearGradient>
         </TouchableOpacity>
-        
-        {/* Temporary AI Workout Generation Button */}
-        <TouchableOpacity style={[styles.mainButton, { marginTop: 12 }]} onPress={handleGenerateWorkout}>
-          <LinearGradient
-            colors={['#e24a90', '#b23570']}
-            start={[0, 0]}
-            end={[1, 0]}
-            style={styles.mainButtonGradient}
-          >
-            <Text style={styles.mainButtonText}>Generate workout</Text>
-          </LinearGradient>
-        </TouchableOpacity>
       </View>
       
       {/* Rotate Button - Now positioned at bottom right of screen */}
@@ -502,16 +402,6 @@ const HomeScreen = () => {
           <MaterialCommunityIcons name="rotate-3d-variant" size={26} color="#fff" />
         </LinearGradient>
       </TouchableOpacity>
-      
-      {/* Loading Overlay */}
-      {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4a90e2" />
-            <Text style={styles.loadingText}>Generating workout plan...</Text>
-          </View>
-        </View>
-      )}
     </SafeAreaView>
   );
 };
@@ -659,32 +549,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  loadingContainer: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 200,
-  },
-  loadingText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 10,
     textAlign: 'center',
   },
 });

@@ -684,6 +684,7 @@ export default function WorkoutBuilderScreen() {
             user_id: user.id,
             title: title,
             description: description || null,
+            workout_type: 'user_created',
           })
           .select()
           .single();

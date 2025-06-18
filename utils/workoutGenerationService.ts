@@ -295,6 +295,7 @@ export async function saveGeneratedWorkout(
           user_id: userId,
           title: dayTitle,
           description: `Auto-generated ${day.focus} workout. ${workoutPlan.notes.recommendation}`,
+          workout_type: 'auto_generated',
         })
         .select()
         .single();

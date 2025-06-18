@@ -2,10 +2,10 @@ import { supabase } from './supabase';
 import { Workout, WorkoutExercise, WorkoutSet } from '@/types/exercise';
 
 // Create a new workout
-export const createWorkout = async (workout: Omit<Workout, 'id' | 'created_at' | 'updated_at' | 'exercises'>) => {
+export const createWorkout = async (workout: Omit<Workout, 'id' | 'created_at' | 'updated_at' | 'exercises'> & { workout_type?: 'user_created' | 'auto_generated' }) => {
   const { data, error } = await supabase
     .from('workouts')
-    .insert([workout])
+    .insert([{ ...workout, workout_type: workout.workout_type || 'user_created' }])
     .select('*')
     .single();
 

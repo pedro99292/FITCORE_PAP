@@ -1,18 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useColorScheme } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Colors } from '../constants/Colors';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/hooks/useTheme';
 import { Ionicons } from '@expo/vector-icons';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface SubscriptionModalProps {
   isVisible: boolean;
   onClose: () => void;
   onSubscribe: (plan: 'monthly' | 'annual' | 'lifetime') => void;
+  onStartTrial: () => void;
 }
 
-const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClose, onSubscribe }) => {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClose, onSubscribe, onStartTrial }) => {
+  const { colors, isDarkMode } = useTheme();
 
   const plans = [
     {
@@ -25,7 +27,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClos
         'Enhanced Profile',
         'Premium Features',
       ],
-      type: 'monthly'
+      type: 'monthly',
+      popular: false
     },
     {
       name: 'Annual Plan',
@@ -35,8 +38,10 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClos
         'All Monthly Features',
         'Save ~33%',
         'Priority Support',
+        'Exclusive Content',
       ],
-      type: 'annual'
+      type: 'annual',
+      popular: true
     },
     {
       name: 'Lifetime Access',
@@ -45,9 +50,11 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClos
       features: [
         'All Features Forever',
         'Best Value',
-        'Exclusive Content',
+        'No Monthly Fees',
+        'Future Updates',
       ],
-      type: 'lifetime'
+      type: 'lifetime',
+      popular: false
     },
   ];
 
@@ -60,46 +67,119 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClos
     >
       <View style={styles.modalContainer}>
         <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-          
-          <Text style={[styles.title, { color: colors.text }]}>Upgrade to Premium</Text>
-          <Text style={[styles.subtitle, { color: colors.icon }]}>Unlock all premium features</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <View style={[styles.closeButtonBackground, { backgroundColor: colors.surface }]}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </View>
+            </TouchableOpacity>
+            
+            <View style={styles.headerContent}>
+              <Text style={[styles.title, { color: colors.text }]}>Upgrade to Premium</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Unlock all premium features and take your fitness to the next level
+              </Text>
+            </View>
+          </View>
 
-          <ScrollView style={styles.plansContainer}>
+          {/* Plans */}
+          <ScrollView style={styles.plansContainer} showsVerticalScrollIndicator={false}>
             {plans.map((plan, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.planCard, { borderColor: colors.tint }]}
-                onPress={() => onSubscribe(plan.type as 'monthly' | 'annual' | 'lifetime')}
-              >
-                <Text style={[styles.planName, { color: colors.text }]}>{plan.name}</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={[styles.price, { color: colors.tint }]}>{plan.price}</Text>
-                  <Text style={[styles.period, { color: colors.icon }]}>{plan.period}</Text>
-                </View>
-                <View style={styles.featuresContainer}>
-                  {plan.features.map((feature, fIndex) => (
-                    <View key={fIndex} style={styles.featureRow}>
-                      <Ionicons name="checkmark-circle" size={20} color={colors.tint} />
-                      <Text style={[styles.featureText, { color: colors.text }]}>{feature}</Text>
-                    </View>
-                  ))}
-                </View>
+              <View key={index} style={styles.planWrapper}>
+                {plan.popular && (
+                  <View style={styles.popularBadge}>
+                    <LinearGradient
+                      colors={[colors.primary, '#6bb6ff']}
+                      start={[0, 0]}
+                      end={[1, 0]}
+                      style={styles.popularBadgeGradient}
+                    >
+                      <Text style={styles.popularBadgeText}>Most Popular</Text>
+                    </LinearGradient>
+                  </View>
+                )}
+                
                 <TouchableOpacity
-                  style={[styles.subscribeButton, { backgroundColor: colors.tint }]}
+                  style={[
+                    styles.planCard, 
+                    { 
+                      backgroundColor: colors.surface,
+                      borderColor: plan.popular ? colors.primary : colors.border,
+                      borderWidth: plan.popular ? 2 : 1
+                    }
+                  ]}
                   onPress={() => onSubscribe(plan.type as 'monthly' | 'annual' | 'lifetime')}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.subscribeButtonText}>Choose Plan</Text>
+                  <View style={styles.planHeader}>
+                    <Text style={[styles.planName, { color: colors.text }]}>{plan.name}</Text>
+                    <View style={styles.priceContainer}>
+                      <Text style={[styles.price, { color: colors.primary }]}>{plan.price}</Text>
+                      <Text style={[styles.period, { color: colors.textSecondary }]}>{plan.period}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featuresContainer}>
+                    {plan.features.map((feature, fIndex) => (
+                      <View key={fIndex} style={styles.featureRow}>
+                        <View style={[styles.checkIcon, { backgroundColor: colors.primary + '20' }]}>
+                          <Ionicons name="checkmark" size={16} color={colors.primary} />
+                        </View>
+                        <Text style={[styles.featureText, { color: colors.text }]}>{feature}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.subscribeButtonWrapper}
+                    onPress={() => onSubscribe(plan.type as 'monthly' | 'annual' | 'lifetime')}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={plan.popular ? [colors.primary, '#6bb6ff'] : ['#5a9fd4', '#4a90e2']}
+                      start={[0, 0]}
+                      end={[1, 0]}
+                      style={styles.subscribeButton}
+                    >
+                      <Text style={[
+                        styles.subscribeButtonText, 
+                        { color: '#fff' }
+                      ]}>
+                        Choose {plan.name.split(' ')[0]}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </View>
             ))}
           </ScrollView>
 
-          <Text style={[styles.trialText, { color: colors.icon }]}>
-            Try Premium free for 14 days
-          </Text>
+          {/* Footer */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={styles.trialButtonWrapper}
+              onPress={onStartTrial}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={[colors.primary + '20', colors.primary + '10']}
+                start={[0, 0]}
+                end={[1, 0]}
+                style={styles.trialBadge}
+              >
+                <Ionicons name="time-outline" size={20} color={colors.primary} />
+                <Text style={[styles.trialText, { color: colors.primary }]}>
+                  Start your 14-day free trial today
+                </Text>
+                <Ionicons name="arrow-forward" size={16} color={colors.primary} style={styles.trialArrow} />
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <Text style={[styles.footerNote, { color: colors.textSecondary }]}>
+              Cancel anytime. No commitments.
+            </Text>
+          </View>
         </View>
       </View>
     </Modal>
@@ -109,86 +189,165 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClos
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    borderRadius: 20,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
+    borderRadius: 24,
+    width: screenWidth * 0.95,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  header: {
+    padding: 24,
+    paddingBottom: 16,
   },
   closeButton: {
     position: 'absolute',
-    right: 15,
-    top: 15,
+    right: 20,
+    top: 20,
     zIndex: 1,
   },
+  closeButtonBackground: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerContent: {
+    marginTop: 8,
+    paddingRight: 50,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 10,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
-    marginTop: 5,
-    marginBottom: 20,
+    lineHeight: 22,
   },
   plansContainer: {
-    maxHeight: '70%',
+    paddingHorizontal: 24,
+    maxHeight: '60%',
+  },
+  planWrapper: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -8,
+    left: 20,
+    right: 20,
+    zIndex: 1,
+  },
+  popularBadgeGradient: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  popularBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   planCard: {
-    borderRadius: 15,
+    borderRadius: 20,
     padding: 20,
-    marginBottom: 15,
-    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  planHeader: {
+    marginBottom: 16,
   },
   planName: {
     fontSize: 20,
     fontWeight: 'bold',
+    marginBottom: 8,
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginTop: 10,
   },
   price: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
   },
   period: {
     fontSize: 16,
-    marginLeft: 5,
+    marginLeft: 8,
   },
   featuresContainer: {
-    marginTop: 15,
+    marginBottom: 20,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  checkIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   featureText: {
-    marginLeft: 10,
     fontSize: 16,
+    flex: 1,
+  },
+  subscribeButtonWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   subscribeButton: {
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 15,
+    padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   subscribeButtonText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
+  footer: {
+    padding: 24,
+    paddingTop: 16,
+  },
+  trialButtonWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  trialBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 16,
+  },
   trialText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    flex: 1,
+  },
+  trialArrow: {
+    marginLeft: 8,
+  },
+  footerNote: {
     textAlign: 'center',
-    marginTop: 15,
     fontSize: 14,
   },
 });

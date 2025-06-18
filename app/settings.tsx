@@ -111,6 +111,12 @@ export default function SettingsScreen() {
               onPress={() => router.push('/edit-profile')}
             />
             <SettingItem
+              icon="credit-card"
+              title="Subscription"
+              subtitle="Manage your subscription"
+              onPress={() => router.push('/subscription-management')}
+            />
+            <SettingItem
               icon="bell"
               title="Notifications"
               hasSwitch
