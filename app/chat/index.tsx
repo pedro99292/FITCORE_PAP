@@ -62,7 +62,7 @@ export default function ChatScreen() {
     const date = new Date(dateString);
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
-    if (seconds < 60) return 'agora';
+    if (seconds < 60) return 'now';
     
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m`;

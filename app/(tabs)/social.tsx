@@ -389,7 +389,7 @@ export default function SocialScreen() {
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
     if (seconds < 60) {
-      return 'agora';
+      return 'now';
     }
     
     const minutes = Math.floor(seconds / 60);
@@ -492,7 +492,7 @@ export default function SocialScreen() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     
     if (status !== 'granted') {
-      Alert.alert('Permissão Negada', 'Precisamos de permissão para acessar sua câmera');
+      Alert.alert('Permission Denied', 'We need permission to access your camera');
       return;
     }
     
@@ -519,7 +519,7 @@ export default function SocialScreen() {
     const { status } = await Location.requestForegroundPermissionsAsync();
     
     if (status !== 'granted') {
-      Alert.alert('Permissão Negada', 'Precisamos de permissão para acessar sua localização');
+      Alert.alert('Permission Denied', 'We need permission to access your location');
       return;
     }
     
@@ -530,24 +530,24 @@ export default function SocialScreen() {
       // Instead of using reverseGeocodeAsync (deprecated), we'll use a manual approach
       // or suggest a manual location entry
       Alert.alert(
-        'Adicionar Localização',
-        'Como deseja adicionar sua localização?',
+        'Add Location',
+        'How would you like to add your location?',
         [
           {
-            text: 'Digitar manualmente',
+            text: 'Type manually',
             onPress: () => {
               // Use a cross-platform approach instead of Alert.prompt (which is iOS-only)
               if (Platform.OS === 'ios') {
                 Alert.prompt(
-                  'Localização',
-                  'Digite sua localização atual (ex: Lisboa, Portugal)',
+                  'Location',
+                  'Enter your current location (e.g., Lisbon, Portugal)',
                   [
                     {
-                      text: 'Cancelar',
+                      text: 'Cancel',
                       style: 'cancel'
                     },
                     {
-                      text: 'Adicionar',
+                      text: 'Add',
                       onPress: (locationText) => {
                         if (locationText && locationText.trim()) {
                           setLocation(locationText.trim());
@@ -559,22 +559,22 @@ export default function SocialScreen() {
               } else {
                 // For Android, use a simple location list
                 Alert.alert(
-                  'Escolha uma Localização',
-                  'Selecione uma localização:',
+                  'Choose a Location',
+                  'Select a location:',
                   [
-                    { text: 'Lisboa, Portugal', onPress: () => setLocation('Lisboa, Portugal') },
+                    { text: 'Lisbon, Portugal', onPress: () => setLocation('Lisbon, Portugal') },
                     { text: 'Porto, Portugal', onPress: () => setLocation('Porto, Portugal') },
                     { text: 'Braga, Portugal', onPress: () => setLocation('Braga, Portugal') },
                     { text: 'Coimbra, Portugal', onPress: () => setLocation('Coimbra, Portugal') },
                     { text: 'Faro, Portugal', onPress: () => setLocation('Faro, Portugal') },
-                    { text: 'Cancelar', style: 'cancel' }
+                    { text: 'Cancel', style: 'cancel' }
                   ]
                 );
               }
             }
           },
           {
-            text: 'Usar coordenadas',
+            text: 'Use coordinates',
             onPress: () => {
               // Use the coordinates in a simple format
               const locationString = `${location.coords.latitude.toFixed(2)}, ${location.coords.longitude.toFixed(2)}`;
@@ -582,14 +582,14 @@ export default function SocialScreen() {
             }
           },
           {
-            text: 'Cancelar',
+            text: 'Cancel',
             style: 'cancel'
           }
         ]
       );
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert('Erro', 'Não foi possível obter sua localização');
+      Alert.alert('Error', 'Could not get your location');
     }
   };
   
@@ -599,8 +599,8 @@ export default function SocialScreen() {
     const commonEmojis = ['😊', '👍', '❤️', '🔥', '😂', '🎉', '💪', '🏋️'];
     
     Alert.alert(
-      'Escolha um Emoji',
-      'Selecione um emoji para adicionar:',
+      'Choose an Emoji',
+      'Select an emoji to add:',
       [
         ...commonEmojis.map(emoji => ({
           text: emoji,
@@ -609,7 +609,7 @@ export default function SocialScreen() {
           }
         })),
         {
-          text: 'Cancelar',
+          text: 'Cancel',
           style: 'cancel'
         }
       ]
@@ -2071,7 +2071,7 @@ export default function SocialScreen() {
           // Show "No stories" message if none exist
           <View style={styles.noStoriesContainer}>
             <Text style={[styles.noStoriesText, { color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }]}>
-              Sem stories das pessoas que segues
+              No stories from people you follow
             </Text>
           </View>
         )}
@@ -2180,13 +2180,13 @@ export default function SocialScreen() {
         ) : posts.length === 0 && !loading ? (
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="account-group" size={80} color={isDarkMode ? "#8e8e93" : "#999"} />
-            <Text style={[styles.emptyText, { color: isDarkMode ? '#fff' : '#000' }]}>O teu feed está vazio</Text>
-            <Text style={[styles.emptySubtext, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Segue pessoas para veres os seus posts aqui</Text>
+            <Text style={[styles.emptyText, { color: isDarkMode ? '#fff' : '#000' }]}>Your feed is empty</Text>
+            <Text style={[styles.emptySubtext, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Follow people to see their posts here</Text>
             <TouchableOpacity 
               style={styles.emptyButton}
               onPress={handleAddFriends}
             >
-              <Text style={styles.emptyButtonText}>Descobrir Pessoas</Text>
+              <Text style={styles.emptyButtonText}>Discover People</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -2410,7 +2410,7 @@ export default function SocialScreen() {
               backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
               borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
             }]}>
-              <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>Criar Post</Text>
+              <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>Create Post</Text>
               <TouchableOpacity 
                 style={[styles.closeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                 onPress={() => {
@@ -2456,7 +2456,7 @@ export default function SocialScreen() {
 
               <TextInput
                 style={[styles.postInput, { color: isDarkMode ? '#fff' : '#000' }]}
-                placeholder="Em que estás a pensar?"
+                placeholder="What are you thinking?"
                 placeholderTextColor={isDarkMode ? "#8e8e93" : "#666"}
                 value={newPost}
                 onChangeText={setNewPost}
@@ -2494,7 +2494,7 @@ export default function SocialScreen() {
               )}
 
               <View style={styles.postOptions}>
-                <Text style={[styles.addToPostText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Adicionar ao post:</Text>
+                <Text style={[styles.addToPostText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Add to post:</Text>
                 <View style={styles.postOptionsRow}>
                   <TouchableOpacity 
                     style={[styles.postOptionButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
@@ -2538,7 +2538,7 @@ export default function SocialScreen() {
                 {uploading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.publishButtonText}>Publicar</Text>
+                  <Text style={styles.publishButtonText}>Publish</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -2661,7 +2661,7 @@ export default function SocialScreen() {
                   backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
                   borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
                 }]}>
-                  <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>Editar Post</Text>
+                  <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>Edit Post</Text>
                   <TouchableOpacity 
                     style={[styles.closeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
                     onPress={() => {
@@ -2681,7 +2681,7 @@ export default function SocialScreen() {
                 >
                   <TextInput
                     style={[styles.postInput, { color: isDarkMode ? '#fff' : '#000' }]}
-                    placeholder="Editar o teu post..."
+                    placeholder="Edit your post..."
                     placeholderTextColor={isDarkMode ? '#8e8e93' : '#999'}
                     multiline
                     value={editContent}
@@ -2720,7 +2720,7 @@ export default function SocialScreen() {
                   {/* Image Options */}
                   <View style={styles.postOptions}>
                     <Text style={[styles.addToPostText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>
-                      Alterar imagem:
+                      Change image:
                     </Text>
                     <View style={styles.postOptionsRow}>
                       <TouchableOpacity 
@@ -2750,7 +2750,7 @@ export default function SocialScreen() {
                     {uploading ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.publishButtonText}>Atualizar</Text>
+                      <Text style={styles.publishButtonText}>Update</Text>
                     )}
                   </TouchableOpacity>
                 </ScrollView>
@@ -2762,7 +2762,7 @@ export default function SocialScreen() {
                   onPress={handleEditPost}
                 >
                   <Feather name="edit-2" size={22} color={isDarkMode ? "#fff" : "#000"} />
-                  <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#000' }]}>Editar Post</Text>
+                  <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#000' }]}>Edit Post</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
@@ -2770,14 +2770,14 @@ export default function SocialScreen() {
                   onPress={handleDeletePost}
                 >
                   <Feather name="trash-2" size={22} color="#ff4757" />
-                  <Text style={[styles.optionText, { color: '#ff4757' }]}>Eliminar Post</Text>
+                  <Text style={[styles.optionText, { color: '#ff4757' }]}>Delete Post</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
                   style={[styles.optionItem, styles.cancelOption]}
                   onPress={() => setShowPostOptions(false)}
                 >
-                  <Text style={[styles.optionText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Cancelar</Text>
+                  <Text style={[styles.optionText, { color: isDarkMode ? '#8e8e93' : '#666' }]}>Cancel</Text>
                 </TouchableOpacity>
               </>
             )}

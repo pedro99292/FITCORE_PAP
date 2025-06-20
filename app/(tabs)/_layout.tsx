@@ -111,14 +111,14 @@ const TabLayout = () => {
       <Tabs.Screen
         name="achievements"
         options={{
-          title: 'Conquistas',
+          title: 'Achievements',
           tabBarButton: (props) => {
             const isActive = currentRoute === 'achievements';
             return (
               <InteractiveTabButton
                 {...props}
                 iconName="trophy"
-                label="Conquistas"
+                label="Achievements"
                 color={isActive ? colors.primary : '#888'}
                 size={ICON_SIZE}
                 isFocused={isActive}
@@ -151,14 +151,14 @@ const TabLayout = () => {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Perfil',
+          title: 'Profile',
           tabBarButton: (props) => {
             const isActive = currentRoute === 'profile';
             return (
               <InteractiveTabButton
                 {...props}
                 iconName="user"
-                label="Perfil"
+                label="Profile"
                 color={isActive ? colors.primary : '#888'}
                 size={ICON_SIZE}
                 isFocused={isActive}

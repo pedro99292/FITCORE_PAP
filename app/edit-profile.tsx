@@ -89,7 +89,6 @@ export default function EditProfileScreen() {
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      console.error('Erro ao buscar perfil do utilizador:', error);
     } finally {
       setIsFetchingProfile(false);
     }
@@ -125,7 +124,7 @@ export default function EditProfileScreen() {
         }
       }
     } catch (error) {
-      console.error('Erro ao selecionar imagem:', error);
+      console.error('Error selecting image:', error);
       Alert.alert('Error', 'Could not select the image');
     }
   };
@@ -176,7 +175,7 @@ export default function EditProfileScreen() {
         Alert.alert('Success', 'Profile image updated');
       }
     } catch (error: any) {
-      console.error('Erro ao carregar imagem:', error);
+      console.error('Error uploading image:', error);
       Alert.alert('Error', error.message || 'Failed to load image');
     } finally {
       setUploading(false);

@@ -678,7 +678,7 @@ export default function ProfileScreen() {
                 style={styles.actionIcon}>
                 <FontAwesome name="shopping-cart" size={26} color="#fff" />
               </LinearGradient>
-              <Text style={[styles.actionText, { color: colors.text }]}>LOJA</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>SHOP</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -692,7 +692,7 @@ export default function ProfileScreen() {
                 style={styles.actionIcon}>
                 <Ionicons name="fitness" size={26} color="#fff" />
               </LinearGradient>
-              <Text style={[styles.actionText, { color: colors.text }]}>TREINO</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>WORKOUTS</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -734,7 +734,7 @@ export default function ProfileScreen() {
             <View style={styles.calendarHeader}>
               <FontAwesome name="calendar" size={20} color="#4a90e2" />
               <Text style={[styles.calendarTitle, { color: colors.text }]}>
-                {new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
+                {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </Text>
             </View>
             <View style={styles.calendarGrid}>

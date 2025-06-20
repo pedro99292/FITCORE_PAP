@@ -100,13 +100,13 @@ const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedVa
         style={styles.statsGradient}
       >
         <View style={styles.statsHeader}>
-          <Text style={styles.statsTitle}>Estatísticas</Text>
+          <Text style={styles.statsTitle}>Statistics</Text>
         </View>
         <View style={styles.statsBox}>
           <StatItem 
             icon={<FontAwesome5 name="dumbbell" size={20} color="#fff" />}
             value={stats.totalWorkouts}
-            label="Treinos"
+            label="Workouts"
             isLoading={stats.isLoading}
             isRefreshing={isRefreshing}
           />
@@ -126,7 +126,7 @@ const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedVa
           <StatItem 
             icon={<Ionicons name="time-outline" size={20} color="#fff" />}
             value={stats.totalMinutes}
-            label="Minutos"
+            label="Minutes"
             isLoading={stats.isLoading}
             isRefreshing={isRefreshing}
           />
@@ -285,7 +285,7 @@ const HomeScreen = () => {
             end={[1, 0]}
             style={styles.mainButtonGradient}
           >
-            <Text style={styles.mainButtonText}>INICIAR TREINO</Text>
+            <Text style={styles.mainButtonText}>START WORKOUT</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
