@@ -59,7 +59,7 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
       let shouldFetchAll = !params?.bodyPart && !params?.equipment && !params?.target && !params?.name;
       
       // Set a high limit to fetch as many exercises as possible
-      const maxLimit = 1000; // The maximum number of exercises to fetch
+      const maxLimit = 1300; // Increased from 1000 to 1300 to fetch more exercises
       
       // If we have filters, use the appropriate endpoints
       if (params?.bodyPart && params?.equipment) {

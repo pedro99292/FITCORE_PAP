@@ -518,9 +518,45 @@ export default function UserProfileScreen() {
     }
   };
 
-  const handleMessage = () => {
-    // Implement message functionality
-    console.log('Message button pressed');
+  const handleMessage = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert('You must be logged in to send messages');
+        return;
+      }
+
+      if (user.id === userId) {
+        alert('You cannot message yourself');
+        return;
+      }
+
+      // Call the function to get or create a conversation
+      const { data, error } = await supabase.rpc('get_or_create_conversation', {
+        user1_id: user.id,
+        user2_id: userId
+      });
+      
+      if (error) {
+        console.error('Error creating conversation:', error);
+        alert('Failed to start conversation. Please try again.');
+        return;
+      }
+      
+      // Navigate to the conversation
+      router.push({
+        pathname: `/chat/conversation/[id]`,
+        params: { 
+          id: data, 
+          userId: userId,
+          username: userProfile?.username || 'Unknown'
+        }
+      });
+    } catch (error) {
+      console.error('Error in handleMessage:', error);
+      alert('Failed to start conversation. Please try again.');
+    }
   };
 
   // Add story handlers

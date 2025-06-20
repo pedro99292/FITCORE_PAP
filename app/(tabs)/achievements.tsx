@@ -1044,7 +1044,7 @@ const AchievementsPage = () => {
     
     // Return the complete filtered list (no pagination)
     return filtered;
-  }, [achievements, selectedCategory, filter, itemsPerPage]);
+  }, [achievements, selectedCategory, filter]);
 
   // Get the paginated achievements for display
   const paginatedAchievements = useMemo(() => {

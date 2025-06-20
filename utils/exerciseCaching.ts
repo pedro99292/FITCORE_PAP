@@ -3,9 +3,33 @@
  */
 import { Exercise } from '@/types/exercise';
 import { fetchExercisesFromAPI } from './apiConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Global cache for exercises
 let cachedExercises: Exercise[] = [];
+
+// Cache duration: 7 days (exercises don't change frequently)
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+const CACHE_KEY = 'fitcore_exercises_cache';
+const CACHE_TIMESTAMP_KEY = 'fitcore_exercises_cache_timestamp';
+
+/**
+ * Check if cached data is still valid
+ */
+async function isCacheValid(): Promise<boolean> {
+  try {
+    const timestamp = await AsyncStorage.getItem(CACHE_TIMESTAMP_KEY);
+    if (!timestamp) return false;
+    
+    const cacheTime = parseInt(timestamp, 10);
+    const now = Date.now();
+    
+    return (now - cacheTime) < CACHE_DURATION;
+  } catch (error) {
+    console.error('Error checking cache validity:', error);
+    return false;
+  }
+}
 
 /**
  * Pre-cache exercises from the API
@@ -13,8 +37,19 @@ let cachedExercises: Exercise[] = [];
  */
 export async function preloadExercises(): Promise<void> {
   try {
-    // Only fetch if cache is empty
-    if (cachedExercises.length === 0) {
+    // Check if we have valid cached data first
+    const cacheValid = await isCacheValid();
+    if (cacheValid) {
+      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      if (cached) {
+        cachedExercises = JSON.parse(cached);
+        console.log(`Loaded ${cachedExercises.length} exercises from persistent cache`);
+        return;
+      }
+    }
+    
+    // Only fetch if cache is empty or invalid
+    if (cachedExercises.length === 0 || !cacheValid) {
       console.log('Pre-caching exercises from API...');
       const exercises = await fetchExercisesFromAPI();
       
@@ -22,11 +57,9 @@ export async function preloadExercises(): Promise<void> {
         cachedExercises = exercises;
         console.log(`Successfully cached ${exercises.length} exercises`);
         
-        // Also store in global window object for persistence across components
-        if (typeof window !== 'undefined') {
-          (window as any).cachedExercises = exercises;
-          (window as any).getCachedExercises = getCachedExercises;
-        }
+        // Store in persistent storage with timestamp
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(exercises));
+        await AsyncStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
       } else {
         console.error('Failed to preload exercises: No exercises returned from API');
       }
@@ -42,16 +75,31 @@ export async function preloadExercises(): Promise<void> {
  * Get cached exercises
  * @returns Array of cached exercises or empty array if none are cached
  */
-export function getCachedExercises(): Exercise[] {
+export async function getCachedExercises(): Promise<Exercise[]> {
   // First check our module cache
   if (cachedExercises.length > 0) {
     return cachedExercises;
   }
   
-  // Then check if they're stored in the window object
-  if (typeof window !== 'undefined' && (window as any).cachedExercises) {
-    cachedExercises = (window as any).cachedExercises;
-    return cachedExercises;
+  // Then check persistent storage if cache is valid
+  try {
+    const cacheValid = await isCacheValid();
+    if (cacheValid) {
+      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          cachedExercises = JSON.parse(cached);
+          return cachedExercises;
+        } catch (error) {
+          console.error('Error parsing cached exercises:', error);
+          // Clear invalid cache
+          await AsyncStorage.removeItem(CACHE_KEY);
+          await AsyncStorage.removeItem(CACHE_TIMESTAMP_KEY);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error getting cached exercises:', error);
   }
   
   // No cached exercises available
@@ -65,7 +113,7 @@ export function getCachedExercises(): Exercise[] {
  */
 export async function getExercisesWithFallback(): Promise<Exercise[]> {
   // Try to get from cache first
-  const cachedExercises = getCachedExercises();
+  const cachedExercises = await getCachedExercises();
   if (cachedExercises.length > 0) {
     return cachedExercises;
   }
@@ -75,10 +123,9 @@ export async function getExercisesWithFallback(): Promise<Exercise[]> {
     const exercises = await fetchExercisesFromAPI();
     // Cache them for future use
     if (exercises && exercises.length > 0) {
-      if (typeof window !== 'undefined') {
-        (window as any).cachedExercises = exercises;
-        (window as any).getCachedExercises = getCachedExercises;
-      }
+      // Update the module cache
+      cachedExercises.length = 0;
+      cachedExercises.push(...exercises);
     }
     return exercises || [];
   } catch (error) {

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, ScrollView, SafeAreaView, StatusBar, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, ScrollView, SafeAreaView, StatusBar, ActivityIndicator, Alert, Modal, FlatList } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -48,6 +49,18 @@ interface AchievementData {
   progress: number;
 }
 
+// Add type for follower/following user
+type FollowUser = {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  isFollowing: boolean;
+};
+
+// Add modal type
+type ModalType = 'followers' | 'following' | null;
+
 export default function ProfileScreen() {
   const { user, loading } = useAuth();
   const { colors, isDarkMode } = useTheme();
@@ -61,6 +74,17 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [workoutDays, setWorkoutDays] = useState<number[]>([]);
   const [recentAchievements, setRecentAchievements] = useState<RecentAchievement[]>([]);
+  
+  // Add followers/following state
+  const [stats, setStats] = useState({
+    posts: 0,
+    followers: 0,
+    following: 0
+  });
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [modalUsers, setModalUsers] = useState<FollowUser[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   // Fetch user data from database when component mounts
   useEffect(() => {
@@ -68,6 +92,7 @@ export default function ProfileScreen() {
       fetchUserProfile();
       fetchWorkoutDays();
       fetchRecentAchievements();
+      fetchUserStats();
     } else {
       setIsLoading(false);
     }
@@ -216,6 +241,313 @@ export default function ProfileScreen() {
     }
   };
 
+  // Fetch user stats (posts, followers/following)
+  const fetchUserStats = async () => {
+    try {
+      if (!user) return;
+
+      // Get posts count from social_posts table
+      const { count: postsCount } = await supabase
+        .from('social_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // Get followers count
+      const { count: followersCount } = await supabase
+        .from('user_followers')
+        .select('*', { count: 'exact', head: true })
+        .eq('followed_id', user.id);
+
+      // Get following count
+      const { count: followingCount } = await supabase
+        .from('user_followers')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', user.id);
+
+      setStats({
+        posts: postsCount || 0,
+        followers: followersCount || 0,
+        following: followingCount || 0
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
+  };
+
+  // Fetch followers
+  const fetchFollowers = async () => {
+    try {
+      if (!user) return;
+      
+      setModalLoading(true);
+
+      const { data: followersData, error: followersError } = await supabase
+        .from('user_followers')
+        .select('follower_id')
+        .eq('followed_id', user.id);
+
+      if (followersError) throw followersError;
+
+      if (!followersData || followersData.length === 0) {
+        setModalUsers([]);
+        return;
+      }
+
+      const followerIds = followersData.map(f => f.follower_id);
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, full_name, avatar_url')
+        .in('id', followerIds);
+
+      if (usersError) throw usersError;
+
+      if (!usersData) {
+        setModalUsers([]);
+        return;
+      }
+
+      const followersWithStatus = await Promise.all(
+        usersData.map(async (userData) => {
+          let isFollowing = false;
+          if (user.id !== userData.id) {
+            const { data: followCheck } = await supabase
+              .from('user_followers')
+              .select('id')
+              .eq('follower_id', user.id)
+              .eq('followed_id', userData.id)
+              .single();
+            
+            isFollowing = !!followCheck;
+          }
+
+          return {
+            id: userData.id,
+            username: userData.username,
+            full_name: userData.full_name,
+            avatar_url: userData.avatar_url,
+            isFollowing
+          };
+        })
+      );
+
+      setModalUsers(followersWithStatus);
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      setModalUsers([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Fetch following
+  const fetchFollowing = async () => {
+    try {
+      if (!user) return;
+      
+      setModalLoading(true);
+
+      const { data: followingData, error: followingError } = await supabase
+        .from('user_followers')
+        .select('followed_id')
+        .eq('follower_id', user.id);
+
+      if (followingError) throw followingError;
+
+      if (!followingData || followingData.length === 0) {
+        setModalUsers([]);
+        return;
+      }
+
+      const followingIds = followingData.map(f => f.followed_id);
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, full_name, avatar_url')
+        .in('id', followingIds);
+
+      if (usersError) throw usersError;
+
+      if (!usersData) {
+        setModalUsers([]);
+        return;
+      }
+
+      const followingWithStatus = await Promise.all(
+        usersData.map(async (userData) => {
+          let isFollowing = false;
+          if (user.id !== userData.id) {
+            const { data: followCheck } = await supabase
+              .from('user_followers')
+              .select('id')
+              .eq('follower_id', user.id)
+              .eq('followed_id', userData.id)
+              .single();
+            
+            isFollowing = !!followCheck;
+          }
+
+          return {
+            id: userData.id,
+            username: userData.username,
+            full_name: userData.full_name,
+            avatar_url: userData.avatar_url,
+            isFollowing
+          };
+        })
+      );
+
+      setModalUsers(followingWithStatus);
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      setModalUsers([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Modal handlers
+  const openFollowersModal = () => {
+    setModalType('followers');
+    setModalVisible(true);
+    fetchFollowers();
+  };
+
+  const openFollowingModal = () => {
+    setModalType('following');
+    setModalVisible(true);
+    fetchFollowing();
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setModalType(null);
+    setModalUsers([]);
+  };
+
+  // Handle follow/unfollow user
+  const handleFollowUser = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
+    try {
+      if (!user) {
+        alert('You must be logged in to follow users');
+        return;
+      }
+
+      if (user.id === targetUserId) {
+        alert('You cannot follow yourself');
+        return;
+      }
+
+      if (isCurrentlyFollowing) {
+        const { error } = await supabase
+          .from('user_followers')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('followed_id', targetUserId);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_followers')
+          .insert({
+            follower_id: user.id,
+            followed_id: targetUserId,
+            created_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+      }
+
+      setModalUsers(prev => 
+        prev.map(modalUser => 
+          modalUser.id === targetUserId 
+            ? { ...modalUser, isFollowing: !isCurrentlyFollowing }
+            : modalUser
+        )
+      );
+
+      if (modalType === 'following' && isCurrentlyFollowing) {
+        setStats(prev => ({
+          ...prev,
+          following: Math.max(0, prev.following - 1)
+        }));
+      }
+      
+      if (!isCurrentlyFollowing) {
+        setStats(prev => ({
+          ...prev,
+          following: prev.following + 1
+        }));
+      }
+
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      alert('Failed to update follow status. Please try again.');
+    }
+  };
+
+  // Navigate to user profile
+  const navigateToUserProfile = (targetUserId: string) => {
+    closeModal();
+    router.push(`/${targetUserId}`);
+  };
+
+  // Render user item for modal
+  const renderUserItem = ({ item }: { item: FollowUser }) => {
+    const isCurrentUser = user?.id === item.id;
+
+    return (
+      <TouchableOpacity
+        style={[styles.userItem, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
+        onPress={() => navigateToUserProfile(item.id)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.userAvatar, { backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5' }]}>
+          {item.avatar_url ? (
+            <Image
+              source={{ uri: item.avatar_url }}
+              style={{ width: 50, height: 50, borderRadius: 25 }}
+            />
+          ) : (
+            <FontAwesome name="user" size={20} color={colors.text} />
+          )}
+        </View>
+        
+        <View style={styles.userInfo}>
+          <Text style={[styles.userUsername, { color: colors.text }]}>
+            @{item.username}
+          </Text>
+          {item.full_name && (
+            <Text style={[styles.userFullName, { color: colors.text }]}>
+              {item.full_name}
+            </Text>
+          )}
+        </View>
+
+        {!isCurrentUser && (
+          <TouchableOpacity
+            style={[
+              styles.followUserButton,
+              { 
+                backgroundColor: item.isFollowing ? 'rgba(255,255,255,0.1)' : '#4a90e2',
+                borderWidth: item.isFollowing ? 1 : 0,
+                borderColor: item.isFollowing ? colors.text : 'transparent'
+              }
+            ]}
+            onPress={() => handleFollowUser(item.id, item.isFollowing)}
+          >
+            <Text style={[
+              styles.followUserButtonText,
+              { color: item.isFollowing ? colors.text : '#fff' }
+            ]}>
+              {item.isFollowing ? 'Following' : 'Follow'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   // Generate an array of days for the calendar preview (showing current week)
   const generateCalendarDays = () => {
     const today = new Date();
@@ -301,13 +633,22 @@ export default function ProfileScreen() {
                 <View style={styles.userInfo}>
                   <Text style={[styles.username, { color: colors.text }]}>{userData.username}</Text>
                   <Text style={[styles.name, { color: colors.text }]}>{userData.name}</Text>
-                  <TouchableOpacity 
-                    style={[styles.editProfileButton, { borderColor: 'rgba(74, 144, 226, 0.4)' }]}
-                    onPress={handleEditProfile}
-                  >
-                    <FontAwesome name="pencil" size={14} color="#4a90e2" style={styles.editIcon} />
-                    <Text style={styles.editProfileText}>Edit Profile</Text>
-                  </TouchableOpacity>
+                  
+                  {/* Social Stats */}
+                  <View style={styles.profileStats}>
+                    <TouchableOpacity style={styles.statItem}>
+                      <Text style={[styles.statNumber, { color: colors.text }]}>{stats.posts}</Text>
+                      <Text style={[styles.statLabel, { color: colors.text }]}>Posts</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.statItem} onPress={openFollowersModal}>
+                      <Text style={[styles.statNumber, { color: colors.text }]}>{stats.followers}</Text>
+                      <Text style={[styles.statLabel, { color: colors.text }]}>Followers</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.statItem} onPress={openFollowingModal}>
+                      <Text style={[styles.statNumber, { color: colors.text }]}>{stats.following}</Text>
+                      <Text style={[styles.statLabel, { color: colors.text }]}>Following</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </LinearGradient>
@@ -315,6 +656,15 @@ export default function ProfileScreen() {
             <View style={styles.bioContainer}>
               <Text style={[styles.bioLabel, { color: colors.text }]}>Bio</Text>
               <Text style={[styles.bioText, { color: colors.text }]}>{userData.bio}</Text>
+              
+              {/* Edit Profile Button */}
+              <TouchableOpacity 
+                style={[styles.editProfileButton, { borderColor: 'rgba(74, 144, 226, 0.4)' }]}
+                onPress={handleEditProfile}
+              >
+                <FontAwesome name="pencil" size={14} color="#4a90e2" style={styles.editIcon} />
+                <Text style={styles.editProfileText}>Edit Profile</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -446,6 +796,55 @@ export default function ProfileScreen() {
           <View style={{ height: 20 }} />
         </View>
       </ScrollView>
+
+      {/* Modal for followers/following list */}
+      {modalVisible && (
+        <Modal
+          visible={modalVisible}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={closeModal}
+        >
+          <View style={styles.modalOverlay}>
+            <BlurView
+              intensity={isDarkMode ? 40 : 60}
+              tint={isDarkMode ? 'dark' : 'light'}
+              style={[styles.modalContent, { backgroundColor: isDarkMode ? 'rgba(40,40,40,0.95)' : 'rgba(255,255,255,0.95)' }]}
+            >
+              <View style={[styles.modalHeader, { borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {modalType === 'followers' ? 'Followers' : 'Following'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={closeModal}
+                >
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              {modalLoading ? (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : modalUsers.length > 0 ? (
+                <FlatList
+                  data={modalUsers}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderUserItem}
+                  showsVerticalScrollIndicator={false}
+                />
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={[styles.emptyStateText, { color: colors.text }]}>
+                    {modalType === 'followers' ? 'No followers found' : 'No following found'}
+                  </Text>
+                </View>
+              )}
+            </BlurView>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -544,9 +943,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#4a90e2',
     borderRadius: 50,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignSelf: 'center',
+    marginTop: 15,
   },
   editIcon: {
     marginRight: 5,
@@ -719,5 +1119,96 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     marginTop: 10,
     fontSize: 14,
+  },
+  // Profile stats styles (in header)
+  profileStats: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  statItem: {
+    alignItems: 'center',
+    marginRight: 20,
+  },
+  statNumber: {
+    fontSize: screenWidth * 0.045,
+    fontWeight: 'bold',
+    marginBottom: 3,
+  },
+  statLabel: {
+    fontSize: screenWidth * 0.032,
+    opacity: 0.8,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 20,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    marginVertical: 5,
+    borderRadius: 12,
+  },
+  userAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userUsername: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  userFullName: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  followUserButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 15,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  followUserButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    opacity: 0.6,
+    textAlign: 'center',
   },
 }); 

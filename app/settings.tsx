@@ -4,6 +4,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -12,6 +13,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { isDarkMode, toggleTheme, colors } = useTheme();
   const { signOut, loading } = useAuth();
+  const { isSubscribed } = useSubscription();
   const [notifications, setNotifications] = useState(true);
 
   const handleBackToProfile = () => {
@@ -110,6 +112,14 @@ export default function SettingsScreen() {
               subtitle="Edit personal information"
               onPress={() => router.push('/edit-profile')}
             />
+            {isSubscribed && (
+              <SettingItem
+                icon="cog"
+                title="Workout Preferences"
+                subtitle="Manage workout settings and generated plans"
+                onPress={() => router.push('/workout-preferences')}
+              />
+            )}
             <SettingItem
               icon="credit-card"
               title="Subscription"

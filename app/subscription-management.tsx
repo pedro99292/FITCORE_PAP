@@ -22,26 +22,24 @@ import { formatRelativeTime } from '@/utils/dateUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-interface UserWorkout {
-  workout_id: string;
-  title: string;
-  description: string | null;
-  created_at: string;
-  user_id: string;
-  workout_type?: 'user_created' | 'auto_generated';
-}
+
 
 export default function SubscriptionManagementScreen() {
   const router = useRouter();
   const { isDarkMode, colors } = useTheme();
   const { user } = useAuth();
-  const { subscriptionType, subscriptionStatus, isSubscribed, checkSubscription } = useSubscription();
+  const { 
+    subscriptionType, 
+    subscriptionStatus, 
+    isSubscribed, 
+    checkSubscription,
+    subscribe: contextSubscribe
+  } = useSubscription();
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
-  const [userWorkouts, setUserWorkouts] = useState<UserWorkout[]>([]);
-  const [workoutsLoading, setWorkoutsLoading] = useState(true);
+
 
   const fetchSubscriptionDetails = async () => {
     if (!user) return;
@@ -54,39 +52,10 @@ export default function SubscriptionManagementScreen() {
     }
   };
 
-  const fetchUserWorkouts = async () => {
-    if (!user) return;
-    
-    try {
-      setWorkoutsLoading(true);
-      // Fetch only auto-generated workouts (from workout generator)
-      const { data, error } = await supabase
-        .from('workouts')
-        .select(`
-          workout_id,
-          title,
-          description,
-          created_at,
-          user_id,
-          workout_type
-        `)
-        .eq('user_id', user.id)
-        .eq('workout_type', 'auto_generated')
-        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setUserWorkouts(data || []);
-    } catch (error) {
-      console.error('Error fetching user workouts:', error);
-      setUserWorkouts([]);
-    } finally {
-      setWorkoutsLoading(false);
-    }
-  };
 
   useEffect(() => {
     fetchSubscriptionDetails();
-    fetchUserWorkouts();
   }, [user]);
 
   const onRefresh = async () => {
@@ -94,7 +63,6 @@ export default function SubscriptionManagementScreen() {
     await Promise.all([
       checkSubscription(),
       fetchSubscriptionDetails(),
-      fetchUserWorkouts(),
     ]);
     setRefreshing(false);
   };
@@ -117,27 +85,18 @@ export default function SubscriptionManagementScreen() {
             console.log('Starting subscription change process...');
             setLoading(true);
             try {
-              console.log('Calling subscriptionService.subscribe...');
-              const success = await subscriptionService.subscribe(user.id, newType);
-              console.log('Subscribe result:', success);
+              // Use the context's subscribe method which handles survey and workout generation
+              const success = await contextSubscribe(newType);
+              
               if (success) {
-                await checkSubscription();
                 await fetchSubscriptionDetails();
                 
-                // Check if user has completed survey to provide appropriate messaging
-                const hasCompletedSurvey = await subscriptionService.hasUserCompletedSurvey(user.id);
-                
-                if (hasCompletedSurvey) {
-                  Alert.alert(
-                    'Subscription Updated! ✅', 
-                    'Your subscription has been updated successfully. You can now access all premium features.'
-                  );
-                } else {
-                  Alert.alert(
-                    'Subscription Updated! ✅', 
-                    'Your subscription has been updated successfully. Please complete the survey to get personalized workout recommendations.'
-                  );
-                }
+                // Show simple success message - context will handle modals
+                Alert.alert(
+                  'Subscription Updated! ✅', 
+                  'Your subscription has been updated successfully. You can now access all premium features.',
+                  [{ text: 'Great!', onPress: () => {} }]
+                );
               } else {
                 Alert.alert('Error', 'Failed to update subscription. Please try again.');
               }
@@ -171,7 +130,6 @@ export default function SubscriptionManagementScreen() {
               if (success) {
                 await checkSubscription();
                 await fetchSubscriptionDetails();
-                await fetchUserWorkouts(); // Refresh the workouts list
                 Alert.alert(
                   'Subscription Canceled', 
                   'Your subscription has been canceled successfully. All auto-generated workouts have been removed, but your custom workouts and history remain intact.'
@@ -267,34 +225,7 @@ export default function SubscriptionManagementScreen() {
     </TouchableOpacity>
   );
 
-  const WorkoutCard = ({ workout }: { workout: UserWorkout }) => (
-    <TouchableOpacity 
-      style={[styles.workoutCard, { backgroundColor: colors.surface, borderColor: colors.background }]}
-      onPress={() => router.push(`/workout-preview/${workout.workout_id}`)}
-    >
-      <View style={styles.workoutInfo}>
-        <View style={styles.workoutHeader}>
-          <Text style={[styles.workoutTitle, { color: colors.text }]}>{workout.title}</Text>
-          <View style={[styles.workoutTypeBadge, { 
-            backgroundColor: workout.workout_type === 'auto_generated' ? '#FF9800' : colors.primary 
-          }]}>
-            <Text style={styles.workoutTypeText}>
-              {workout.workout_type === 'auto_generated' ? 'Auto' : 'Custom'}
-            </Text>
-          </View>
-        </View>
-        {workout.description && (
-          <Text style={[styles.workoutDescription, { color: colors.text + '80' }]} numberOfLines={2}>
-            {workout.description}
-          </Text>
-        )}
-        <Text style={[styles.workoutDate, { color: colors.text + '60' }]}>
-          Created {formatRelativeTime(workout.created_at)}
-        </Text>
-      </View>
-      <FontAwesome name="chevron-right" size={16} color={colors.text + '60'} />
-    </TouchableOpacity>
-  );
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -431,36 +362,6 @@ export default function SubscriptionManagementScreen() {
           </View>
         )}
 
-        {/* Generated Workouts */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.primary }]}>Your Generated Workouts</Text>
-          
-          {workoutsLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color={colors.primary} size="large" />
-            </View>
-          ) : userWorkouts.length > 0 ? (
-            <View style={[styles.workoutsContainer, { backgroundColor: colors.surface, borderColor: colors.background }]}>
-              {userWorkouts.map((workout, index) => (
-                <WorkoutCard key={workout.workout_id} workout={workout} />
-              ))}
-            </View>
-          ) : (
-            <View style={[styles.emptyContainer, { backgroundColor: colors.surface, borderColor: colors.background }]}>
-              <MaterialCommunityIcons name="dumbbell" size={48} color={colors.text + '40'} />
-              <Text style={[styles.emptyText, { color: colors.text + '60' }]}>
-                No generated workouts yet
-              </Text>
-              <TouchableOpacity 
-                style={[styles.createButton, { backgroundColor: '#FF9800' }]}
-                onPress={() => router.push('/workout-select')}
-              >
-                <Text style={styles.createButtonText}>Generate Your First Workout</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
         <View style={{ height: 20 }} />
       </ScrollView>
     </View>
@@ -573,82 +474,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  workoutsContainer: {
-    marginHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  workoutCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  workoutInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  workoutHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  workoutTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    flex: 1,
-  },
-  workoutTypeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  workoutTypeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  workoutDescription: {
-    fontSize: 14,
-  },
-  workoutDate: {
-    fontSize: 12,
-  },
-  emptyContainer: {
-    marginHorizontal: 16,
-    padding: 32,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  buttonContainer: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  createButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  generateButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+
   loadingContainer: {
     padding: 32,
     alignItems: 'center',
   },
-}); 
+  workoutPreferencesButton: {
+    marginHorizontal: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  workoutPreferencesIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  workoutPreferencesText: {
+    flex: 1,
+  },
+  workoutPreferencesTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  workoutPreferencesSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+});

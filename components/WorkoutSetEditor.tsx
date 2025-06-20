@@ -45,10 +45,35 @@ const WorkoutSetEditor: React.FC<WorkoutSetEditorProps> = ({
     onAddSet();
   };
 
+  // Helper function to format time input (MM:SS)
+  const formatTimeInput = (seconds: number | undefined): string => {
+    if (!seconds) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Helper function to parse time input (MM:SS) to seconds
+  const parseTimeInput = (timeStr: string): number => {
+    const parts = timeStr.split(':');
+    if (parts.length === 2) {
+      const minutes = parseInt(parts[0]) || 0;
+      const seconds = parseInt(parts[1]) || 0;
+      return minutes * 60 + seconds;
+    } else if (parts.length === 1) {
+      // If only one number, treat as minutes
+      const minutes = parseInt(parts[0]) || 0;
+      return minutes * 60;
+    }
+    return 0;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Sets</Text>
+        <Text style={styles.title}>
+          {exerciseType === 'time' ? 'Time Sets' : 'Sets'}
+        </Text>
         <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
           <TouchableOpacity 
             style={styles.addButton} 
@@ -63,7 +88,7 @@ const WorkoutSetEditor: React.FC<WorkoutSetEditorProps> = ({
 
       {sets.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="barbell-outline" size={32} color="rgba(255,255,255,0.3)" />
+          <Ionicons name={exerciseType === 'time' ? "timer-outline" : "barbell-outline"} size={32} color="rgba(255,255,255,0.3)" />
           <Text style={styles.emptyText}>No sets added yet</Text>
           <Text style={styles.emptySubtext}>Add a set to get started</Text>
         </View>
@@ -75,9 +100,15 @@ const WorkoutSetEditor: React.FC<WorkoutSetEditorProps> = ({
               <Text style={styles.label}>SET</Text>
             </View>
             
-            <View style={styles.repsLabelContainer}>
-              <Text style={styles.label}>REPS</Text>
-            </View>
+            {exerciseType === 'time' ? (
+              <View style={styles.timeLabelContainer}>
+                <Text style={styles.label}>TIME (MM:SS)</Text>
+              </View>
+            ) : (
+              <View style={styles.repsLabelContainer}>
+                <Text style={styles.label}>REPS</Text>
+              </View>
+            )}
             
             <View style={styles.restLabelContainer}>
               <Text style={styles.label}>REST (SEC)</Text>
@@ -97,17 +128,32 @@ const WorkoutSetEditor: React.FC<WorkoutSetEditorProps> = ({
                 <Text style={styles.setNumber}>{index + 1}</Text>
               </View>
               
-              {/* Reps Input */}
-              <View style={styles.repsContainer}>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  value={set.reps?.toString() || ''}
-                  onChangeText={(text) => onUpdateSet(index, { reps: text ? parseInt(text) : undefined })}
-                  placeholder="10"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
-                />
-              </View>
+              {/* Time or Reps Input */}
+              {exerciseType === 'time' ? (
+                <View style={styles.timeContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={formatTimeInput(set.reps)}
+                    onChangeText={(text) => {
+                      const seconds = parseTimeInput(text);
+                      onUpdateSet(index, { reps: seconds });
+                    }}
+                    placeholder="05:00"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                  />
+                </View>
+              ) : (
+                <View style={styles.repsContainer}>
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="numeric"
+                    value={set.reps?.toString() || ''}
+                    onChangeText={(text) => onUpdateSet(index, { reps: text ? parseInt(text) : undefined })}
+                    placeholder="10"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                  />
+                </View>
+              )}
               
               {/* Rest Time Input */}
               <View style={styles.restContainer}>
@@ -219,6 +265,10 @@ const styles = StyleSheet.create({
     flex: 1.5,
     alignItems: 'center',
   },
+  timeLabelContainer: {
+    flex: 1.5,
+    alignItems: 'center',
+  },
   restLabelContainer: {
     flex: 1.5,
     alignItems: 'center',
@@ -252,6 +302,10 @@ const styles = StyleSheet.create({
     color: '#4a90e2',
   },
   repsContainer: {
+    flex: 1.5,
+    marginHorizontal: 4,
+  },
+  timeContainer: {
     flex: 1.5,
     marginHorizontal: 4,
   },

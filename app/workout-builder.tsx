@@ -188,8 +188,8 @@ export default function WorkoutBuilderScreen() {
   // Add debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Only set search query if it's 3 characters or more, or empty
-      if (searchQuery.length >= 3 || searchQuery.length === 0) {
+      // Only set search query if it's 2 characters or more, or empty
+      if (searchQuery.length >= 2 || searchQuery.length === 0) {
         setDebouncedSearchQuery(searchQuery);
       } else {
         setDebouncedSearchQuery('');
@@ -216,8 +216,8 @@ export default function WorkoutBuilderScreen() {
       newFilters.equipment = activeEquipment;
     }
     
-    // Set search query only if it's 3 characters or more
-    if (debouncedSearchQuery && debouncedSearchQuery.length >= 3) {
+    // Set search query only if it's 2 characters or more
+    if (debouncedSearchQuery && debouncedSearchQuery.length >= 2) {
       newFilters.search = debouncedSearchQuery;
     } else {
       delete newFilters.search;
@@ -262,6 +262,8 @@ export default function WorkoutBuilderScreen() {
       }));
       setSelectedArray(reorderedExercises);
     } else {
+      const isTimeBased = exerciseIsCardio && isTimeBasedExercise(exercise.name);
+      
       const newWorkoutExercise: WorkoutExercise = {
         id: `temp-${Date.now()}-${exercise.id}`, // Temporary ID until saved to DB
         exerciseId: exercise.id,
@@ -272,7 +274,7 @@ export default function WorkoutBuilderScreen() {
           {
             id: `temp-set-${Date.now()}`,
             exerciseId: `temp-${Date.now()}-${exercise.id}`, // Temporary parent ID
-            reps: 10,
+            reps: isTimeBased ? 300 : 10, // Default to 5 minutes (300 seconds) for time-based, 10 reps for others
             weight: 0,
             duration: 60, // Default rest time in seconds
             setOrder: 1 // First set
@@ -381,15 +383,37 @@ export default function WorkoutBuilderScreen() {
     setSelectedExercises(reorderedExercises);
   };
 
+  // List of cardio exercises that should use time-based input
+  const timeBasedCardioExercises = [
+    'run',
+    'run (equipment)',
+    'stationary bike walk',
+    'stationary bike run v.3',
+    'walk elliptical cross trainer',
+    'walking on stepmill',
+    'cycle cross trainer',
+    'jump rope',
+    'wheel run',
+    'push to run'
+  ];
+
+  // Helper function to check if an exercise should use time-based input
+  const isTimeBasedExercise = (exerciseName: string): boolean => {
+    return timeBasedCardioExercises.some(timeBasedName => 
+      exerciseName.toLowerCase().includes(timeBasedName.toLowerCase())
+    );
+  };
+
   const addCardioSet = (exerciseIndex: number) => {
     const updatedExercises = [...selectedCardioExercises];
     const exercise = updatedExercises[exerciseIndex];
+    const isTimeBased = isTimeBasedExercise(exercise.exerciseDetails?.name || '');
 
     // Create a new set
     const newSet: WorkoutSet = {
       id: `temp-set-${Date.now()}-${exercise.exerciseId}`,
       exerciseId: exercise.id,
-      reps: 10, // Default values
+      reps: isTimeBased ? 300 : 10, // Default to 5 minutes (300 seconds) for time-based, 10 reps for others
       weight: 0,
       duration: 60, // Default rest time in seconds
       setOrder: exercise.sets.length + 1 // Set order based on position
@@ -907,7 +931,7 @@ export default function WorkoutBuilderScreen() {
             <TextInput
               ref={searchInputRef}
               style={styles.searchInput}
-              placeholder={`Search exercises${searchQuery.length > 0 && searchQuery.length < 3 ? ` (${3 - searchQuery.length} more)` : '...'}`}
+              placeholder={`Search exercises${searchQuery.length > 0 && searchQuery.length < 2 ? ` (${2 - searchQuery.length} more)` : '...'}`}
               placeholderTextColor="#9ca3af"
               value={searchQuery}
               onChangeText={handleSearch}
@@ -915,12 +939,12 @@ export default function WorkoutBuilderScreen() {
               autoCorrect={false}
             />
             <View style={styles.searchActions}>
-              {searchQuery.length > 0 && searchQuery.length < 3 && (
+              {searchQuery.length > 0 && searchQuery.length < 2 && (
                 <View style={styles.searchIndicator}>
-                  <Text style={styles.searchIndicatorText}>{searchQuery.length}/3</Text>
+                  <Text style={styles.searchIndicatorText}>{searchQuery.length}/2</Text>
                 </View>
               )}
-              {searchQuery.length >= 3 && (
+              {searchQuery.length >= 2 && (
                 <View style={styles.searchActiveIndicator}>
                   <Ionicons name="checkmark-circle" size={16} color="#10b981" />
                 </View>
@@ -1082,7 +1106,7 @@ export default function WorkoutBuilderScreen() {
                   )}
                   <Text style={styles.listFooterText}>
                     Showing {displayedExercises.length} of {getFilteredExercisesCount()} exercises
-                    {(activeTarget || activeEquipment || (debouncedSearchQuery && debouncedSearchQuery.length >= 3)) && 
+                    {(activeTarget || activeEquipment || (debouncedSearchQuery && debouncedSearchQuery.length >= 2)) && 
                       ` (filtered from ${exercises.length} total)`
                     }
                   </Text>
@@ -1296,17 +1320,25 @@ export default function WorkoutBuilderScreen() {
                       
                       <View style={styles.exerciseInfo}>
                         <TouchableOpacity 
-                          onPress={() => setSelectedExerciseDetails(exerciseToUse)}
+                          onPress={() => fetchExerciseDetailsById(workoutExercise.exerciseId, exerciseToUse.name)}
                           style={styles.exerciseNameTouchable}
+                          disabled={fetchingExerciseDetails}
                         >
-                          <Text style={styles.exerciseName}>{exerciseToUse.name}</Text>
+                          <Text style={styles.exerciseName}>
+                            {exerciseToUse.name}
+                            {fetchingExerciseDetails ? ' (loading...)' : ''}
+                          </Text>
                         </TouchableOpacity>
                         <View style={styles.exerciseTagsRow}>
                           <View style={styles.exerciseTag}>
-                            <Text style={styles.exerciseTagText}>{exerciseToUse.bodyPart}</Text>
+                            <Text style={styles.exerciseTagText} numberOfLines={1} ellipsizeMode="tail">
+                              {exerciseToUse.bodyPart}
+                            </Text>
                           </View>
                           <View style={styles.exerciseTag}>
-                            <Text style={styles.exerciseTagText}>{exerciseToUse.target}</Text>
+                            <Text style={styles.exerciseTagText} numberOfLines={1} ellipsizeMode="tail">
+                              {exerciseToUse.target}
+                            </Text>
                           </View>
                         </View>
                       </View>
@@ -1432,17 +1464,23 @@ export default function WorkoutBuilderScreen() {
                       
                       <View style={styles.exerciseInfo}>
                         <TouchableOpacity 
-                          onPress={() => setSelectedExerciseDetails(exerciseToUse)}
+                          onPress={() => fetchExerciseDetailsById(workoutExercise.exerciseId, exerciseToUse.name)}
                           style={styles.exerciseNameTouchable}
+                          disabled={fetchingExerciseDetails}
                         >
-                          <Text style={styles.exerciseName}>{exerciseToUse.name}</Text>
+                          <Text style={styles.exerciseName}>
+                            {exerciseToUse.name}
+                            {fetchingExerciseDetails ? ' (loading...)' : ''}
+                          </Text>
                         </TouchableOpacity>
                         <View style={styles.exerciseTagsRow}>
                           <View style={[styles.exerciseTag, styles.cardioTag]}>
                             <Text style={[styles.exerciseTagText, styles.cardioTagText]}>Cardio</Text>
                           </View>
                           <View style={[styles.exerciseTag, styles.cardioTag]}>
-                            <Text style={[styles.exerciseTagText, styles.cardioTagText]}>{exerciseToUse.equipment}</Text>
+                            <Text style={[styles.exerciseTagText, styles.cardioTagText]} numberOfLines={1} ellipsizeMode="tail">
+                              {exerciseToUse.equipment}
+                            </Text>
                           </View>
                         </View>
                       </View>
@@ -1490,7 +1528,10 @@ export default function WorkoutBuilderScreen() {
                         onPress={() => toggleCardioExerciseExpansion(workoutExercise.id)}
                       >
                         <Text style={styles.setsCollapseText}>
-                          {workoutExercise.sets.length} {workoutExercise.sets.length === 1 ? 'set' : 'sets'}
+                          {workoutExercise.sets.length} {isTimeBasedExercise(exerciseToUse.name) ? 
+                            (workoutExercise.sets.length === 1 ? 'time set' : 'time sets') : 
+                            (workoutExercise.sets.length === 1 ? 'set' : 'sets')
+                          }
                         </Text>
                         <Ionicons name="chevron-down" size={16} color="rgba(255,255,255,0.6)" />
                       </TouchableOpacity>
@@ -1501,6 +1542,7 @@ export default function WorkoutBuilderScreen() {
                           onAddSet={() => addCardioSet(index)}
                           onUpdateSet={(setIndex, setData) => updateCardioSet(index, setIndex, setData)}
                           onRemoveSet={(setIndex) => removeCardioSet(index, setIndex)}
+                          exerciseType={isTimeBasedExercise(exerciseToUse.name) ? 'time' : 'weight_reps'}
                         />
                         <TouchableOpacity 
                           style={styles.setsExpandedInfo}
@@ -1703,6 +1745,354 @@ export default function WorkoutBuilderScreen() {
     );
   };
 
+  // Advanced multi-strategy search system
+  const advancedSearchExercises = (exercises: Exercise[], searchQuery: string) => {
+    if (!searchQuery || searchQuery.length < 2) return exercises;
+
+    // Comprehensive exercise terminology and abbreviations
+    const exerciseTerminology: { [key: string]: string[] } = {
+      // Muscle abbreviations and synonyms
+      'lat': ['lateral', 'latissimus', 'lats', 'latissimus dorsi'],
+      'lateral': ['lat', 'lats', 'latissimus'],
+      'bi': ['bicep', 'biceps', 'bicep brachii'],
+      'bicep': ['bi', 'biceps', 'bicep brachii'],
+      'tri': ['tricep', 'triceps', 'tricep brachii'],
+      'tricep': ['tri', 'triceps', 'tricep brachii'],
+      'delts': ['deltoid', 'deltoids', 'shoulder', 'shoulders'],
+      'delt': ['deltoid', 'shoulder', 'delts'],
+      'deltoid': ['delt', 'delts', 'shoulder'],
+      'pec': ['pectoral', 'pectorals', 'chest', 'pecs'],
+      'pecs': ['pec', 'pectoral', 'chest'],
+      'chest': ['pec', 'pecs', 'pectoral'],
+      'abs': ['abdominal', 'abdominals', 'core', 'abs'],
+      'core': ['abs', 'abdominal', 'abdominals'],
+      'quads': ['quadriceps', 'quadricep', 'quad'],
+      'quad': ['quads', 'quadriceps'],
+      'hams': ['hamstring', 'hamstrings', 'ham'],
+      'ham': ['hams', 'hamstring'],
+      'glutes': ['gluteus', 'glute', 'butt', 'gluteal'],
+      'glute': ['glutes', 'gluteus', 'gluteal'],
+      'calves': ['calf', 'gastrocnemius', 'calfs'],
+      'calf': ['calves', 'gastrocnemius'],
+      
+      // Equipment abbreviations
+      'db': ['dumbbell', 'dumbell', 'dumbells', 'dumbbells'],
+      'dumbbell': ['db', 'dumbell'],
+      'bb': ['barbell', 'barbel', 'barbells'],
+      'barbell': ['bb', 'barbel'],
+      'cb': ['cable', 'cables'],
+      'cable': ['cb', 'cables'],
+      
+      // Exercise movements and variations
+      'pulldown': ['pull down', 'pulldowns', 'pull downs', 'lat pulldown'],
+      'pullup': ['pull up', 'pullups', 'pull ups', 'chin up'],
+      'pushup': ['push up', 'pushups', 'push ups'],
+      'situp': ['sit up', 'situps', 'sit ups'],
+      'chinup': ['chin up', 'chinups', 'chin ups', 'pullup'],
+      'legpress': ['leg press'],
+      'deadlift': ['dead lift'],
+      'benchpress': ['bench press'],
+      'squats': ['squat'],
+      'squat': ['squats'],
+      'flyes': ['fly', 'flies', 'flys', 'flye'],
+      'fly': ['flyes', 'flies', 'flys'],
+      'raises': ['raise', 'elevation', 'lifted'],
+      'raise': ['raises', 'elevation'],
+      'rows': ['row', 'rowing'],
+      'row': ['rows', 'rowing'],
+      'curls': ['curl', 'curling'],
+      'curl': ['curls', 'curling'],
+      'extensions': ['extension', 'extend'],
+      'extension': ['extensions', 'extend'],
+      'kicks': ['kick', 'kicking'],
+      'kick': ['kicks', 'kicking'],
+      'crunches': ['crunch'],
+      'crunch': ['crunches'],
+      'planks': ['plank', 'planking'],
+      'plank': ['planks', 'planking'],
+      'press': ['pressing', 'pressed'],
+      'pressing': ['press', 'pressed']
+    };
+
+    // Advanced text normalization
+    const normalizeText = (text: string) => {
+      return text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+    };
+
+    // Smart term expansion with context awareness
+    const expandSearchTerms = (query: string) => {
+      const normalizedQuery = normalizeText(query);
+      let expandedTerms = [normalizedQuery];
+      const words = normalizedQuery.split(' ');
+
+      // Expand each word and create combinations
+      words.forEach(word => {
+        if (exerciseTerminology[word]) {
+          exerciseTerminology[word].forEach(synonym => {
+            // Add individual synonyms
+            expandedTerms.push(synonym);
+            // Add combinations with other words in the query
+            words.forEach(otherWord => {
+              if (otherWord !== word) {
+                expandedTerms.push(`${synonym} ${otherWord}`);
+                expandedTerms.push(`${otherWord} ${synonym}`);
+              }
+            });
+          });
+        }
+      });
+
+      // Remove duplicates and return unique terms
+      return [...new Set(expandedTerms)];
+    };
+
+    // Levenshtein distance for typo tolerance
+    const levenshteinDistance = (str1: string, str2: string): number => {
+      const matrix = Array.from({ length: str2.length + 1 }, (_, i) => [i]);
+      matrix[0] = Array.from({ length: str1.length + 1 }, (_, i) => i);
+
+      for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+          if (str2[i - 1] === str1[j - 1]) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j - 1] + 1
+            );
+          }
+        }
+      }
+
+      return matrix[str2.length][str1.length];
+    };
+
+    // Advanced similarity calculation with multiple algorithms
+    const calculateAdvancedSimilarity = (str1: string, str2: string) => {
+      if (str1 === str2) return 1;
+      if (!str1 || !str2) return 0;
+
+      // Dice coefficient (bigram similarity)
+      const diceCoefficient = () => {
+        if (str1.length < 2 || str2.length < 2) return 0;
+        const bigrams1 = new Set();
+        const bigrams2 = new Set();
+
+        for (let i = 0; i < str1.length - 1; i++) {
+          bigrams1.add(str1.substr(i, 2));
+        }
+        for (let i = 0; i < str2.length - 1; i++) {
+          bigrams2.add(str2.substr(i, 2));
+        }
+
+        const intersection = new Set([...bigrams1].filter(x => bigrams2.has(x)));
+        return (2 * intersection.size) / (bigrams1.size + bigrams2.size);
+      };
+
+      // Jaro-Winkler similarity
+      const jaroWinkler = () => {
+        const maxLength = Math.max(str1.length, str2.length);
+        const matchWindow = Math.floor(maxLength / 2) - 1;
+        
+        if (matchWindow < 0) return str1 === str2 ? 1 : 0;
+        
+        const str1Matches = new Array(str1.length).fill(false);
+        const str2Matches = new Array(str2.length).fill(false);
+        
+        let matches = 0;
+        let transpositions = 0;
+        
+        // Find matches
+        for (let i = 0; i < str1.length; i++) {
+          const start = Math.max(0, i - matchWindow);
+          const end = Math.min(i + matchWindow + 1, str2.length);
+          
+          for (let j = start; j < end; j++) {
+            if (str2Matches[j] || str1[i] !== str2[j]) continue;
+            str1Matches[i] = true;
+            str2Matches[j] = true;
+            matches++;
+            break;
+          }
+        }
+        
+        if (matches === 0) return 0;
+        
+        // Count transpositions
+        let k = 0;
+        for (let i = 0; i < str1.length; i++) {
+          if (!str1Matches[i]) continue;
+          while (!str2Matches[k]) k++;
+          if (str1[i] !== str2[k]) transpositions++;
+          k++;
+        }
+        
+        const jaro = (matches / str1.length + matches / str2.length + (matches - transpositions / 2) / matches) / 3;
+        
+        // Winkler modification
+        let prefix = 0;
+        for (let i = 0; i < Math.min(str1.length, str2.length, 4); i++) {
+          if (str1[i] === str2[i]) prefix++;
+          else break;
+        }
+        
+        return jaro + 0.1 * prefix * (1 - jaro);
+      };
+
+      // Normalized Levenshtein distance
+      const normalizedLevenshtein = () => {
+        const distance = levenshteinDistance(str1, str2);
+        const maxLength = Math.max(str1.length, str2.length);
+        return maxLength === 0 ? 1 : 1 - (distance / maxLength);
+      };
+
+      // Combine multiple similarity measures
+      const dice = diceCoefficient();
+      const jw = jaroWinkler();
+      const lev = normalizedLevenshtein();
+      
+      // Weighted average of different similarity measures
+      return (dice * 0.4 + jw * 0.3 + lev * 0.3);
+    };
+
+    // Multi-strategy scoring system
+    const calculateExerciseScore = (exercise: Exercise, searchTerms: string[]) => {
+      const searchableFields = [
+        { text: exercise.name, weight: 5, isName: true },
+        { text: exercise.bodyPart, weight: 2, isName: false },
+        { text: exercise.target, weight: 2, isName: false },
+        { text: exercise.equipment, weight: 1, isName: false }
+      ];
+
+      let totalScore = 0;
+      let matchedTerms = new Set<string>();
+
+      searchTerms.forEach(searchTerm => {
+        const searchWords = searchTerm.split(' ').filter(w => w.length > 0);
+        
+        searchableFields.forEach(field => {
+          const normalizedField = normalizeText(field.text);
+          const fieldWords = normalizedField.split(' ');
+          let fieldScore = 0;
+
+          // Strategy 1: Exact phrase matching
+          if (normalizedField.includes(searchTerm)) {
+            fieldScore += field.weight * 10;
+            matchedTerms.add(searchTerm);
+          }
+
+          // Strategy 2: All words present (any order)
+          const allWordsPresent = searchWords.every(word => 
+            fieldWords.some(fieldWord => 
+              fieldWord === word || 
+              fieldWord.includes(word) || 
+              word.includes(fieldWord) ||
+              calculateAdvancedSimilarity(fieldWord, word) > 0.8
+            )
+          );
+
+          if (allWordsPresent && searchWords.length > 1) {
+            fieldScore += field.weight * 8;
+            matchedTerms.add(searchTerm);
+          }
+
+          // Strategy 3: Individual word matching with various techniques
+          searchWords.forEach(searchWord => {
+            fieldWords.forEach(fieldWord => {
+              // Exact word match
+              if (fieldWord === searchWord) {
+                fieldScore += field.weight * 6;
+                matchedTerms.add(searchWord);
+              }
+              // Prefix matching (excellent for abbreviations)
+              else if (fieldWord.startsWith(searchWord) && searchWord.length >= 2) {
+                fieldScore += field.weight * 5;
+                matchedTerms.add(searchWord);
+              }
+              // Suffix matching
+              else if (fieldWord.endsWith(searchWord) && searchWord.length >= 3) {
+                fieldScore += field.weight * 4;
+                matchedTerms.add(searchWord);
+              }
+              // Contains matching
+              else if (fieldWord.includes(searchWord) && searchWord.length >= 3) {
+                fieldScore += field.weight * 3;
+                matchedTerms.add(searchWord);
+              }
+              // Reverse contains (query contains field word)
+              else if (searchWord.includes(fieldWord) && fieldWord.length >= 3) {
+                fieldScore += field.weight * 3;
+                matchedTerms.add(searchWord);
+              }
+              // Advanced similarity matching
+              else if (searchWord.length >= 3 && fieldWord.length >= 3) {
+                const similarity = calculateAdvancedSimilarity(fieldWord, searchWord);
+                if (similarity > 0.7) {
+                  fieldScore += field.weight * similarity * 4;
+                  matchedTerms.add(searchWord);
+                }
+              }
+            });
+          });
+
+          totalScore += fieldScore;
+        });
+      });
+
+      // Bonus scoring for comprehensive matches
+      const uniqueMatchedTerms = matchedTerms.size;
+      const originalSearchWords = normalizeText(searchQuery).split(' ').length;
+      
+      // Multi-term bonus
+      if (uniqueMatchedTerms > 1) {
+        totalScore += uniqueMatchedTerms * 3;
+      }
+
+      // Completeness bonus (percentage of search terms matched)
+      const completenessRatio = uniqueMatchedTerms / Math.max(originalSearchWords, 1);
+      totalScore += completenessRatio * 5;
+
+      // Name field bonus (exercises matching in name are more relevant)
+      const nameMatches = matchedTerms.size > 0 && 
+        searchableFields[0].text.toLowerCase().split(' ').some(word =>
+          [...matchedTerms].some(term => 
+            word.includes(term) || term.includes(word) || 
+            calculateAdvancedSimilarity(word, term) > 0.7
+          )
+        );
+      
+      if (nameMatches) {
+        totalScore *= 1.5; // 50% bonus for name matches
+      }
+
+      return Math.round(totalScore * 100) / 100; // Round to 2 decimal places
+    };
+
+    // Execute search with expanded terms
+    const expandedSearchTerms = expandSearchTerms(searchQuery);
+    
+    // Score all exercises
+    const scoredExercises = exercises
+      .map(exercise => ({
+        exercise,
+        score: calculateExerciseScore(exercise, expandedSearchTerms)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => {
+        // Primary sort by score
+        if (b.score !== a.score) return b.score - a.score;
+        // Secondary sort by name length (shorter names first for relevance)
+        return a.exercise.name.length - b.exercise.name.length;
+      });
+
+    return scoredExercises.map(item => item.exercise);
+  };
+
   // Use effect to control how many exercises are displayed
   useEffect(() => {
     if (exercises.length > 0) {
@@ -1736,11 +2126,9 @@ export default function WorkoutBuilderScreen() {
         );
       }
       
-      // Apply search filter if active (3+ characters)
-      if (debouncedSearchQuery && debouncedSearchQuery.length >= 3) {
-        filteredExercises = filteredExercises.filter(exercise =>
-          exercise.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-        );
+      // Apply advanced search filter if active (2+ characters now)
+      if (debouncedSearchQuery && debouncedSearchQuery.length >= 2) {
+        filteredExercises = advancedSearchExercises(filteredExercises, debouncedSearchQuery);
       }
       
       setDisplayedExercises(filteredExercises.slice(0, displayLimit));
@@ -1792,11 +2180,9 @@ export default function WorkoutBuilderScreen() {
       );
     }
     
-    // Apply search filter if active
-    if (debouncedSearchQuery && debouncedSearchQuery.length >= 3) {
-      filteredExercises = filteredExercises.filter(exercise =>
-        exercise.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-      );
+    // Apply advanced search filter if active
+    if (debouncedSearchQuery && debouncedSearchQuery.length >= 2) {
+      filteredExercises = advancedSearchExercises(filteredExercises, debouncedSearchQuery);
     }
     
     return filteredExercises.length;
@@ -1931,6 +2317,7 @@ const styles = StyleSheet.create({
   },
   exerciseInfo: {
     flex: 1,
+    marginRight: 8,
   },
   exerciseName: {
       fontSize: 17,
@@ -1946,6 +2333,8 @@ const styles = StyleSheet.create({
     exerciseTagsRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexWrap: 'wrap',
+      marginTop: 2,
     },
     exerciseTag: {
       backgroundColor: 'rgba(74, 144, 226, 0.2)',
@@ -1953,14 +2342,18 @@ const styles = StyleSheet.create({
       paddingVertical: 3,
       borderRadius: 12,
       marginRight: 6,
+      marginBottom: 2,
+      maxWidth: 120,
     },
     exerciseTagText: {
       color: '#4a90e2',
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: '500',
   },
   exerciseActions: {
     flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 120,
   },
   exerciseActionButton: {
     width: 36,
@@ -2634,11 +3027,109 @@ const styles = StyleSheet.create({
   },
   cardioTag: {
     backgroundColor: 'rgba(231, 76, 60, 0.2)',
+    maxWidth: 100,
   },
   cardioTagText: {
     color: '#e74c3c',
+    fontSize: 11,
+    fontWeight: '500',
   },
 }); 
+
+  // Add a function to fetch exercise details by ID after the other state declarations
+  const [fetchingExerciseDetails, setFetchingExerciseDetails] = useState(false);
+
+  // Function to fetch complete exercise details from the API
+  const fetchExerciseDetailsById = async (exerciseId: string, exerciseName?: string) => {
+    try {
+      setFetchingExerciseDetails(true);
+      
+      // First try to find the exercise in the current exercises array
+      const existingExercise = exercises.find(e => e.id === exerciseId);
+      if (existingExercise && existingExercise.instructions && existingExercise.instructions.length > 0) {
+        setSelectedExerciseDetails(existingExercise);
+        return;
+      }
+      
+      // If not found or incomplete, fetch from API by name
+      if (exerciseName) {
+        const { fetchFromExerciseDB } = await import('@/utils/apiConfig');
+        
+        try {
+          const results = await fetchFromExerciseDB(`/name/${encodeURIComponent(exerciseName)}`);
+          
+          if (results && results.length > 0) {
+            // Find the exact match by ID or name
+            const exactMatch = results.find((ex: any) => ex.id === exerciseId || ex.name.toLowerCase() === exerciseName.toLowerCase());
+            const exerciseToUse = exactMatch || results[0];
+            
+            // Transform to our Exercise type
+            const completeExercise = {
+              id: exerciseToUse.id,
+              name: exerciseToUse.name,
+              bodyPart: exerciseToUse.bodyPart,
+              target: exerciseToUse.target,
+              equipment: Array.isArray(exerciseToUse.equipment) ? exerciseToUse.equipment[0] : exerciseToUse.equipment,
+              gifUrl: exerciseToUse.gifUrl,
+              imageUrl: exerciseToUse.imageUrl,
+              videoUrl: exerciseToUse.videoUrl,
+              instructions: exerciseToUse.instructions || [],
+              secondaryMuscles: exerciseToUse.secondaryMuscles || [],
+              overview: exerciseToUse.overview,
+              exerciseTips: exerciseToUse.exerciseTips || [],
+              variations: exerciseToUse.variations || [],
+              keywords: exerciseToUse.keywords || [],
+              exerciseType: exerciseToUse.exerciseType,
+              source: 'exercisedb' as const
+            };
+            
+            setSelectedExerciseDetails(completeExercise);
+          } else {
+            // Fallback: create a basic exercise object with available data
+            const basicExercise = {
+              id: exerciseId,
+              name: exerciseName,
+              bodyPart: 'General',
+              target: 'Muscle',
+              equipment: 'Body weight',
+              gifUrl: '',
+              instructions: [],
+              secondaryMuscles: [],
+              overview: `${exerciseName} exercise`,
+              exerciseTips: [],
+              variations: [],
+              keywords: [],
+              source: 'exercisedb' as const
+            };
+            setSelectedExerciseDetails(basicExercise);
+          }
+        } catch (apiError) {
+          console.error('Error fetching exercise from API:', apiError);
+          // Fallback: create a basic exercise object
+          const basicExercise = {
+            id: exerciseId,
+            name: exerciseName || 'Unknown Exercise',
+            bodyPart: 'General',
+            target: 'Muscle',
+            equipment: 'Body weight',
+            gifUrl: '',
+            instructions: [],
+            secondaryMuscles: [],
+            overview: `${exerciseName || 'Unknown'} exercise`,
+            exerciseTips: [],
+            variations: [],
+            keywords: [],
+            source: 'exercisedb' as const
+          };
+          setSelectedExerciseDetails(basicExercise);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching exercise details:', error);
+    } finally {
+      setFetchingExerciseDetails(false);
+    }
+  };
 
   return (
     <>
