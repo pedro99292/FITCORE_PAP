@@ -142,6 +142,36 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     color: "#795548",
     category: "Workout Mastery"
   },
+  {
+    id: 47,
+    title: "Machine Master",
+    description: "Complete 25 workouts using only machine exercises.",
+    icon: "settings-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#C0C0C0",
+    category: "Workout Mastery"
+  },
+  {
+    id: 48,
+    title: "Free Weight Fanatic",
+    description: "Complete 25 workouts using only free weight exercises.",
+    icon: "barbell-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#CD7F32",
+    category: "Workout Mastery"
+  },
+  {
+    id: 55,
+    title: "Muscle Master",
+    description: "Target all major muscle groups in a single week.",
+    icon: "body-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#008080",
+    category: "Workout Mastery"
+  },
 
   // 📈 Progress
   {
@@ -169,6 +199,16 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     title: "Strength Seeker",
     description: "Set 5 personal bests.",
     icon: "trophy-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FFD700",
+    category: "Progress"
+  },
+  {
+    id: 49,
+    title: "PR Machine",
+    description: "Set personal records in 5 different exercises in one week.",
+    icon: "flash-outline",
     iconType: "ionicons",
     progress: 0,
     color: "#FFD700",
@@ -357,6 +397,16 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     color: "#FF5722",
     category: "Goals & Milestones"
   },
+  {
+    id: 56,
+    title: "Weight Warrior",
+    description: "Increase your max lift by 50% from starting weight.",
+    icon: "trending-up-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#DC143C",
+    category: "Goals & Milestones"
+  },
 
   // 👥 Social
   {
@@ -427,6 +477,16 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#FFD700",
+    category: "Social"
+  },
+  {
+    id: 54,
+    title: "Chat Champion",
+    description: "Send 100 messages in the chat system.",
+    icon: "chatbubble-ellipses-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#4CAF50",
     category: "Social"
   },
   {
