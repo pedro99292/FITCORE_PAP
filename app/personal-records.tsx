@@ -31,6 +31,14 @@ import AddPRModal from '@/components/AddPRModal';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Calculate exact square size for filters
+const containerPadding = 32; // 16px padding on each side
+const availableWidth = screenWidth - containerPadding;
+const squareSpacing = 12;
+const squaresPerRow = 4;
+const totalSpacing = squareSpacing * (squaresPerRow - 1);
+const squareSize = (availableWidth - totalSpacing) / squaresPerRow;
+
 type FilterType = 'all' | 'chest' | 'back' | 'shoulders' | 'arms' | 'legs' | 'abs' | 'cardio';
 
 export default function PersonalRecordsScreen() {
@@ -68,7 +76,7 @@ export default function PersonalRecordsScreen() {
       gradient: ['#4facfe', '#00f2fe'],
     },
     { 
-      label: 'Shoulders', 
+      label: 'Shoulder', 
       value: 'shoulders', 
       gradient: ['#43e97b', '#38f9d7'],
     },
@@ -275,7 +283,7 @@ export default function PersonalRecordsScreen() {
             Filter by Muscle Group
           </Text>
           <View style={styles.filtersGrid}>
-            {filterOptions.map((filter) => (
+            {filterOptions.map((filter, index) => (
               <TouchableOpacity
                 key={filter.value}
                 style={[
@@ -284,6 +292,9 @@ export default function PersonalRecordsScreen() {
                     backgroundColor: colors.surface,
                     borderColor: activeFilter === filter.value ? '#4a90e2' : colors.border,
                     borderWidth: activeFilter === filter.value ? 2 : 1,
+                    width: squareSize,
+                    height: squareSize,
+                    marginRight: (index + 1) % 4 === 0 ? 0 : squareSpacing,
                   }
                 ]}
                 onPress={() => setActiveFilter(filter.value)}
@@ -495,11 +506,9 @@ const styles = StyleSheet.create({
   filtersGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   filterCard: {
-    width: '23%',
-    aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 16,
@@ -512,8 +521,8 @@ const styles = StyleSheet.create({
   filterCardActive: {
     borderRadius: 16,
     padding: 0,
-    flex: 1,
     width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
