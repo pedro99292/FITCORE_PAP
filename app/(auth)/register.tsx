@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,118 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Password validation utilities
+interface PasswordRequirement {
+  id: string;
+  label: string;
+  test: (password: string) => boolean;
+}
+
+const PASSWORD_REQUIREMENTS: PasswordRequirement[] = [
+  {
+    id: 'length',
+    label: '8-16 characters',
+    test: (password: string) => password.length >= 8 && password.length <= 16,
+  },
+  {
+    id: 'uppercase',
+    label: 'At least 1 uppercase letter (A-Z)',
+    test: (password: string) => /[A-Z]/.test(password),
+  },
+  {
+    id: 'lowercase',
+    label: 'At least 1 lowercase letter (a-z)',
+    test: (password: string) => /[a-z]/.test(password),
+  },
+  {
+    id: 'number',
+    label: 'At least 1 number (0-9)',
+    test: (password: string) => /[0-9]/.test(password),
+  },
+  {
+    id: 'special',
+    label: 'At least 1 special character (!@#$%^&*()+-=[]{}|;:,.<>?)',
+    test: (password: string) => /[!@#$%^&*()+=[\]{}|;:,.<>?-]/.test(password),
+  },
+];
+
+const getPasswordStrength = (password: string): { score: number; label: string; color: string } => {
+  const passedRequirements = PASSWORD_REQUIREMENTS.filter(req => req.test(password)).length;
+  
+  if (passedRequirements === 0) {
+    return { score: 0, label: 'Too Weak', color: '#FF4444' };
+  } else if (passedRequirements <= 2) {
+    return { score: 25, label: 'Weak', color: '#FF6B6B' };
+  } else if (passedRequirements <= 3) {
+    return { score: 50, label: 'Fair', color: '#FFB366' };
+  } else if (passedRequirements <= 4) {
+    return { score: 75, label: 'Good', color: '#4ECDC4' };
+  } else {
+    return { score: 100, label: 'Strong', color: '#45B7D1' };
+  }
+};
+
+// Password Requirements Component
+const PasswordRequirements: React.FC<{ password: string; visible: boolean }> = ({ password, visible }) => {
+  if (!visible) return null;
+
+  return (
+    <View style={styles.passwordRequirements}>
+      <Text style={styles.requirementsTitle}>Password Requirements:</Text>
+      {PASSWORD_REQUIREMENTS.map((requirement) => {
+        const isValid = requirement.test(password);
+        return (
+          <View key={requirement.id} style={styles.requirementItem}>
+            <Ionicons
+              name={isValid ? 'checkmark-circle' : 'close-circle'}
+              size={16}
+              color={isValid ? '#4CAF50' : '#FF4444'}
+              style={styles.requirementIcon}
+            />
+            <Text style={[
+              styles.requirementText,
+              { color: isValid ? '#4CAF50' : 'rgba(255,255,255,0.6)' }
+            ]}>
+              {requirement.label}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+// Password Strength Meter Component
+const PasswordStrengthMeter: React.FC<{ password: string; visible: boolean }> = ({ password, visible }) => {
+  const strength = useMemo(() => getPasswordStrength(password), [password]);
+  
+  if (!visible) return null;
+
+  return (
+    <View style={styles.strengthMeter}>
+      <View style={styles.strengthHeader}>
+        <Text style={styles.strengthLabel}>Password Strength:</Text>
+        <Text style={[styles.strengthValue, { color: strength.color }]}>
+          {strength.label}
+        </Text>
+      </View>
+      <View style={styles.strengthBar}>
+        <View style={styles.strengthBarBackground}>
+          <Animated.View
+            style={[
+              styles.strengthBarFill,
+              {
+                width: `${strength.score}%`,
+                backgroundColor: strength.color,
+              },
+            ]}
+          />
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export default function RegisterScreen() {
   const { colors, isDarkMode } = useTheme();
@@ -66,19 +178,24 @@ export default function RegisterScreen() {
     };
   });
 
+  // Validate password requirements
+  const isPasswordValid = useMemo(() => {
+    return PASSWORD_REQUIREMENTS.every(req => req.test(password));
+  }, [password]);
+
   const handleRegister = async () => {
     if (!username || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+    if (!isPasswordValid) {
+      Alert.alert('Error', 'Password does not meet all requirements');
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
@@ -202,6 +319,18 @@ export default function RegisterScreen() {
               <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
           </View>
+
+          {/* Password Strength Meter */}
+          <PasswordStrengthMeter 
+            password={password} 
+            visible={password.length > 0} 
+          />
+
+          {/* Password Requirements */}
+          <PasswordRequirements 
+            password={password} 
+            visible={isPasswordFocused || (password.length > 0 && !isPasswordValid)} 
+          />
 
           <View style={[
             styles.inputContainer,
@@ -339,6 +468,72 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 15,
+  },
+  // Password Requirements Styles
+  passwordRequirements: {
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  requirementsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  requirementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  requirementIcon: {
+    marginRight: 8,
+  },
+  requirementText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  // Password Strength Meter Styles
+  strengthMeter: {
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  strengthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  strengthLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  strengthValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  strengthBar: {
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  strengthBarBackground: {
+    width: '100%',
+    height: '100%',
+  },
+  strengthBarFill: {
+    height: '100%',
+    borderRadius: 4,
   },
   termsContainer: {
     marginBottom: 25,
