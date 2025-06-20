@@ -127,8 +127,31 @@ export const updateWorkout = async (
   return data;
 };
 
-// Delete a workout and all its related exercises and sets
+// Delete a workout while preserving workout history (sessions)
 export const deleteWorkout = async (workoutId: string) => {
+  // First, update any sessions to remove the workout reference (preserve history)
+  const { error: sessionsUpdateError } = await supabase
+    .from('sessions')
+    .update({ workout_id: null })
+    .eq('workout_id', workoutId);
+  
+  if (sessionsUpdateError) {
+    console.warn('Error updating sessions during workout deletion:', sessionsUpdateError);
+    // Continue with deletion even if session update fails
+  }
+
+  // Delete workout_sets (these are the planned sets, not the actual workout history)
+  const { error: setsError } = await supabase
+    .from('workout_sets')
+    .delete()
+    .eq('workout_id', workoutId);
+  
+  if (setsError) {
+    console.error('Error deleting workout sets:', setsError);
+    throw setsError;
+  }
+
+  // Finally delete the workout itself
   const { error } = await supabase
     .from('workouts')
     .delete()
