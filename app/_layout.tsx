@@ -17,6 +17,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ThemeProvider, useTheme } from '../hooks/useTheme';
 import { SubscriptionProvider } from '../contexts/SubscriptionContext';
 import { ExerciseProvider } from '../contexts/ExerciseContext';
+import { WorkoutProvider } from '../contexts/WorkoutContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import SubscriptionModal from '../components/SubscriptionModal';
 import SurveyModal from '../components/SurveyModal';
@@ -335,7 +336,9 @@ const RootLayout = () => {
         <ThemeProvider>
           <ExerciseProvider>
             <SubscriptionProvider>
-              <MainLayout />
+              <WorkoutProvider>
+                <MainLayout />
+              </WorkoutProvider>
             </SubscriptionProvider>
           </ExerciseProvider>
         </ThemeProvider>

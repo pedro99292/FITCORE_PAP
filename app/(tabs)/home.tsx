@@ -9,7 +9,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpo
 import { Image as ExpoImage } from 'expo-image';
 import { Asset } from 'expo-asset';
 import { router } from 'expo-router';
-import { supabase } from '@/utils/supabase';
+import { useWorkoutStats } from '@/contexts/WorkoutContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -17,87 +17,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const FRONT_SILHOUETTE = require('../../assets/images/muscle-silhouette-front.png');
 const BACK_SILHOUETTE = require('../../assets/images/muscle-silhouette-back.png');
 
-// Hook to fetch workout statistics
-const useWorkoutStats = () => {
-  const [stats, setStats] = useState({
-    totalWorkouts: 0,
-    totalVolume: 0,
-    totalMinutes: 0,
-    isLoading: true
-  });
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const fetchStats = async () => {
-    try {
-      setIsRefreshing(true);
-      // Get current user
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user?.id) {
-        setIsRefreshing(false);
-        return;
-      }
-
-      // Get total sessions count
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('sessions')
-        .select('session_id', { count: 'exact' })
-        .eq('user_id', userData.user.id)
-        .eq('status', 'completed');
-      
-      if (sessionError) throw sessionError;
-      const totalWorkouts = sessionData?.length || 0;
-
-      // Get total duration
-      const { data: durationData, error: durationError } = await supabase
-        .from('sessions')
-        .select('duration')
-        .eq('user_id', userData.user.id)
-        .eq('status', 'completed');
-
-      if (durationError) throw durationError;
-      const totalMinutes = durationData?.reduce((sum, session) => 
-        sum + Math.floor((session.duration || 0) / 60), 0) || 0;
-
-      // Get total volume (reps × weight)
-      const { data: setData, error: setError } = await supabase
-        .from('session_sets')
-        .select(`
-          actual_reps,
-          actual_weight,
-          session_id,
-          sessions!inner(user_id)
-        `)
-        .eq('sessions.user_id', userData.user.id);
-
-      if (setError) throw setError;
-      const totalVolume = setData?.reduce((sum, set) => 
-        sum + ((set.actual_reps || 0) * (set.actual_weight || 0)), 0) || 0;
-
-      setStats({
-        totalWorkouts,
-        totalVolume: Math.round(totalVolume), // Round to nearest kg
-        totalMinutes,
-        isLoading: false
-      });
-    } catch (error) {
-      console.error('Error fetching workout stats:', error);
-      setStats(prev => ({ ...prev, isLoading: false }));
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Initial fetch
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  return {
-    ...stats,
-    isRefreshing,
-    refreshStats: fetchStats
-  };
-};
+// Removed local useWorkoutStats hook - now using context
 
 // Memoized StatItem component to prevent unnecessary re-renders
 const StatItem = memo(({ icon, value, label, isLoading, isRefreshing }: { 
@@ -160,7 +80,7 @@ const StatItem = memo(({ icon, value, label, isLoading, isRefreshing }: {
 
 // Memoized StatsContainer component
 const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedValue<number> }) => {
-  const stats = useWorkoutStats();
+  const { stats, isRefreshing } = useWorkoutStats();
   
   const statsAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -181,20 +101,6 @@ const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedVa
       >
         <View style={styles.statsHeader}>
           <Text style={styles.statsTitle}>Estatísticas</Text>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={stats.refreshStats} 
-            disabled={stats.isLoading || stats.isRefreshing}
-          >
-            <Ionicons 
-              name="refresh" 
-              size={18} 
-              color="#fff" 
-              style={[
-                stats.isRefreshing && { transform: [{ rotate: '180deg' }] }
-              ]} 
-            />
-          </TouchableOpacity>
         </View>
         <View style={styles.statsBox}>
           <StatItem 
@@ -202,7 +108,7 @@ const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedVa
             value={stats.totalWorkouts}
             label="Treinos"
             isLoading={stats.isLoading}
-            isRefreshing={stats.isRefreshing}
+            isRefreshing={isRefreshing}
           />
           
           <View style={styles.statDivider} />
@@ -212,7 +118,7 @@ const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedVa
             value={stats.totalVolume}
             label="Kgs Volume"
             isLoading={stats.isLoading}
-            isRefreshing={stats.isRefreshing}
+            isRefreshing={isRefreshing}
           />
           
           <View style={styles.statDivider} />
@@ -222,7 +128,7 @@ const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedVa
             value={stats.totalMinutes}
             label="Minutos"
             isLoading={stats.isLoading}
-            isRefreshing={stats.isRefreshing}
+            isRefreshing={isRefreshing}
           />
         </View>
       </LinearGradient>
@@ -444,8 +350,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   statsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: screenWidth * 0.04,
     paddingHorizontal: screenWidth * 0.05,
@@ -455,9 +359,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  refreshButton: {
-    padding: 6,
   },
   statsBox: {
     flexDirection: 'row',

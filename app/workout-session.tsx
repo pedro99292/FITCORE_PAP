@@ -9,6 +9,7 @@ import { supabase } from '@/utils/supabase';
 import { useExerciseDB } from '@/hooks/useExerciseDB';
 import { Video, ResizeMode } from 'expo-av';
 import { updateAllAchievements } from '@/utils/achievementService';
+import { useWorkoutStats } from '@/contexts/WorkoutContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -432,6 +433,7 @@ const WorkoutSessionScreen = () => {
   const { colors, isDarkMode } = useTheme();
   const params = useLocalSearchParams<{ workoutId: string }>();
   const workoutId = params.workoutId;
+  const { refreshStats } = useWorkoutStats();
   
   const [workout, setWorkout] = useState<WorkoutType | null>(null);
   const [exercises, setExercises] = useState<ExerciseType[]>([]);
@@ -944,6 +946,14 @@ const WorkoutSessionScreen = () => {
       } catch (achievementError) {
         // Don't fail the workout save if achievements fail
         console.warn('Error updating achievements:', achievementError);
+      }
+      
+      // Refresh workout stats in the context after successful session completion
+      try {
+        await refreshStats();
+      } catch (statsError) {
+        // Don't fail the workout save if stats refresh fails
+        console.warn('Error refreshing workout stats:', statsError);
       }
       
       return true;
