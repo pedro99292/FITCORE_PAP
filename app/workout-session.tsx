@@ -1,7 +1,8 @@
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Alert, Dimensions, SafeAreaView, StatusBar, Platform, ActivityIndicator, Modal, Image } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { unstable_batchedUpdates } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useTheme } from '@/hooks/useTheme';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,7 +13,7 @@ import { updateAllAchievements } from '@/utils/achievementService';
 import { useWorkoutStats } from '@/contexts/WorkoutContext';
 import WorkoutSafetyModal from '@/components/WorkoutSafetyModal';
 import { getTopPriorityWarnings } from '@/constants/safetyWarnings';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import SafetyPreferences from '@/utils/safetyPreferences';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -456,6 +457,16 @@ const WorkoutSessionScreen = () => {
   const [hasAcknowledgedSafety, setHasAcknowledgedSafety] = useState(false);
   const [neverShowSafetyAgain, setNeverShowSafetyAgain] = useState(false);
   
+  // Ref to track if component is mounted to prevent state updates on unmounted component
+  const isMountedRef = useRef(true);
+  
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  
   // Fetch all exercises using the same hook as workout builder
   const { exercises: allExercises, loading: loadingAllExercises } = useExerciseDB({});
   
@@ -565,33 +576,38 @@ const WorkoutSessionScreen = () => {
     fetchWorkoutData();
   }, [workoutId]);
 
-  // Load safety preferences on mount
+  // Load safety preferences and handle modal display
   useEffect(() => {
-    const loadSafetyPreferences = async () => {
+    const initializeSafetyLogic = async () => {
       try {
-        const neverShow = await AsyncStorage.getItem('neverShowSafetyWarnings');
-        if (neverShow === 'true') {
-          setNeverShowSafetyAgain(true);
-          setHasAcknowledgedSafety(true);
+        // First load the safety preferences
+        const shouldNeverShow = await SafetyPreferences.areWarningsDisabled();
+        
+        if (shouldNeverShow) {
+          unstable_batchedUpdates(() => {
+            if (isMountedRef.current) {
+              setNeverShowSafetyAgain(true);
+              setHasAcknowledgedSafety(true);
+            }
+          });
+          return; // Exit early if user never wants to see warnings
+        }
+        
+        // Only show modal if workout is loaded and user hasn't disabled warnings
+        if (!loading && workout && exercises.length > 0 && !shouldNeverShow) {
+          setTimeout(() => {
+            if (isMountedRef.current) {
+              setShowSafetyModal(true);
+            }
+          }, 500);
         }
       } catch (error) {
         console.log('Error loading safety preferences:', error);
       }
     };
 
-    loadSafetyPreferences();
-  }, []);
-
-  // Separate effect to handle safety modal display
-  useEffect(() => {
-    if (!loading && workout && exercises.length > 0 && !hasAcknowledgedSafety && !neverShowSafetyAgain) {
-      const timer = setTimeout(() => {
-        setShowSafetyModal(true);
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [loading, workout, exercises.length, hasAcknowledgedSafety, neverShowSafetyAgain]);
+    initializeSafetyLogic();
+  }, [loading, workout, exercises.length]); // Removed state dependencies to prevent loops
   
   // Handle set data updates
   const handleSetUpdate = (exerciseId: string, setIndex: number, reps: string, weight: string) => {
@@ -632,9 +648,9 @@ const WorkoutSessionScreen = () => {
   };
   
   // Handle timer updates
-  const handleTimeUpdate = (time: number) => {
+  const handleTimeUpdate = useCallback((time: number) => {
     setElapsed(time);
-  };
+  }, []);
   
   // Function to handle showing exercise details
   const handleShowExerciseDetails = (exerciseName: string) => {
@@ -1144,7 +1160,7 @@ const WorkoutSessionScreen = () => {
 
   const handleNeverShowAgain = async () => {
     try {
-      await AsyncStorage.setItem('neverShowSafetyWarnings', 'true');
+      await SafetyPreferences.disableWarnings();
       setNeverShowSafetyAgain(true);
       setHasAcknowledgedSafety(true);
       setShowSafetyModal(false);

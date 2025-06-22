@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Switch, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Switch, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import SafetyPreferences from '@/utils/safetyPreferences';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -15,6 +16,21 @@ export default function SettingsScreen() {
   const { signOut, loading } = useAuth();
   const { isSubscribed } = useSubscription();
   const [notifications, setNotifications] = useState(true);
+  const [safetyWarningsEnabled, setSafetyWarningsEnabled] = useState(true);
+
+  // Load safety warnings preference on mount
+  useEffect(() => {
+    const loadSafetyPreference = async () => {
+      try {
+        const enabled = await SafetyPreferences.areWarningsEnabled();
+        setSafetyWarningsEnabled(enabled);
+      } catch (error) {
+        console.log('Error loading safety preference:', error);
+      }
+    };
+
+    loadSafetyPreference();
+  }, []);
 
   const handleBackToProfile = () => {
     router.replace('/(tabs)/profile');
@@ -26,6 +42,41 @@ export default function SettingsScreen() {
       router.replace("/(auth)/login");
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleSafetyWarningsToggle = async (enabled: boolean) => {
+    try {
+      if (enabled) {
+        // Enable warnings by removing the preference
+        await SafetyPreferences.enableWarnings();
+        setSafetyWarningsEnabled(true);
+        Alert.alert(
+          'Safety Warnings Enabled',
+          'You will now see safety warnings before starting workouts.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Disable warnings with confirmation
+        Alert.alert(
+          'Disable Safety Warnings',
+          'Are you sure you want to disable workout safety warnings? These warnings help prevent injuries and are important for your safety.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Disable',
+              style: 'destructive',
+              onPress: async () => {
+                await SafetyPreferences.disableWarnings();
+                setSafetyWarningsEnabled(false);
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.log('Error updating safety preference:', error);
+      Alert.alert('Error', 'Could not update safety warning preference. Please try again.');
     }
   };
 
@@ -140,6 +191,14 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.primary }]}>Application</Text>
           <View style={[styles.sectionContent, { backgroundColor: colors.surface, borderColor: colors.background }]}>
+            <SettingItem
+              icon="shield"
+              title="Safety Warnings"
+              subtitle="Show workout safety tips and warnings"
+              hasSwitch
+              switchValue={safetyWarningsEnabled}
+              onSwitchChange={handleSafetyWarningsToggle}
+            />
             <SettingItem
               icon="moon-o"
               title="Dark Mode"

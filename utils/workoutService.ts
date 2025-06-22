@@ -46,6 +46,75 @@ export const addSetToExercise = async (workoutSet: Omit<WorkoutSet, 'id' | 'crea
   return data;
 };
 
+// Get a user's workouts with exercise counts (optimized)
+export const getUserWorkoutsWithDetails = async (userId: string) => {
+  console.time('🔍 Database query time');
+  
+  // Step 1: Get basic workout data first (fast query)
+  const { data: workouts, error: workoutsError } = await supabase
+    .from('workouts')
+    .select('workout_id, user_id, title, description, created_at, workout_type')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (workoutsError) throw workoutsError;
+  
+  if (!workouts || workouts.length === 0) {
+    console.timeEnd('🔍 Database query time');
+    return [];
+  }
+
+  // Step 2: Get aggregated exercise data for all workouts in one query
+  const workoutIds = workouts.map(w => w.workout_id);
+  
+  const { data: workoutStats, error: statsError } = await supabase
+    .from('workout_sets')
+    .select('workout_id, exercise_id, exercise_target')
+    .in('workout_id', workoutIds);
+
+  console.timeEnd('🔍 Database query time');
+
+  if (statsError) throw statsError;
+
+  console.time('⚙️ Data processing time');
+  
+  // Step 3: Process the data efficiently
+  const statsMap = new Map<string, { exerciseIds: Set<string>, muscleTargets: Set<string> }>();
+  
+  // Initialize stats for all workouts
+  workouts.forEach(workout => {
+    statsMap.set(workout.workout_id, {
+      exerciseIds: new Set(),
+      muscleTargets: new Set()
+    });
+  });
+  
+  // Process workout sets data
+  workoutStats?.forEach(set => {
+    const stats = statsMap.get(set.workout_id);
+    if (stats) {
+      if (set.exercise_id) stats.exerciseIds.add(set.exercise_id);
+      if (set.exercise_target) stats.muscleTargets.add(set.exercise_target);
+    }
+  });
+
+  // Step 4: Combine data
+  const result = workouts.map(workout => {
+    const stats = statsMap.get(workout.workout_id);
+    return {
+      ...workout,
+      exerciseCount: stats?.exerciseIds.size || 0,
+      muscleGroups: Array.from(stats?.muscleTargets || [])
+    };
+  });
+  
+  console.timeEnd('⚙️ Data processing time');
+  
+  console.log(`📊 Query returned ${workouts.length} workouts with ${workoutStats?.length || 0} total sets`);
+  
+  return result;
+};
+
 // Get a user's workouts
 export const getUserWorkouts = async (userId: string) => {
   const { data, error } = await supabase
@@ -220,4 +289,22 @@ export const deleteWorkoutSet = async (setId: string) => {
 
   if (error) throw error;
   return true;
+};
+
+// Get a user's workouts (basic, very fast)
+export const getUserWorkoutsBasic = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('workouts')
+    .select('workout_id, user_id, title, description, created_at, workout_type')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(50); // Limit for performance
+
+  if (error) throw error;
+  
+  return data.map(workout => ({
+    ...workout,
+    exerciseCount: 0,
+    muscleGroups: []
+  }));
 }; 
