@@ -16,6 +16,12 @@ export interface PersonalRecord {
   achieved_at: string;
   created_at: string;
   updated_at: string;
+  // New fields for goals support
+  record_category: 'record' | 'goal';
+  target_date?: string;
+  status: 'active' | 'achieved' | 'overdue' | 'cancelled';
+  target_value?: number;
+  target_reps?: number;
 }
 
 export interface NewPersonalRecord {
@@ -30,7 +36,17 @@ export interface NewPersonalRecord {
   reps?: number;
   notes?: string;
   achieved_at?: string;
+  // New fields for goals support
+  record_category?: 'record' | 'goal';
+  target_date?: string;
+  status?: 'active' | 'achieved' | 'overdue' | 'cancelled';
+  target_value?: number;
+  target_reps?: number;
 }
+
+// Type aliases for clarity when working with goals
+export type PersonalRecordGoal = PersonalRecord;
+export type NewPersonalRecordGoal = NewPersonalRecord;
 
 export interface PRSummary {
   exercise_id: string;
@@ -48,6 +64,9 @@ export interface PRSummary {
   };
   total_records: number;
   improvement_percentage?: number;
+  // Add goals info to PR summaries
+  active_goals?: PersonalRecord[];
+  achieved_goals?: PersonalRecord[];
 }
 
 export interface PRStats {
@@ -59,4 +78,9 @@ export interface PRStats {
     improvement_percentage: number;
     record_type: RecordType;
   };
+  // Add goal stats
+  total_goals?: number;
+  active_goals?: number;
+  achieved_goals?: number;
+  goals_achieved_this_month?: number;
 } 

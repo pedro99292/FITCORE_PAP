@@ -24,10 +24,20 @@ import {
   createPersonalRecord,
   searchRecords,
   getRecordsByBodyPart,
+  getUserPersonalRecordGoals,
+  createPersonalRecordGoal,
+  updatePersonalRecordGoal,
+  getGoalStats,
+  deletePersonalRecordGoal,
+  markGoalAsAchieved,
+  updateOverdueGoals,
+  checkAndUpdateGoalsOnNewPR,
 } from '@/utils/personalRecordsService';
-import { PRSummary, PRStats, NewPersonalRecord } from '@/types/personalRecords';
+import { PRSummary, PRStats, NewPersonalRecord, PersonalRecord } from '@/types/personalRecords';
 import PRCard from '@/components/PRCard';
 import AddPRModal from '@/components/AddPRModal';
+import AddPRGoalModal from '@/components/AddPRGoalModal';
+import PRGoalCard from '@/components/PRGoalCard';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -53,6 +63,13 @@ export default function PersonalRecordsScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [filteredPRs, setFilteredPRs] = useState<PRSummary[]>([]);
+  
+  // Goals state
+  const [goals, setGoals] = useState<PersonalRecord[]>([]);
+  const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+  const [showEditGoalModal, setShowEditGoalModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<PersonalRecord | null>(null);
+  const [activeTab, setActiveTab] = useState<'records' | 'goals'>('records');
 
   // Redesigned filter options with proper icons and colors
   const filterOptions: { 
@@ -115,12 +132,21 @@ export default function PersonalRecordsScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [summariesData, statsData] = await Promise.all([
+      const [summariesData, statsData, goalsData, goalStatsData] = await Promise.all([
         getPRSummaries(),
         getPRStats(),
+        getUserPersonalRecordGoals(),
+        getGoalStats(),
       ]);
       setPRSummaries(summariesData);
-      setStats(statsData);
+      setStats({
+        ...statsData,
+        ...goalStatsData,
+      });
+      setGoals(goalsData);
+      
+      // Update overdue goals
+      await updateOverdueGoals();
     } catch (error) {
       console.error('Error loading PR data:', error);
       Alert.alert('Error', 'Failed to load personal records');
@@ -163,12 +189,79 @@ export default function PersonalRecordsScreen() {
 
   const handleAddPR = async (record: NewPersonalRecord) => {
     try {
-      await createPersonalRecord(record);
+      const newPR = await createPersonalRecord(record);
+      
+      // Check if this PR achieves any goals
+      const achievedGoals = await checkAndUpdateGoalsOnNewPR(newPR);
+      
       await loadData(); // Refresh data
-      Alert.alert('Success', 'Personal record added successfully!');
+      
+      let message = 'Personal record added successfully!';
+      if (achievedGoals.length > 0) {
+        message += `\n\n🎉 Congratulations! You've achieved ${achievedGoals.length} goal${achievedGoals.length > 1 ? 's' : ''}!`;
+      }
+      
+      Alert.alert('Success', message);
     } catch (error) {
       console.error('Error adding PR:', error);
       throw error;
+    }
+  };
+
+  const handleAddGoal = async (goal: NewPersonalRecord) => {
+    try {
+      await createPersonalRecordGoal(goal);
+      await loadData(); // Refresh data
+      Alert.alert('Success', 'Personal record goal set successfully!');
+    } catch (error) {
+      console.error('Error adding goal:', error);
+      throw error;
+    }
+  };
+
+  const handleEditGoal = (goal: PersonalRecord) => {
+    setEditingGoal(goal);
+    setShowEditGoalModal(true);
+  };
+
+  const handleUpdateGoal = async (updatedGoal: NewPersonalRecord) => {
+    if (!editingGoal) return;
+    
+    try {
+      await updatePersonalRecordGoal(editingGoal.id, updatedGoal);
+      await loadData(); // Refresh data
+      setEditingGoal(null);
+      Alert.alert('Success', 'Goal updated successfully!');
+    } catch (error) {
+      console.error('Error updating goal:', error);
+      Alert.alert('Error', 'Failed to update goal. Please try again.');
+    }
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    try {
+      await deletePersonalRecordGoal(goalId);
+      await loadData(); // Refresh data
+      Alert.alert('Success', 'Goal deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting goal:', error);
+      Alert.alert('Error', 'Failed to delete goal');
+    }
+  };
+
+  const handleMarkGoalAchieved = async (goalId: string) => {
+    try {
+      const goal = goals.find(g => g.id === goalId);
+      if (goal) {
+        // For now, use the target values as achieved values
+        // TODO: In the future, we could add a modal to input actual achieved values
+        await markGoalAsAchieved(goalId, goal.target_value || goal.value, goal.target_reps || goal.reps);
+        await loadData(); // Refresh data
+        Alert.alert('Success', '🎉 Congratulations! Goal achieved and added to your personal records!');
+      }
+    } catch (error) {
+      console.error('Error marking goal as achieved:', error);
+      Alert.alert('Error', 'Failed to mark goal as achieved');
     }
   };
 
@@ -201,9 +294,55 @@ export default function PersonalRecordsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>My Personal Records</Text>
-        <TouchableOpacity onPress={() => setShowAddModal(true)} style={styles.addButton}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Personal Records</Text>
+        <TouchableOpacity 
+          onPress={() => activeTab === 'records' ? setShowAddModal(true) : setShowAddGoalModal(true)} 
+          style={styles.addButton}
+        >
           <FontAwesome name="plus" size={18} color="#4a90e2" />
+        </TouchableOpacity>
+      </View>
+
+              {/* Tab Switcher */}
+      <View style={[styles.tabContainer, { backgroundColor: colors.background }]}>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            { backgroundColor: activeTab === 'records' ? '#4a90e2' : colors.surface }
+          ]}
+          onPress={() => setActiveTab('records')}
+        >
+          <FontAwesome 
+            name="trophy" 
+            size={16} 
+            color={activeTab === 'records' ? '#ffffff' : colors.text} 
+          />
+          <Text style={[
+            styles.tabButtonText,
+            { color: activeTab === 'records' ? '#ffffff' : colors.text }
+          ]}>
+            Records
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            { backgroundColor: activeTab === 'goals' ? '#4a90e2' : colors.surface }
+          ]}
+          onPress={() => setActiveTab('goals')}
+        >
+          <FontAwesome 
+            name="bullseye" 
+            size={16} 
+            color={activeTab === 'goals' ? '#ffffff' : colors.text} 
+          />
+          <Text style={[
+            styles.tabButtonText,
+            { color: activeTab === 'goals' ? '#ffffff' : colors.text }
+          ]}>
+            Goals
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -241,120 +380,159 @@ export default function PersonalRecordsScreen() {
               </View>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{stats.favorite_body_part}</Text>
-                  <Text style={styles.statLabel}>Favorite Part</Text>
+                  <Text style={styles.statValue}>{stats.active_goals || 0}</Text>
+                  <Text style={styles.statLabel}>Active Goals</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {stats.biggest_improvement.improvement_percentage > 0 
-                      ? `+${stats.biggest_improvement.improvement_percentage.toFixed(1)}%`
-                      : 'No data'
-                    }
-                  </Text>
-                  <Text style={styles.statLabel}>Best Improvement</Text>
+                  <Text style={styles.statValue}>{stats.achieved_goals || 0}</Text>
+                  <Text style={styles.statLabel}>Goals Achieved</Text>
                 </View>
               </View>
             </LinearGradient>
           </View>
         )}
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <FontAwesome name="search" size={16} color={colors.text + '60'} style={styles.searchIcon} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search exercises..."
-              placeholderTextColor={colors.text + '60'}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-                <FontAwesome name="times" size={14} color={colors.text + '60'} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Redesigned Filter Section */}
-        <View style={styles.filtersSection}>
-          <Text style={[styles.filterSectionTitle, { color: colors.text }]}>
-            Filter by Muscle Group
-          </Text>
-          <View style={styles.filtersGrid}>
-            {filterOptions.map((filter, index) => (
-              <TouchableOpacity
-                key={filter.value}
-                style={[
-                  styles.filterCard,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: activeFilter === filter.value ? '#4a90e2' : colors.border,
-                    borderWidth: activeFilter === filter.value ? 2 : 1,
-                    width: squareSize,
-                    height: squareSize,
-                    marginRight: (index + 1) % 4 === 0 ? 0 : squareSpacing,
-                  }
-                ]}
-                onPress={() => setActiveFilter(filter.value)}
-                activeOpacity={0.7}
-              >
-                {activeFilter === filter.value ? (
-                  <View style={[styles.filterCardActive, { backgroundColor: '#4a90e2' }]}>
-                    <Text style={styles.filterCardTextActive}>{filter.label}</Text>
-                  </View>
-                ) : (
-                  <View style={styles.filterCardContent}>
-                    <Text style={[styles.filterCardText, { color: colors.text }]}>
-                      {filter.label}
-                    </Text>
-                  </View>
+        {/* Records Tab Content */}
+        {activeTab === 'records' && (
+          <>
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <FontAwesome name="search" size={16} color={colors.text + '60'} style={styles.searchIcon} />
+                <TextInput
+                  style={[styles.searchInput, { color: colors.text }]}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search exercises..."
+                  placeholderTextColor={colors.text + '60'}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                    <FontAwesome name="times" size={14} color={colors.text + '60'} />
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+              </View>
+            </View>
 
-        {/* PR Cards */}
-        <View style={styles.prContainer}>
-          {filteredPRs.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <FontAwesome name="trophy" size={48} color={colors.text + '40'} />
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                {searchQuery || activeFilter !== 'all' ? 'No PRs Found' : 'No Personal Records Yet'}
+            {/* Redesigned Filter Section */}
+            <View style={styles.filtersSection}>
+              <Text style={[styles.filterSectionTitle, { color: colors.text }]}>
+                Filter by Muscle Group
               </Text>
-              <Text style={[styles.emptySubtitle, { color: colors.text + '80' }]}>
-                {searchQuery || activeFilter !== 'all' 
-                  ? 'Try adjusting your search or filter'
-                  : 'Start tracking your personal records by adding your first PR!'
-                }
-              </Text>
-              {(!searchQuery && activeFilter === 'all') && (
+              <View style={styles.filtersGrid}>
+                {filterOptions.map((filter, index) => (
+                  <TouchableOpacity
+                    key={filter.value}
+                    style={[
+                      styles.filterCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: activeFilter === filter.value ? '#4a90e2' : colors.border,
+                        borderWidth: activeFilter === filter.value ? 2 : 1,
+                        width: squareSize,
+                        height: squareSize,
+                        marginRight: (index + 1) % 4 === 0 ? 0 : squareSpacing,
+                      }
+                    ]}
+                    onPress={() => setActiveFilter(filter.value)}
+                    activeOpacity={0.7}
+                  >
+                    {activeFilter === filter.value ? (
+                      <View style={[styles.filterCardActive, { backgroundColor: '#4a90e2' }]}>
+                        <Text style={styles.filterCardTextActive}>{filter.label}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.filterCardContent}>
+                        <Text style={[styles.filterCardText, { color: colors.text }]}>
+                          {filter.label}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* PR Cards */}
+            <View style={styles.prContainer}>
+              {filteredPRs.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <FontAwesome name="trophy" size={48} color={colors.text + '40'} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                    {searchQuery || activeFilter !== 'all' ? 'No PRs Found' : 'No Personal Records Yet'}
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: colors.text + '80' }]}>
+                    {searchQuery || activeFilter !== 'all' 
+                      ? 'Try adjusting your search or filter'
+                      : 'Start tracking your personal records by adding your first PR!'
+                    }
+                  </Text>
+                  {(!searchQuery && activeFilter === 'all') && (
+                    <TouchableOpacity
+                      style={styles.addFirstPRButton}
+                      onPress={() => setShowAddModal(true)}
+                    >
+                      <LinearGradient
+                        colors={['#4a90e2', '#5A7BFF']}
+                        style={styles.addFirstPRGradient}
+                      >
+                        <FontAwesome name="plus" size={16} color="#ffffff" />
+                        <Text style={styles.addFirstPRText}>Add Your First PR</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                filteredPRs.map((prSummary) => (
+                  <PRCard
+                    key={prSummary.exercise_id}
+                    prSummary={prSummary}
+                    onPress={() => handlePRCardPress(prSummary)}
+                  />
+                ))
+              )}
+            </View>
+          </>
+        )}
+
+        {/* Goals Tab Content */}
+        {activeTab === 'goals' && (
+          <View style={styles.prContainer}>
+            {goals.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <FontAwesome name="bullseye" size={48} color={colors.text + '40'} />
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                  No Goals Set Yet
+                </Text>
+                <Text style={[styles.emptySubtitle, { color: colors.text + '80' }]}>
+                  Set your first personal record goal to start tracking your progress!
+                </Text>
                 <TouchableOpacity
                   style={styles.addFirstPRButton}
-                  onPress={() => setShowAddModal(true)}
+                  onPress={() => setShowAddGoalModal(true)}
                 >
                   <LinearGradient
                     colors={['#4a90e2', '#5A7BFF']}
                     style={styles.addFirstPRGradient}
                   >
-                    <FontAwesome name="plus" size={16} color="#ffffff" />
-                    <Text style={styles.addFirstPRText}>Add Your First PR</Text>
+                    <FontAwesome name="bullseye" size={16} color="#ffffff" />
+                    <Text style={styles.addFirstPRText}>Set Your First Goal</Text>
                   </LinearGradient>
                 </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            filteredPRs.map((prSummary) => (
-              <PRCard
-                key={prSummary.exercise_id}
-                prSummary={prSummary}
-                onPress={() => handlePRCardPress(prSummary)}
-              />
-            ))
-          )}
-        </View>
+              </View>
+            ) : (
+              goals.map((goal) => (
+                <PRGoalCard
+                  key={goal.id}
+                  goal={goal}
+                  onEdit={() => handleEditGoal(goal)}
+                  onDelete={() => handleDeleteGoal(goal.id)}
+                  onMarkAchieved={() => handleMarkGoalAchieved(goal.id)}
+                />
+              ))
+            )}
+          </View>
+        )}
 
         <View style={{ height: 20 }} />
       </ScrollView>
@@ -362,14 +540,18 @@ export default function PersonalRecordsScreen() {
       {/* Floating Add Button */}
       <TouchableOpacity
         style={styles.floatingAddButton}
-        onPress={() => setShowAddModal(true)}
+        onPress={() => activeTab === 'records' ? setShowAddModal(true) : setShowAddGoalModal(true)}
         activeOpacity={0.8}
       >
         <LinearGradient
           colors={['#4a90e2', '#5A7BFF']}
           style={styles.floatingButtonGradient}
         >
-          <FontAwesome name="plus" size={20} color="#ffffff" />
+          <FontAwesome 
+            name={activeTab === 'records' ? "plus" : "bullseye"} 
+            size={20} 
+            color="#ffffff" 
+          />
         </LinearGradient>
       </TouchableOpacity>
 
@@ -378,6 +560,24 @@ export default function PersonalRecordsScreen() {
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSave={handleAddPR}
+      />
+
+      {/* Add PR Goal Modal */}
+      <AddPRGoalModal
+        visible={showAddGoalModal}
+        onClose={() => setShowAddGoalModal(false)}
+        onSave={handleAddGoal}
+      />
+
+      {/* Edit PR Goal Modal */}
+      <AddPRGoalModal
+        visible={showEditGoalModal}
+        onClose={() => {
+          setShowEditGoalModal(false);
+          setEditingGoal(null);
+        }}
+        onSave={handleUpdateGoal}
+        initialGoal={editingGoal}
       />
     </SafeAreaView>
   );
@@ -598,5 +798,25 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 

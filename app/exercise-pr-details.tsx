@@ -137,6 +137,57 @@ export default function ExercisePRDetailsScreen() {
     return `${value}${unit}`;
   };
 
+  const renderRecordsList = (recordType: RecordType) => {
+    const recordsByType = getRecordsByType(recordType);
+    // Find the record with the highest value for the BEST badge
+    const bestRecord = recordsByType.length > 0 ? recordsByType.reduce((best, current) => {
+      return current.value > best.value ? current : best;
+    }, recordsByType[0]) : null;
+    
+    return recordsByType.map((record, index) => (
+      <View
+        key={record.id}
+        style={[styles.recordCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      >
+        <View style={styles.recordHeader}>
+          <View style={styles.recordInfo}>
+            <View style={styles.recordValueContainer}>
+              <Text style={[styles.recordValue, { color: colors.text }]}>
+                {formatValue(record.value, record.unit, record.reps)}
+              </Text>
+              {bestRecord && record.id === bestRecord.id && (
+                <View style={styles.bestBadge}>
+                  <FontAwesome name="trophy" size={12} color="#FFD700" />
+                  <Text style={styles.bestText}>BEST</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.recordDate, { color: colors.text + '80' }]}>
+              {new Date(record.achieved_at).toLocaleDateString('pt-PT', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+              })}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => handleDeleteRecord(record.id)}
+            style={styles.deleteButton}
+          >
+            <FontAwesome name="trash" size={16} color="#FF4757" />
+          </TouchableOpacity>
+        </View>
+        
+        {record.notes && (
+          <View style={styles.notesContainer}>
+            <Text style={[styles.notesLabel, { color: colors.text + '80' }]}>Notes:</Text>
+            <Text style={[styles.notesText, { color: colors.text }]}>{record.notes}</Text>
+          </View>
+        )}
+      </View>
+    ));
+  };
+
   const recordTypes: RecordType[] = ['strength', 'endurance'];
   const availableTypes = recordTypes.filter(type => {
     if (type === 'strength') {
@@ -501,50 +552,9 @@ export default function ExercisePRDetailsScreen() {
             contentContainerStyle={styles.recordsContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Progress Chart */}
+                        {/* Progress Chart */}
             {records.length > 0 && renderProgressChart()}
-            {getRecordsByType(selectedRecordType).map((record, index) => (
-              <View
-                key={record.id}
-                style={[styles.recordCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              >
-                <View style={styles.recordHeader}>
-                  <View style={styles.recordInfo}>
-                    <View style={styles.recordValueContainer}>
-                      <Text style={[styles.recordValue, { color: colors.text }]}>
-                        {formatValue(record.value, record.unit, record.reps)}
-                      </Text>
-                      {index === 0 && (
-                        <View style={styles.bestBadge}>
-                          <FontAwesome name="trophy" size={12} color="#FFD700" />
-                          <Text style={styles.bestText}>BEST</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={[styles.recordDate, { color: colors.text + '80' }]}>
-                      {new Date(record.achieved_at).toLocaleDateString('pt-PT', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteRecord(record.id)}
-                    style={styles.deleteButton}
-                  >
-                    <FontAwesome name="trash" size={16} color="#FF4757" />
-                  </TouchableOpacity>
-                </View>
-                
-                {record.notes && (
-                  <View style={styles.notesContainer}>
-                    <Text style={[styles.notesLabel, { color: colors.text + '80' }]}>Notes:</Text>
-                    <Text style={[styles.notesText, { color: colors.text }]}>{record.notes}</Text>
-                  </View>
-                )}
-              </View>
-            ))}
+            {renderRecordsList(selectedRecordType)}
           </ScrollView>
         </>
       )}

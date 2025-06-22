@@ -10,6 +10,9 @@ import { useExerciseDB } from '@/hooks/useExerciseDB';
 import { Video, ResizeMode } from 'expo-av';
 import { updateAllAchievements } from '@/utils/achievementService';
 import { useWorkoutStats } from '@/contexts/WorkoutContext';
+import WorkoutSafetyModal from '@/components/WorkoutSafetyModal';
+import { getTopPriorityWarnings } from '@/constants/safetyWarnings';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -448,6 +451,11 @@ const WorkoutSessionScreen = () => {
   // Add exercise details modal state
   const [selectedExerciseDetails, setSelectedExerciseDetails] = useState<Exercise | null>(null);
   
+  // Safety modal state
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [hasAcknowledgedSafety, setHasAcknowledgedSafety] = useState(false);
+  const [neverShowSafetyAgain, setNeverShowSafetyAgain] = useState(false);
+  
   // Fetch all exercises using the same hook as workout builder
   const { exercises: allExercises, loading: loadingAllExercises } = useExerciseDB({});
   
@@ -556,6 +564,34 @@ const WorkoutSessionScreen = () => {
     
     fetchWorkoutData();
   }, [workoutId]);
+
+  // Load safety preferences on mount
+  useEffect(() => {
+    const loadSafetyPreferences = async () => {
+      try {
+        const neverShow = await AsyncStorage.getItem('neverShowSafetyWarnings');
+        if (neverShow === 'true') {
+          setNeverShowSafetyAgain(true);
+          setHasAcknowledgedSafety(true);
+        }
+      } catch (error) {
+        console.log('Error loading safety preferences:', error);
+      }
+    };
+
+    loadSafetyPreferences();
+  }, []);
+
+  // Separate effect to handle safety modal display
+  useEffect(() => {
+    if (!loading && workout && exercises.length > 0 && !hasAcknowledgedSafety && !neverShowSafetyAgain) {
+      const timer = setTimeout(() => {
+        setShowSafetyModal(true);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [loading, workout, exercises.length, hasAcknowledgedSafety, neverShowSafetyAgain]);
   
   // Handle set data updates
   const handleSetUpdate = (exerciseId: string, setIndex: number, reps: string, weight: string) => {
@@ -1095,6 +1131,34 @@ const WorkoutSessionScreen = () => {
       ]
     );
   };
+
+  const handleSafetyAcknowledge = () => {
+    setHasAcknowledgedSafety(true);
+    setShowSafetyModal(false);
+  };
+
+  const handleSafetyClose = () => {
+    setShowSafetyModal(false);
+    // Don't set acknowledged to true if they just close without going through tips
+  };
+
+  const handleNeverShowAgain = async () => {
+    try {
+      await AsyncStorage.setItem('neverShowSafetyWarnings', 'true');
+      setNeverShowSafetyAgain(true);
+      setHasAcknowledgedSafety(true);
+      setShowSafetyModal(false);
+      
+      Alert.alert(
+        'Safety Warnings Disabled',
+        'You will no longer see safety warnings before workouts. You can re-enable them in settings if needed.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.log('Error saving safety preference:', error);
+      Alert.alert('Error', 'Could not save preference. Please try again.');
+    }
+  };
   
   if (loading) {
     return (
@@ -1181,6 +1245,15 @@ const WorkoutSessionScreen = () => {
       </ScrollView>
       
       {renderExerciseDetailsModal()}
+      
+      <WorkoutSafetyModal
+        visible={showSafetyModal}
+        onClose={handleSafetyClose}
+        onAcknowledge={handleSafetyAcknowledge}
+        onNeverShowAgain={handleNeverShowAgain}
+        isFirstTime={!hasAcknowledgedSafety}
+        workoutType="beginner"
+      />
     </SafeAreaView>
   );
 };

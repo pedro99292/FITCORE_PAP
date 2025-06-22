@@ -43,71 +43,73 @@ export interface UserMetrics {
   emojiComments: number; // comments with emojis made by user
   completedAchievements: number; // number of achievements at 100% progress
   isAdvancedLevel: boolean;
+  muscleGroupsThisWeek: number; // unique muscle groups trained in last 7 days
 }
 
 // Achievement calculation functions for each achievement
 const achievementCalculators: Record<number, (metrics: UserMetrics) => number> = {
   // Workout Mastery
   1: (metrics) => metrics.totalWorkouts >= 1 ? 100 : 0, // First Rep - Complete 1 workout session
-  2: (metrics) => Math.min((metrics.currentStreak / 7) * 100, 100), // Consistency Rookie - 7 day streak
-  3: (metrics) => Math.min((metrics.totalWorkouts / 50) * 100, 100), // Fitness Enthusiast - 50 completed sessions
-  4: (metrics) => Math.min((metrics.totalWorkouts / 100) * 100, 100), // Workout Warrior - 100 completed sessions
-  5: (metrics) => Math.min((metrics.workoutTemplates / 10) * 100, 100), // Routine Expert - 10 workout templates
-  7: (metrics) => Math.min((metrics.uniqueExercises / 50) * 100, 100), // Exercise Explorer - 50 unique exercises
-  10: (metrics) => Math.min((metrics.workoutTemplates / 5) * 100, 100), // Custom Crafter - 5 workout templates
+  2: (metrics) => Math.round(Math.min((metrics.currentStreak / 7) * 100, 100)), // Consistency Rookie - 7 day streak
+  3: (metrics) => Math.round(Math.min((metrics.totalWorkouts / 50) * 100, 100)), // Fitness Enthusiast - 50 completed sessions
+  4: (metrics) => Math.round(Math.min((metrics.totalWorkouts / 100) * 100, 100)), // Workout Warrior - 100 completed sessions
+  5: (metrics) => Math.round(Math.min((metrics.workoutTemplates / 10) * 100, 100)), // Routine Expert - 10 workout templates
+  7: (metrics) => Math.round(Math.min((metrics.uniqueExercises / 50) * 100, 100)), // Exercise Explorer - 50 unique exercises
+  10: (metrics) => Math.round(Math.min((metrics.workoutTemplates / 5) * 100, 100)), // Custom Crafter - 5 workout templates
 
   // Progress
   11: (metrics) => metrics.totalWorkouts >= 1 ? 100 : 0, // Tracker Beginner - Complete 1 workout session
-  12: (metrics) => Math.min((metrics.totalVolume / 10000) * 100, 100), // Volume Victor - 10,000 kg total volume
-  13: (metrics) => Math.min((metrics.personalBests / 5) * 100, 100), // Strength Seeker - 5 personal bests
-  14: (metrics) => Math.min((metrics.totalMinutes / 6000) * 100, 100), // Endurance Ace - 100 hours (6000 minutes)
-  16: (metrics) => Math.min((metrics.socialPosts / 10) * 100, 100), // Visual Vanguard - 10 progress photos (using social posts)
-  17: (metrics) => Math.min((metrics.personalBests / 20) * 100, 100), // Record Breaker - 20 personal bests
+  12: (metrics) => Math.round(Math.min((metrics.totalVolume / 10000) * 100, 100)), // Volume Victor - 10,000 kg total volume
+  13: (metrics) => Math.round(Math.min((metrics.personalBests / 5) * 100, 100)), // Strength Seeker - 5 personal bests
+  14: (metrics) => Math.round(Math.min((metrics.totalMinutes / 6000) * 100, 100)), // Endurance Ace - 100 hours (6000 minutes)
+  16: (metrics) => Math.round(Math.min((metrics.socialPosts / 10) * 100, 100)), // Visual Vanguard - 10 progress photos (using social posts)
+  17: (metrics) => Math.round(Math.min((metrics.personalBests / 20) * 100, 100)), // Record Breaker - 20 personal bests
   18: (metrics) => 0, // Workout Historian - placeholder for history views
 
   // Consistency
-  19: (metrics) => Math.min((metrics.currentStreak / 3) * 100, 100), // First Streak - 3 day streak
-  20: (metrics) => Math.min((metrics.currentStreak / 7) * 100, 100), // Week Warrior - 7 day streak
-  21: (metrics) => Math.min((metrics.currentStreak / 30) * 100, 100), // Month of Motivation - 30 day streak
-  22: (metrics) => Math.min((metrics.currentStreak / 60) * 100, 100), // Unstoppable - 60 day streak
-  23: (metrics) => Math.min((metrics.currentStreak / 100) * 100, 100), // Habit Hero - 100 day streak
-  24: (metrics) => Math.min((metrics.earlyWorkouts / 10) * 100, 100), // Early Bird - 10 workouts before 7 AM
-  25: (metrics) => Math.min((metrics.lateWorkouts / 30) * 100, 100), // Night Owl - 30 late workouts
-  26: (metrics) => Math.min((metrics.weekendWorkouts / 8) * 100, 100), // Weekend Warrior - 8 weekend workouts (4 weeks * 2 days)
+  19: (metrics) => Math.round(Math.min((metrics.currentStreak / 3) * 100, 100)), // First Streak - 3 day streak
+  20: (metrics) => Math.round(Math.min((metrics.currentStreak / 7) * 100, 100)), // Week Warrior - 7 day streak
+  21: (metrics) => Math.round(Math.min((metrics.currentStreak / 30) * 100, 100)), // Month of Motivation - 30 day streak
+  22: (metrics) => Math.round(Math.min((metrics.currentStreak / 60) * 100, 100)), // Unstoppable - 60 day streak
+  23: (metrics) => Math.round(Math.min((metrics.currentStreak / 100) * 100, 100)), // Habit Hero - 100 day streak
+  24: (metrics) => Math.round(Math.min((metrics.earlyWorkouts / 10) * 100, 100)), // Early Bird - 10 workouts before 7 AM
+  25: (metrics) => Math.round(Math.min((metrics.lateWorkouts / 30) * 100, 100)), // Night Owl - 30 late workouts
+  26: (metrics) => Math.round(Math.min((metrics.weekendWorkouts / 8) * 100, 100)), // Weekend Warrior - 8 weekend workouts (4 weeks * 2 days)
   27: (metrics) => 0, // Routine Ritualist - placeholder for schedule consistency
-  28: (metrics) => Math.min((metrics.totalWorkouts / 200) * 100, 100), // Consistency Champion - 200 completed sessions
+  28: (metrics) => Math.round(Math.min((metrics.totalWorkouts / 200) * 100, 100)), // Consistency Champion - 200 completed sessions
 
   // Goals & Milestones
   29: (metrics) => 0, // Goal Setter - placeholder for goals set
   30: (metrics) => 0, // Goal Getter - placeholder for goals achieved
   31: (metrics) => 0, // Lift Legend - placeholder for bodyweight bench
-  32: (metrics) => Math.min((metrics.totalMinutes / 6000) * 100, 100), // Endurance Elite - 100 hours
+  32: (metrics) => Math.round(Math.min((metrics.totalMinutes / 6000) * 100, 100)), // Endurance Elite - 100 hours
   33: (metrics) => 0, // Weight Wizard - placeholder for weight tracking
   34: (metrics) => metrics.isAdvancedLevel ? 100 : 0, // Fitness Veteran - reach Advanced level
   35: (metrics) => 0, // Elite Athlete - placeholder for muscle area progress
 
   // Social achievements (36-44) - now implemented with database support
   36: (metrics) => metrics.socialPosts >= 1 ? 100 : 0, // First Post - Share your first Post
-  37: (metrics) => Math.min((metrics.socialPosts / 20) * 100, 100), // Community Contributor - Post 20 times
-  38: (metrics) => Math.min((metrics.maxLikesOnPost / 100) * 100, 100), // Inspiration Icon - 100 likes on single post
-  39: (metrics) => Math.min((metrics.socialComments / 50) * 100, 100), // Engagement Expert - Comment 50 times
-  40: (metrics) => Math.min((metrics.socialStories / 10) * 100, 100), // Storyteller - Create 10 stories
-  41: (metrics) => Math.min((metrics.followingCount / 50) * 100, 100), // Follower Fanatic - Follow 50 people
-  42: (metrics) => Math.min((Math.max(metrics.totalReactions, metrics.emojiComments) / 100) * 100, 100), // Emoji Enthusiast - React/Emoji 100 times
+  37: (metrics) => Math.round(Math.min((metrics.socialPosts / 20) * 100, 100)), // Community Contributor - Post 20 times
+  38: (metrics) => Math.round(Math.min((metrics.maxLikesOnPost / 100) * 100, 100)), // Inspiration Icon - 100 likes on single post
+  39: (metrics) => Math.round(Math.min((metrics.socialComments / 50) * 100, 100)), // Engagement Expert - Comment 50 times
+  40: (metrics) => Math.round(Math.min((metrics.socialStories / 10) * 100, 100)), // Storyteller - Create 10 stories
+  41: (metrics) => Math.round(Math.min((metrics.followingCount / 50) * 100, 100)), // Follower Fanatic - Follow 50 people
+
   43: () => 0, // Location Scout - placeholder (would need location data in posts)
-  44: (metrics) => Math.min((metrics.followersCount / 500) * 100, 100), // Social Star - Reach 500 followers
+  44: (metrics) => Math.round(Math.min((metrics.followersCount / 500) * 100, 100)), // Social Star - Reach 500 followers
 
   // Special Trophies
-  45: (metrics) => Math.min((metrics.totalVolume / 100000) * 100, 100), // Iron Titan - 100,000 kg total volume
-  46: (metrics) => Math.min((metrics.totalMinutes / 30000) * 100, 100), // Endurance Emperor - 500 hours
-  47: (metrics) => Math.min((metrics.consecutiveDays / 365) * 100, 100), // Consistency Conqueror - 1 year streak
-  48: (metrics) => Math.min((metrics.completedAchievements / 50) * 100, 100), // Milestone Marvel - 50 completed achievements
+  45: (metrics) => Math.round(Math.min((metrics.totalVolume / 100000) * 100, 100)), // Iron Titan - 100,000 kg total volume
+  46: (metrics) => Math.round(Math.min((metrics.totalMinutes / 30000) * 100, 100)), // Endurance Emperor - 500 hours
+  47: (metrics) => Math.round(Math.min((metrics.consecutiveDays / 365) * 100, 100)), // Consistency Conqueror - 1 year streak
+  48: (metrics) => Math.round(Math.min((metrics.completedAchievements / 50) * 100, 100)), // Milestone Marvel - 50 completed achievements
   49: (metrics) => 0, // Ultimate Athlete - placeholder
   50: (metrics) => 0, // Legendary Lifter - placeholder for 2x bodyweight
-  51: (metrics) => Math.min((metrics.totalMinutes / 60000) * 100, 100), // Time Keeper - 1000 hours
+  51: (metrics) => Math.round(Math.min((metrics.totalMinutes / 60000) * 100, 100)), // Time Keeper - 1000 hours
   52: (metrics) => 0, // Transformation Triumph - placeholder
   53: (metrics) => 0, // Community Leader - placeholder
-  54: (metrics) => metrics.completedAchievements >= 53 ? 100 : Math.min((metrics.completedAchievements / 53) * 100, 100), // Fitness Icon - unlock all achievements
+  54: (metrics) => metrics.completedAchievements >= 53 ? 100 : Math.round(Math.min((metrics.completedAchievements / 53) * 100, 100)), // Fitness Icon - unlock all achievements
+  55: (metrics) => metrics.muscleGroupsThisWeek >= 13 ? 100 : Math.round(Math.min((metrics.muscleGroupsThisWeek / 13) * 100, 100)), // Muscle Master - Target all major muscle groups in a single week
 };
 
 // Calculate user metrics from database
@@ -287,6 +289,105 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
 
     const completedAchievements = completedAchievementsData?.length || 0;
 
+    // Get muscle groups trained in the last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const { data: recentSetsData } = await supabase
+      .from('session_sets')
+      .select(`
+        exercise_target,
+        sessions!inner(user_id, start_time)
+      `)
+      .eq('sessions.user_id', userId)
+      .gte('sessions.start_time', sevenDaysAgo.toISOString());
+
+         // Map exercise targets to standardized muscle groups
+     const muscleGroupMapping: Record<string, string> = {
+       // Core groups
+       'abs': 'Abs',
+       'abdominals': 'Abs',
+       'core': 'Abs',
+       'abdominis': 'Abs',
+       
+       // Legs
+       'quads': 'Quads',
+       'quadriceps': 'Quads',
+       'glutes': 'Glutes',
+       'gluteus': 'Glutes',
+       'hamstrings': 'Hamstrings',
+       'calves': 'Calves',
+       'adductors': 'Adductors',
+       'hip adductors': 'Adductors',
+       
+       // Upper body
+       'pectorals': 'Pectorals',
+       'pecs': 'Pectorals',
+       'chest': 'Pectorals',
+       'lats': 'Lats',
+       'latissimus dorsi': 'Lats',
+       'upper back': 'Upper Back',
+       'traps': 'Traps',
+       'trapezius': 'Traps',
+       'delts': 'Upper Back', // Shoulders/delts map to upper back since not separate category
+       'deltoids': 'Upper Back',
+       'shoulders': 'Upper Back',
+       'anterior deltoid': 'Upper Back',
+       'posterior deltoid': 'Upper Back',
+       'middle deltoid': 'Upper Back',
+       
+       // Arms
+       'biceps': 'Biceps',
+       'biceps brachii': 'Biceps',
+       'triceps': 'Triceps',
+       'triceps brachii': 'Triceps',
+       'forearms': 'Forearms',
+       'brachialis': 'Biceps', // Map to biceps as it's an arm flexor
+       'brachioradialis': 'Forearms',
+     };
+
+    // Track unique muscle groups (case-insensitive)
+    const trainedMuscles = new Set<string>();
+    
+    // Debug: Log all exercise targets found
+    console.log('Recent sets data found:', recentSetsData?.length || 0);
+    const allTargets = new Set<string>();
+    recentSetsData?.forEach(set => {
+      if (set.exercise_target) {
+        allTargets.add(set.exercise_target);
+      }
+    });
+    console.log('All exercise targets found in recent sets:', Array.from(allTargets));
+    
+    recentSetsData?.forEach(set => {
+      if (set.exercise_target) {
+        const targetLower = set.exercise_target.toLowerCase();
+        // Check direct mapping first
+        if (muscleGroupMapping[targetLower]) {
+          trainedMuscles.add(muscleGroupMapping[targetLower]);
+        }
+        // Check if the target contains any of our muscle group keywords
+        else {
+          Object.entries(muscleGroupMapping).forEach(([key, value]) => {
+            if (targetLower.includes(key) || key.includes(targetLower)) {
+              trainedMuscles.add(value);
+            }
+          });
+        }
+      }
+    });
+
+    // The target is to train all 13 major muscle groups
+    const targetMuscleGroups = [
+      'Abs', 'Adductors', 'Biceps', 'Calves', 'Forearms', 
+      'Glutes', 'Hamstrings', 'Lats', 'Pectorals', 'Quads', 
+      'Traps', 'Triceps', 'Upper Back'
+    ];
+
+    const muscleGroupsThisWeek = trainedMuscles.size;
+    console.log('Muscle groups trained this week:', Array.from(trainedMuscles));
+    console.log('Target muscle groups needed:', targetMuscleGroups);
+
     return {
       totalWorkouts,
       totalVolume: Math.round(totalVolume),
@@ -312,6 +413,7 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       emojiComments,
       completedAchievements,
       isAdvancedLevel,
+      muscleGroupsThisWeek,
     };
   } catch (error) {
     console.error('Error calculating user metrics:', error);
@@ -340,6 +442,7 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       emojiComments: 0,
       completedAchievements: 0,
       isAdvancedLevel: false,
+      muscleGroupsThisWeek: 0,
     };
   }
 };

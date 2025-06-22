@@ -142,26 +142,7 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     color: "#795548",
     category: "Workout Mastery"
   },
-  {
-    id: 47,
-    title: "Machine Master",
-    description: "Complete 25 workouts using only machine exercises.",
-    icon: "settings-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#C0C0C0",
-    category: "Workout Mastery"
-  },
-  {
-    id: 48,
-    title: "Free Weight Fanatic",
-    description: "Complete 25 workouts using only free weight exercises.",
-    icon: "barbell-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#CD7F32",
-    category: "Workout Mastery"
-  },
+
   {
     id: 55,
     title: "Muscle Master",
@@ -469,16 +450,7 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     color: "#00BCD4",
     category: "Social"
   },
-  {
-    id: 42,
-    title: "Emoji Enthusiast",
-    description: "React to 100 posts with emojis.",
-    icon: "happy-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#FFD700",
-    category: "Social"
-  },
+
   {
     id: 54,
     title: "Chat Champion",

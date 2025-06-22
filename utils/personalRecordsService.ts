@@ -11,15 +11,20 @@ export const createPersonalRecord = async (record: NewPersonalRecord): Promise<P
     .insert([{
       ...record,
       user_id: user.id,
+      record_category: 'record',
+      status: 'achieved',
+      achieved_at: record.achieved_at || new Date().toISOString(),
     }])
     .select('*')
     .single();
 
   if (error) throw error;
+  
+  // Note: Goal checking is handled in the UI layer via checkAndUpdateGoalsOnNewPR
   return data;
 };
 
-// Get all personal records for a user
+// Get all personal records for a user (actual records, not goals)
 export const getUserPersonalRecords = async (): Promise<PersonalRecord[]> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User not authenticated');
@@ -28,6 +33,7 @@ export const getUserPersonalRecords = async (): Promise<PersonalRecord[]> => {
     .from('personal_records')
     .select('*')
     .eq('user_id', user.id)
+    .eq('record_category', 'record')
     .order('achieved_at', { ascending: false });
 
   if (error) throw error;
@@ -44,6 +50,7 @@ export const getExercisePersonalRecords = async (exerciseId: string): Promise<Pe
     .select('*')
     .eq('user_id', user.id)
     .eq('exercise_id', exerciseId)
+    .eq('record_category', 'record')
     .order('achieved_at', { ascending: false });
 
   if (error) throw error;
@@ -59,6 +66,7 @@ export const getPRSummaries = async (): Promise<PRSummary[]> => {
     .from('personal_records')
     .select('*')
     .eq('user_id', user.id)
+    .eq('record_category', 'record')
     .order('achieved_at', { ascending: false });
 
   if (error) throw error;
@@ -103,7 +111,8 @@ export const getPRStats = async (): Promise<PRStats> => {
   const { data, error } = await supabase
     .from('personal_records')
     .select('*')
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .eq('record_category', 'record');
 
   if (error) throw error;
   if (!data) return {
@@ -214,6 +223,7 @@ export const getRecordsByBodyPart = async (bodyPart: string): Promise<PersonalRe
     .select('*')
     .eq('user_id', user.id)
     .eq('exercise_body_part', bodyPart)
+    .eq('record_category', 'record')
     .order('achieved_at', { ascending: false });
 
   if (error) throw error;
@@ -229,9 +239,271 @@ export const searchRecords = async (searchTerm: string): Promise<PersonalRecord[
     .from('personal_records')
     .select('*')
     .eq('user_id', user.id)
+    .eq('record_category', 'record')
     .ilike('exercise_name', `%${searchTerm}%`)
     .order('achieved_at', { ascending: false });
 
   if (error) throw error;
   return data || [];
+};
+
+// ============ PERSONAL RECORD GOALS FUNCTIONS ============
+
+// Create a new personal record goal
+export const createPersonalRecordGoal = async (goal: NewPersonalRecord): Promise<PersonalRecord> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('personal_records')
+    .insert([{
+      ...goal,
+      user_id: user.id,
+      record_category: 'goal',
+      status: 'active',
+      value: goal.target_value || goal.value,
+      reps: goal.target_reps || goal.reps,
+    }])
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// Get all personal record goals for a user
+export const getUserPersonalRecordGoals = async (): Promise<PersonalRecord[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('personal_records')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('record_category', 'goal')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+// Get active personal record goals for a user
+export const getActivePersonalRecordGoals = async (): Promise<PersonalRecord[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('personal_records')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('record_category', 'goal')
+    .eq('status', 'active')
+    .order('target_date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+};
+
+// Get personal record goals for a specific exercise
+export const getExercisePersonalRecordGoals = async (exerciseId: string): Promise<PersonalRecord[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('personal_records')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('record_category', 'goal')
+    .eq('exercise_id', exerciseId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+// Update a personal record goal
+export const updatePersonalRecordGoal = async (id: string, updates: Partial<PersonalRecord>): Promise<PersonalRecord> => {
+  const { data, error } = await supabase
+    .from('personal_records')
+    .update(updates)
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// Mark a goal as achieved
+export const markGoalAsAchieved = async (goalId: string, achievedValue: number, achievedReps?: number): Promise<PersonalRecord> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  // First, get the goal details
+  const { data: goal, error: goalError } = await supabase
+    .from('personal_records')
+    .select('*')
+    .eq('id', goalId)
+    .eq('record_category', 'goal')
+    .single();
+
+  if (goalError) throw goalError;
+  if (!goal) throw new Error('Goal not found');
+
+  // Update the goal status to achieved
+  const { data: updatedGoal, error: updateError } = await supabase
+    .from('personal_records')
+    .update({
+      status: 'achieved',
+      achieved_at: new Date().toISOString(),
+      value: achievedValue,
+      reps: achievedReps,
+    })
+    .eq('id', goalId)
+    .select('*')
+    .single();
+
+  if (updateError) throw updateError;
+
+  // Create a new personal record entry
+  const newRecord: NewPersonalRecord = {
+    exercise_id: goal.exercise_id,
+    exercise_name: goal.exercise_name,
+    exercise_body_part: goal.exercise_body_part,
+    exercise_target: goal.exercise_target,
+    exercise_equipment: goal.exercise_equipment,
+    record_type: goal.record_type,
+    value: achievedValue,
+    unit: goal.unit,
+    reps: achievedReps,
+    notes: `Goal achieved: ${goal.notes ? goal.notes + ' - ' : ''}Target was ${goal.target_value || goal.value}${goal.unit}${goal.target_reps ? ` x ${goal.target_reps} reps` : ''}`,
+    achieved_at: new Date().toISOString(),
+  };
+
+  // Create the personal record
+  await createPersonalRecord(newRecord);
+
+  return updatedGoal;
+};
+
+// Delete a personal record goal
+export const deletePersonalRecordGoal = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('personal_records')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
+// Check if a new PR achieves any goals
+export const checkAndUpdateGoalsOnNewPR = async (newPR: PersonalRecord): Promise<PersonalRecord[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  // Get active goals for this exercise and record type
+  const { data: activeGoals, error } = await supabase
+    .from('personal_records')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('record_category', 'goal')
+    .eq('exercise_id', newPR.exercise_id)
+    .eq('record_type', newPR.record_type)
+    .eq('status', 'active');
+
+  if (error) throw error;
+  if (!activeGoals || activeGoals.length === 0) return [];
+
+  const achievedGoals: PersonalRecord[] = [];
+
+  for (const goal of activeGoals) {
+    let goalAchieved = false;
+
+    // Check if the new PR meets or exceeds the goal
+    if (newPR.record_type === 'strength') {
+      // For strength, both weight and reps must meet or exceed the target
+      if (newPR.value >= (goal.target_value || goal.value) && (newPR.reps || 0) >= (goal.target_reps || goal.reps || 0)) {
+        goalAchieved = true;
+      }
+    } else {
+      // For other record types, just check the value
+      if (newPR.value >= (goal.target_value || goal.value)) {
+        goalAchieved = true;
+      }
+    }
+
+    if (goalAchieved) {
+      const updatedGoal = await markGoalAsAchieved(goal.id, newPR.value, newPR.reps);
+      achievedGoals.push(updatedGoal);
+    }
+  }
+
+  return achievedGoals;
+};
+
+// Update overdue goals
+export const updateOverdueGoals = async (): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from('personal_records')
+    .update({ status: 'overdue' })
+    .eq('user_id', user.id)
+    .eq('record_category', 'goal')
+    .eq('status', 'active')
+    .lt('target_date', now)
+    .not('target_date', 'is', null);
+
+  if (error) throw error;
+};
+
+// Get goal statistics
+export const getGoalStats = async (): Promise<{
+  total_goals: number;
+  active_goals: number;
+  achieved_goals: number;
+  overdue_goals: number;
+  goals_achieved_this_month: number;
+}> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('personal_records')
+    .select('status, achieved_at')
+    .eq('user_id', user.id)
+    .eq('record_category', 'goal');
+
+  if (error) throw error;
+  if (!data) return {
+    total_goals: 0,
+    active_goals: 0,
+    achieved_goals: 0,
+    overdue_goals: 0,
+    goals_achieved_this_month: 0,
+  };
+
+  const now = new Date();
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const total_goals = data.length;
+  const active_goals = data.filter(goal => goal.status === 'active').length;
+  const achieved_goals = data.filter(goal => goal.status === 'achieved').length;
+  const overdue_goals = data.filter(goal => goal.status === 'overdue').length;
+  const goals_achieved_this_month = data.filter(goal => 
+    goal.status === 'achieved' && 
+    goal.achieved_at && 
+    new Date(goal.achieved_at) >= thisMonth
+  ).length;
+
+  return {
+    total_goals,
+    active_goals,
+    achieved_goals,
+    overdue_goals,
+    goals_achieved_this_month,
+  };
 }; 
