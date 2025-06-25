@@ -28,12 +28,6 @@ import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import * as Location from 'expo-location';
 
-// Add Story related imports
-import StoryRing from '@/components/StoryRing';
-import StoryViewer from '@/components/StoryViewer';
-import StoryCreator from '@/components/StoryCreator';
-import { fetchActiveStories, UserWithStories } from '@/utils/storyService';
-
 const { width: screenWidth } = Dimensions.get('window');
 
 const DEFAULT_USERNAME = 'user_fitcore';
@@ -111,14 +105,6 @@ export default function SocialScreen() {
   // Add this new state for modal animation
   const modalAnimation = useRef(new Animated.Value(0)).current;
 
-  // Add story related state
-  const [stories, setStories] = useState<UserWithStories[]>([]);
-  const [loadingStories, setLoadingStories] = useState(false);
-  const [selectedUserStories, setSelectedUserStories] = useState<UserWithStories | null>(null);
-  const [showStoryViewer, setShowStoryViewer] = useState(false);
-  const [showStoryCreator, setShowStoryCreator] = useState(false);
-  const [initialStoryIndex, setInitialStoryIndex] = useState(0);
-
   // Add state for current user avatar
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null);
   const [currentUserUsername, setCurrentUserUsername] = useState<string>('user_fitcore');
@@ -195,43 +181,17 @@ export default function SocialScreen() {
   }, []);
   
   // Function to clean up expired stories
-  const cleanupExpiredStories = async () => {
-    try {
-      if (!currentUserId) return;
-      
-      // Get current time
-      const currentTime = new Date().toISOString();
-      
-      // Update all expired stories to set is_active to false
-      const { error } = await supabase
-        .from('user_stories')
-        .update({ is_active: false })
-        .lt('expires_at', currentTime);
-        
-      if (error) {
-        console.error('Error cleaning up expired stories:', error);
-      }
-    } catch (err) {
-      console.error('Error in cleanupExpiredStories:', err);
-    }
-  };
-  
-  // Add a separate useEffect that will fetch posts and stories when currentUserId changes
+  // Add a separate useEffect that will fetch posts when currentUserId changes
   useEffect(() => {
     if (currentUserId) {
-      cleanupExpiredStories(); // Clean up expired stories first
       fetchPosts();
-      fetchStories();
     }
   }, [currentUserId]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        fetchPosts(),
-        fetchStories() // Also refresh stories on pull-to-refresh
-      ]);
+      await fetchPosts();
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -365,23 +325,7 @@ export default function SocialScreen() {
     }
   };
 
-  // Add function to fetch stories
-  const fetchStories = async () => {
-    try {
-      setLoadingStories(true);
-      if (!currentUserId) {
-        setStories([]);
-        setLoadingStories(false);
-        return;
-      }
-      const storiesData = await fetchActiveStories(currentUserId);
-      setStories(storiesData);
-    } catch (error) {
-      console.error('Error fetching stories:', error);
-    } finally {
-      setLoadingStories(false);
-    }
-  };
+
 
   // Format the time ago string (e.g., "5m", "1h", "2d")
   const formatTimeAgo = (date: Date) => {
@@ -1054,44 +998,6 @@ export default function SocialScreen() {
     });
   };
 
-  // Add story related handlers
-  const handleOpenStory = (userWithStories: UserWithStories, index = 0) => {
-    // Show the story viewer immediately
-    setSelectedUserStories(userWithStories);
-    setInitialStoryIndex(index);
-    setShowStoryViewer(true);
-  };
-
-  const handleCloseStoryViewer = () => {
-    setShowStoryViewer(false);
-    setSelectedUserStories(null);
-  };
-
-  const handleStoryComplete = () => {
-    setShowStoryViewer(false);
-    setSelectedUserStories(null);
-    // Optionally, you might want to navigate to the next user's stories
-  };
-
-  const handleCreateStory = () => {
-    setShowStoryCreator(true);
-  };
-
-  const handleStoryCreated = () => {
-    setShowStoryCreator(false);
-    fetchStories(); // Refresh stories after creating a new one
-  };
-
-  const handleStoryDeleted = () => {
-    // Refresh stories after deletion
-    fetchStories();
-    // Close the story viewer if it's open
-    if (showStoryViewer) {
-      setShowStoryViewer(false);
-      setSelectedUserStories(null);
-    }
-  };
-
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -1146,63 +1052,7 @@ export default function SocialScreen() {
       borderBottomWidth: 1,
       borderBottomColor: 'rgba(255,255,255,0.1)',
     },
-    storiesContent: {
-      padding: 15,
-    },
-    storyItem: {
-      alignItems: 'center',
-      marginHorizontal: 8,
-    },
-    storyRing: {
-      width: 65,
-      height: 65,
-      borderRadius: 35,
-      padding: 2,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    storyInner: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      backgroundColor: '#3e3e50',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 2,
-      borderColor: '#1a1a2e',
-    },
-    storyName: {
-      color: '#fff',
-      fontSize: 12,
-      marginTop: 5,
-    },
-    storyAdd: {
-      alignItems: 'center',
-      marginRight: 8,
-    },
-    storyAddIcon: {
-      width: 55,
-      height: 55,
-      borderRadius: 30,
-      backgroundColor: 'rgba(0,0,0,0.2)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: '#4a90e2',
-    },
-    storyAddText: {
-      color: '#4a90e2',
-      fontSize: 12,
-      marginTop: 5,
-    },
-    storyAddRing: {
-      width: 65,
-      height: 65,
-      borderRadius: 35,
-      padding: 2,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+
     feed: {
       flex: 1,
       backgroundColor: '#1a1a2e',
@@ -1988,97 +1838,7 @@ export default function SocialScreen() {
   );
 
   // Modify the Stories Section 
-  const renderStoriesSection = () => {
-    return (
-    <View style={[styles.storiesContainer, { 
-      borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' 
-    }]}>
-      <ScrollView 
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.storiesContent}
-      >
-        <TouchableOpacity style={styles.storyAdd} onPress={handleCreateStory}>
-          <LinearGradient
-            colors={['rgba(74,144,226,0.2)', 'rgba(74,144,226,0.1)']}
-            style={styles.storyAddRing}
-          >
-            <View style={[styles.storyAddIcon, {
-              backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)'
-            }]}>
-              <Feather name="plus" size={20} color="#4a90e2" />
-            </View>
-          </LinearGradient>
-          <Text style={[styles.storyAddText, { color: '#4a90e2' }]}>Add</Text>
-        </TouchableOpacity>
-        
-        {loadingStories ? (
-          // Show placeholders while loading
-          Array.from({ length: 5 }).map((_, index) => (
-            <View key={`placeholder-${index}`} style={styles.storyItem}>
-              <View style={[styles.storyRing, { opacity: 0.5 }]}>
-                <View style={[styles.storyInner, { 
-                  backgroundColor: isDarkMode ? '#3e3e50' : '#f0f0f0'
-                }]} />
-              </View>
-              <View style={[styles.storyNamePlaceholder, {
-                backgroundColor: isDarkMode ? '#3e3e50' : '#f0f0f0',
-              }]} />
-            </View>
-          ))
-        ) : stories.length > 0 ? (
-          // Show actual stories
-          stories.map((userStories) => (
-            <TouchableOpacity 
-              key={userStories.id} 
-              style={styles.storyItem}
-              onPress={() => handleOpenStory(userStories)}
-              activeOpacity={0.7}
-            >
-              <StoryRing size={60} seen={!userStories.hasUnviewedStories}>
-                {userStories.avatar_url ? (
-                  <Image 
-                    source={{ uri: userStories.avatar_url }}
-                    style={[styles.storyInner, { 
-                      backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
-                      borderColor: isDarkMode ? '#1a1a2e' : '#e0e0e0'
-                    }]}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.storyInner, { 
-                    backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
-                    borderColor: isDarkMode ? '#1a1a2e' : '#e0e0e0'
-                  }]}>
-                    <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
-                  </View>
-                )}
-              </StoryRing>
-              <Text 
-                style={[
-                  styles.storyName, 
-                  { 
-                    color: isDarkMode ? '#fff' : '#000',
-                    fontWeight: userStories.hasUnviewedStories ? '700' : '400'
-                  }
-                ]}
-              >
-                {userStories.username}
-              </Text>
-            </TouchableOpacity>
-          ))
-        ) : (
-          // Show "No stories" message if none exist
-          <View style={styles.noStoriesContainer}>
-            <Text style={[styles.noStoriesText, { color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }]}>
-              No stories from people you follow
-            </Text>
-          </View>
-        )}
-      </ScrollView>
-    </View>
-  );
-};
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -2093,26 +1853,20 @@ export default function SocialScreen() {
       >
         <View style={styles.headerLeft}>
           <TouchableOpacity style={[styles.profileButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-            <StoryRing 
-              size={36} 
-              hasStories={stories.some(userStories => userStories.id === currentUserId)}
-              seen={!stories.find(userStories => userStories.id === currentUserId)?.hasUnviewedStories}
-            >
-              {currentUserAvatar ? (
-                <Image
-                  source={{ uri: currentUserAvatar }}
-                  style={styles.avatarSmall}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.avatarSmall, { 
-                  backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
-                  borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
-                }]}>
-                  <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
-                </View>
-              )}
-            </StoryRing>
+            {currentUserAvatar ? (
+              <Image
+                source={{ uri: currentUserAvatar }}
+                style={styles.avatarSmall}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.avatarSmall, { 
+                backgroundColor: isDarkMode ? '#3e3e50' : '#ffffff',
+                borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+              }]}>
+                <FontAwesome name="user" size={16} color={isDarkMode ? "#fff" : "#333"} />
+              </View>
+            )}
           </TouchableOpacity>
         </View>
         <View style={styles.headerActions}>
@@ -2137,8 +1891,7 @@ export default function SocialScreen() {
         </View>
       </LinearGradient>
 
-      {/* Stories Section - Replace with our new renderStoriesSection */}
-      {renderStoriesSection()}
+
 
       {/* Posts Feed */}
       <Animated.ScrollView 
@@ -2199,26 +1952,20 @@ export default function SocialScreen() {
                 borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)' 
               }]}>
                 <View style={styles.userInfo}>
-                  <StoryRing 
-                    size={40} 
-                    hasStories={stories.some(userStories => userStories.id === post.user_id)}
-                    seen={!stories.find(userStories => userStories.id === post.user_id)?.hasUnviewedStories}
-                  >
-                    {post.avatar_url ? (
-                      <Image 
-                        source={{ uri: post.avatar_url }}
-                        style={styles.avatar}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={[styles.avatar, { 
-                        backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
-                        borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
-                      }]}>
-                        <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
-                      </View>
-                    )}
-                  </StoryRing>
+                  {post.avatar_url ? (
+                    <Image 
+                      source={{ uri: post.avatar_url }}
+                      style={styles.avatar}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.avatar, { 
+                      backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                      borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                    }]}>
+                      <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
+                    </View>
+                  )}
                   <TouchableOpacity 
                     onPress={() => router.push(`/${post.user_id}`)}
                     style={{ marginLeft: 12 }}
@@ -2431,26 +2178,20 @@ export default function SocialScreen() {
               contentContainerStyle={{ paddingBottom: 20 }}
             >
               <View style={styles.userRow}>
-                <StoryRing 
-                  size={40} 
-                  hasStories={stories.some(userStories => userStories.id === currentUserId)}
-                  seen={!stories.find(userStories => userStories.id === currentUserId)?.hasUnviewedStories}
-                >
-                  {currentUserAvatar ? (
-                    <Image
-                      source={{ uri: currentUserAvatar }}
-                      style={styles.avatar}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={[styles.avatar, {
-                      backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
-                      borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
-                    }]}>
-                      <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
-                    </View>
-                  )}
-                </StoryRing>
+                {currentUserAvatar ? (
+                  <Image
+                    source={{ uri: currentUserAvatar }}
+                    style={styles.avatar}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.avatar, {
+                    backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+                    borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+                  }]}>
+                    <FontAwesome name="user" size={22} color={isDarkMode ? "#fff" : "#333"} />
+                  </View>
+                )}
                 <Text style={[styles.createPostUsername, { color: isDarkMode ? '#fff' : '#000' }]}>{currentUserUsername}</Text>
               </View>
 
@@ -2617,23 +2358,17 @@ export default function SocialScreen() {
                       router.push(`/${user.id}`);
                     }}
                   >
-                    <StoryRing 
-                      size={36} 
-                      hasStories={stories.some(userStories => userStories.id === user.id)}
-                      seen={!stories.find(userStories => userStories.id === user.id)?.hasUnviewedStories}
-                    >
-                      {user.avatar_url ? (
-                        <Image 
-                          source={{ uri: user.avatar_url }}
-                          style={styles.resultAvatar}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <View style={styles.resultAvatar}>
-                          <FontAwesome name="user" size={18} color="#fff" />
-                        </View>
-                      )}
-                    </StoryRing>
+                    {user.avatar_url ? (
+                      <Image 
+                        source={{ uri: user.avatar_url }}
+                        style={styles.resultAvatar}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.resultAvatar}>
+                        <FontAwesome name="user" size={18} color="#fff" />
+                      </View>
+                    )}
                     <View style={styles.userResultInfo}>
                       <Text style={styles.userResultUsername}>{user.username}</Text>
                       <Text style={styles.userResultName}>{user.full_name}</Text>
@@ -2787,26 +2522,6 @@ export default function SocialScreen() {
 
       {/* Add this at the end of the return statement */}
       {posts.map(post => renderCommentsModal(post))}
-
-      {/* Story Viewer Modal */}
-      {selectedUserStories && showStoryViewer && (
-        <StoryViewer
-          stories={selectedUserStories.stories}
-          currentUserID={currentUserId || ''}
-          initialStoryIndex={initialStoryIndex}
-          onClose={handleCloseStoryViewer}
-          onComplete={handleStoryComplete}
-          onStoryDeleted={handleStoryDeleted}
-        />
-      )}
-
-      {/* Story Creator Modal */}
-      <StoryCreator
-        visible={showStoryCreator}
-        onClose={() => setShowStoryCreator(false)}
-        onStoryCreated={handleStoryCreated}
-        userId={currentUserId || ''}
-      />
     </View>
   );
 } 

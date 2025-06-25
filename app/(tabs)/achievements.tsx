@@ -436,17 +436,7 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     category: "Social",
     coins: 75
   },
-  {
-    id: 40,
-    title: "Storyteller",
-    description: "Create 10 stories.",
-    icon: "camera-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#9C27B0",
-    category: "Social",
-    coins: 100
-  },
+
   {
     id: 41,
     title: "Follower Fanatic",
