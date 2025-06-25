@@ -6,6 +6,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/hooks/useTheme';
 import { router } from 'expo-router';
 import { supabase } from '@/utils/supabase';
+import { getUserWorkoutsWithDetails, getUserWorkoutsBasic } from '@/utils/workoutService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -91,82 +92,72 @@ const WorkoutSelectScreen = () => {
   const { colors, isDarkMode } = useTheme();
   const [workouts, setWorkouts] = useState<WorkoutType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+
+  // Cache duration: 5 minutes
+  const CACHE_DURATION = 5 * 60 * 1000;
 
   // Fetch user's workouts from the database
   useEffect(() => {
     const fetchWorkouts = async () => {
+      // Check if we have cached data that's still fresh
+      const now = Date.now();
+      if (workouts.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
+        console.time('🏋️ Total workout loading time');
         
         // Get current user
+        console.time('👤 User authentication');
         const { data: userData } = await supabase.auth.getUser();
+        console.timeEnd('👤 User authentication');
+        
         if (!userData.user) {
           Alert.alert('Not logged in', 'Please log in to view your workouts');
           router.replace('/(tabs)/profile');
           return;
         }
         
-        // Fetch all workouts for the current user
-        const { data, error } = await supabase
-          .from('workouts')
-          .select('*')
-          .eq('user_id', userData.user.id)
-          .order('created_at', { ascending: false });
+        // Step 1: Load basic workout data FAST (no exercise details)
+        console.time('📊 Basic workout data');
+        const basicWorkouts = await getUserWorkoutsBasic(userData.user.id);
+        console.timeEnd('📊 Basic workout data');
         
-        if (error) {
-          console.error('Error fetching workouts:', error);
-          Alert.alert('Error', 'Failed to load workouts');
-          return;
+        console.log(`✅ Loaded ${basicWorkouts.length} basic workouts`);
+        setWorkouts(basicWorkouts);
+        setLastFetchTime(now);
+        setLoading(false); // Show workouts immediately
+        
+        console.timeEnd('🏋️ Total workout loading time');
+        
+        // Step 2: Load detailed stats in background (async)
+        if (basicWorkouts.length > 0) {
+          setLoadingDetails(true);
+          
+          setTimeout(async () => {
+            try {
+              console.time('📊 Detailed workout stats');
+              const detailedWorkouts = await getUserWorkoutsWithDetails(userData.user.id);
+              console.timeEnd('📊 Detailed workout stats');
+              
+              setWorkouts(detailedWorkouts);
+              setLoadingDetails(false);
+            } catch (detailsError) {
+              console.error('Error loading workout details:', detailsError);
+              setLoadingDetails(false);
+              // Keep basic data if details fail
+            }
+          }, 100); // Small delay to let UI render
         }
         
-        if (!data || data.length === 0) {
-          setWorkouts([]);
-          setLoading(false);
-          return;
-        }
-        
-        // Process the workout data
-        const processedWorkouts = await Promise.all(data.map(async (workout) => {
-          try {
-            // Get the workout sets for each workout along with exercise information
-            const { data: workoutSets, error: setsError } = await supabase
-              .from('workout_sets')
-              .select('exercise_id, exercise_target, exercise_name')
-              .eq('workout_id', workout.workout_id);
-            
-            if (setsError) throw setsError;
-            
-            // Get unique exercise IDs to count exercises
-            const uniqueExerciseIds = new Set(workoutSets?.map(set => set.exercise_id) || []);
-            
-            // Extract all unique muscle targets
-            const muscleTargets = new Set();
-            workoutSets?.forEach(set => {
-              if (set.exercise_target) {
-                muscleTargets.add(set.exercise_target);
-              }
-            });
-            
-            return {
-              ...workout,
-              exerciseCount: uniqueExerciseIds.size,
-              muscleGroups: Array.from(muscleTargets) as string[]
-            };
-          } catch (err) {
-            console.error('Error processing workout:', err);
-            return {
-              ...workout,
-              exerciseCount: 0,
-              muscleGroups: []
-            };
-          }
-        }));
-        
-        setWorkouts(processedWorkouts);
       } catch (err) {
         console.error('Error fetching workouts:', err);
         Alert.alert('Error', 'An error occurred while fetching your workouts');
-      } finally {
         setLoading(false);
       }
     };
@@ -192,9 +183,19 @@ const WorkoutSelectScreen = () => {
       
       <Header onBack={handleBack} />
       
-      <Text style={[styles.subtitle, { color: colors.text }]}>
-        Choose a workout to start
-      </Text>
+      <View style={styles.headerContainer}>
+        <Text style={[styles.subtitle, { color: colors.text }]}>
+          Choose a workout to start
+        </Text>
+        {loadingDetails && (
+          <View style={styles.detailsLoadingContainer}>
+            <ActivityIndicator size="small" color="#4a90e2" />
+            <Text style={[styles.detailsLoadingText, { color: colors.text }]}>
+              Loading details...
+            </Text>
+          </View>
+        )}
+      </View>
       
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -358,6 +359,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  headerContainer: {
+    paddingHorizontal: screenWidth * 0.06,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  detailsLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  detailsLoadingText: {
+    marginLeft: 8,
+    fontSize: 14,
   },
 });
 

@@ -3,16 +3,64 @@ import { StyleSheet, Text, View, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/utils/supabase';
+import { getUserAchievements } from '@/utils/achievementService';
+import { ACHIEVEMENTS_DATA } from '@/app/(tabs)/achievements';
+import { useAchievements } from '@/contexts/AchievementContext';
 
 export default function HeaderStats() {
   const [streakCount, setStreakCount] = useState(0);
-  const [currencyCount, setCurrencyCount] = useState(350); // Example currency count
+  const [currencyCount, setCurrencyCount] = useState(0);
   const { isDarkMode, colors } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
+  const { shouldRefreshCoins, clearCoinsRefreshFlag } = useAchievements();
 
   useEffect(() => {
     calculateStreak();
+    calculateTotalCoins();
   }, []);
+
+  // Listen for coins refresh triggers
+  useEffect(() => {
+    if (shouldRefreshCoins) {
+      calculateTotalCoins();
+      clearCoinsRefreshFlag();
+    }
+  }, [shouldRefreshCoins, clearCoinsRefreshFlag]);
+
+  // Calculate total coins earned from completed achievements
+  const calculateTotalCoins = async () => {
+    try {
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) {
+        return;
+      }
+
+      // Get user achievements
+      const userAchievements = await getUserAchievements(userData.user.id);
+      
+      // Calculate total coins from completed achievements (progress = 100)
+      let totalCoins = 0;
+      
+      userAchievements.forEach(userAchievement => {
+        if (userAchievement.progress === 100) {
+          // Find the corresponding achievement data to get coins value
+          const achievementData = ACHIEVEMENTS_DATA.find(
+            achievement => achievement.id === userAchievement.achievement_id
+          );
+          
+          if (achievementData) {
+            totalCoins += achievementData.coins;
+          }
+        }
+      });
+      
+      setCurrencyCount(totalCoins);
+    } catch (error) {
+      console.error('Error calculating total coins:', error);
+      setCurrencyCount(0);
+    }
+  };
 
   // Calculate workout streak based on consecutive days with workouts
   const calculateStreak = async () => {
@@ -165,7 +213,7 @@ export default function HeaderStats() {
             resizeMode="contain"
           />
           <Text style={[styles.counterText, { color: colors.text }]}>{streakCount}</Text>
-          <Text style={[styles.labelText, { color: isDarkMode ? '#ccc' : '#666' }]}>dias</Text>
+          <Text style={[styles.labelText, { color: isDarkMode ? '#ccc' : '#666' }]}>Days</Text>
         </View>
 
         {/* Title in the Center */}

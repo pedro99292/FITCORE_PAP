@@ -670,7 +670,10 @@ export default function ProfileScreen() {
 
           {/* Quick Actions Section */}
           <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.actionItem}>
+            <TouchableOpacity 
+              style={styles.actionItem}
+              onPress={() => router.push('/shop')}
+            >
               <LinearGradient
                 colors={['#FF4757', '#FF6B81']}
                 start={[0, 0]}
@@ -779,9 +782,6 @@ export default function ProfileScreen() {
                   <View style={styles.achievementInfo}>
                     <Text style={[styles.achievementTitle, { color: colors.text }]}>{achievement.title}</Text>
                     <Text style={styles.achievementDate}>Completed on {achievement.unlocked_at}</Text>
-                  </View>
-                  <View style={styles.pointsContainer}>
-                    <Text style={styles.achievementPoints}>+250</Text>
                   </View>
                 </View>
               ))

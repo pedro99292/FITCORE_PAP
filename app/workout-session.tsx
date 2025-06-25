@@ -11,6 +11,7 @@ import { useExerciseDB } from '@/hooks/useExerciseDB';
 import { Video, ResizeMode } from 'expo-av';
 import { updateAllAchievements } from '@/utils/achievementService';
 import { useWorkoutStats } from '@/contexts/WorkoutContext';
+import { useAchievements } from '@/contexts/AchievementContext';
 import WorkoutSafetyModal from '@/components/WorkoutSafetyModal';
 import { getTopPriorityWarnings } from '@/constants/safetyWarnings';
 import SafetyPreferences from '@/utils/safetyPreferences';
@@ -438,6 +439,7 @@ const WorkoutSessionScreen = () => {
   const params = useLocalSearchParams<{ workoutId: string }>();
   const workoutId = params.workoutId;
   const { refreshStats } = useWorkoutStats();
+  const { invalidateCache } = useAchievements();
   
   const [workout, setWorkout] = useState<WorkoutType | null>(null);
   const [exercises, setExercises] = useState<ExerciseType[]>([]);
@@ -994,6 +996,8 @@ const WorkoutSessionScreen = () => {
       try {
         if (userData?.user?.id) {
           await updateAllAchievements(userData.user.id);
+          // Invalidate achievements cache to trigger refresh in achievements page
+          await invalidateCache();
         }
       } catch (achievementError) {
         // Don't fail the workout save if achievements fail

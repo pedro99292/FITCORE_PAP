@@ -36,6 +36,7 @@ import {
   initializeUserAchievements,
   UserAchievement
 } from '@/utils/achievementService';
+import { useAchievements } from '@/contexts/AchievementContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -53,6 +54,7 @@ interface AchievementItemProps {
     progress: number;
     color: string;
     category: string;
+    coins: number;
 }
 
 interface Achievement {
@@ -67,6 +69,7 @@ interface Achievement {
   color: string;
   category: string;
   points?: number;
+  coins: number;
 }
 
 // Static achievements data
@@ -80,7 +83,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#4CAF50",
-    category: "Workout Mastery"
+    category: "Workout Mastery",
+    coins: 25
   },
   {
     id: 2,
@@ -90,7 +94,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#2196F3",
-    category: "Workout Mastery"
+    category: "Workout Mastery",
+    coins: 50
   },
   {
     id: 3,
@@ -100,7 +105,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#FF9800",
-    category: "Workout Mastery"
+    category: "Workout Mastery",
+    coins: 100
   },
   {
     id: 4,
@@ -110,7 +116,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#E91E63",
-    category: "Workout Mastery"
+    category: "Workout Mastery",
+    coins: 200
   },
   {
     id: 5,
@@ -120,7 +127,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#9C27B0",
-    category: "Workout Mastery"
+    category: "Workout Mastery",
+    coins: 150
   },
   {
     id: 7,
@@ -130,7 +138,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#00BCD4",
-    category: "Workout Mastery"
+    category: "Workout Mastery",
+    coins: 100
   },
   {
     id: 10,
@@ -140,7 +149,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#795548",
-    category: "Workout Mastery"
+    category: "Workout Mastery",
+    coins: 75
   },
 
   {
@@ -151,7 +161,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#008080",
-    category: "Workout Mastery"
+    category: "Workout Mastery",
+    coins: 125
   },
 
   // 📈 Progress
@@ -163,7 +174,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#4CAF50",
-    category: "Progress"
+    category: "Progress",
+    coins: 20
   },
   {
     id: 12,
@@ -173,27 +185,30 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#FF9800",
-    category: "Progress"
+    category: "Progress",
+    coins: 150
   },
   {
     id: 13,
     title: "Strength Seeker",
-    description: "Set 5 personal bests.",
+    description: "Set 5 personal Records.",
     icon: "trophy-outline",
     iconType: "ionicons",
     progress: 0,
     color: "#FFD700",
-    category: "Progress"
+    category: "Progress",
+    coins: 100
   },
   {
     id: 49,
     title: "PR Machine",
-    description: "Set personal records in 5 different exercises in one week.",
+    description: "Set personal records in 5 different exercises.",
     icon: "flash-outline",
     iconType: "ionicons",
     progress: 0,
     color: "#FFD700",
-    category: "Progress"
+    category: "Progress",
+    coins: 125
   },
   {
     id: 14,
@@ -203,7 +218,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#2196F3",
-    category: "Progress"
+    category: "Progress",
+    coins: 250
   },
   {
     id: 16,
@@ -213,28 +229,31 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#E91E63",
-    category: "Social"
+    category: "Social",
+    coins: 75
   },
   {
     id: 17,
     title: "Record Breaker",
-    description: "Achieve 20 new personal records.",
+    description: "Achieve 20 new personal goals.",
     icon: "medal-outline",
     iconType: "ionicons",
     progress: 0,
     color: "#FF5722",
-    category: "Progress"
+    category: "Progress",
+    coins: 300
   },
   // 🔥 Consistency
   {
     id: 19,
-    title: "First Streak",
+    title: "3 Day Streak",
     description: "Workout 3 days in a row.",
     icon: "flame-outline",
     iconType: "ionicons",
     progress: 0,
     color: "#FF5722",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 50
   },
   {
     id: 20,
@@ -244,7 +263,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#FF9800",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 100
   },
   {
     id: 21,
@@ -254,7 +274,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#4CAF50",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 250
   },
   {
     id: 22,
@@ -264,7 +285,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#2196F3",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 400
   },
   {
     id: 23,
@@ -274,7 +296,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#9C27B0",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 600
   },
   {
     id: 24,
@@ -284,7 +307,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#FFD700",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 75
   },
   {
     id: 25,
@@ -294,17 +318,19 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#3F51B5",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 100
   },
   {
     id: 26,
     title: "Weekend Warrior",
-    description: "Workout every weekend for a month.",
+    description: "Workout on every weekend of the current month.",
     icon: "calendar-week",
     iconType: "material",
     progress: 0,
     color: "#E91E63",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 125
   },
   {
     id: 28,
@@ -314,7 +340,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "material",
     progress: 0,
     color: "#795548",
-    category: "Consistency"
+    category: "Consistency",
+    coins: 350
   },
 
   // 🎯 Goals & Milestones
@@ -326,7 +353,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#4CAF50",
-    category: "Goals & Milestones"
+    category: "Goals & Milestones",
+    coins: 25
   },
   {
     id: 30,
@@ -336,17 +364,19 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#FF9800",
-    category: "Goals & Milestones"
+    category: "Goals & Milestones",
+    coins: 75
   },
   {
     id: 31,
     title: "Lift Legend",
-    description: "Hit a major strength milestone (e.g., bench press your bodyweight).",
+    description: "Achieve a 50% increase on any personal record.",
     icon: "barbell-outline",
     iconType: "ionicons",
     progress: 0,
     color: "#E91E63",
-    category: "Goals & Milestones"
+    category: "Goals & Milestones",
+    coins: 200
   },
   {
     id: 32,
@@ -356,38 +386,10 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#2196F3",
-    category: "Goals & Milestones"
+    category: "Goals & Milestones",
+    coins: 300
   },
-  {
-    id: 34,
-    title: "Fitness Veteran",
-    description: "Reach advanced experience level.",
-    icon: "star-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#FFD700",
-    category: "Goals & Milestones"
-  },
-  {
-    id: 35,
-    title: "Elite Athlete",
-    description: "Achieve advanced level in multiple muscle areas.",
-    icon: "medal-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#FF5722",
-    category: "Goals & Milestones"
-  },
-  {
-    id: 56,
-    title: "Weight Warrior",
-    description: "Increase your max lift by 50% from starting weight.",
-    icon: "trending-up-outline",
-    iconType: "ionicons",
-    progress: 0,
-    color: "#DC143C",
-    category: "Goals & Milestones"
-  },
+  
 
   // 👥 Social
   {
@@ -398,7 +400,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#4CAF50",
-    category: "Social"
+    category: "Social",
+    coins: 30
   },
   {
     id: 37,
@@ -408,7 +411,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#2196F3",
-    category: "Social"
+    category: "Social",
+    coins: 100
   },
   {
     id: 38,
@@ -418,7 +422,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#E91E63",
-    category: "Social"
+    category: "Social",
+    coins: 150
   },
   {
     id: 39,
@@ -428,7 +433,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#FF9800",
-    category: "Social"
+    category: "Social",
+    coins: 75
   },
   {
     id: 40,
@@ -438,7 +444,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#9C27B0",
-    category: "Social"
+    category: "Social",
+    coins: 100
   },
   {
     id: 41,
@@ -448,18 +455,20 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#00BCD4",
-    category: "Social"
+    category: "Social",
+    coins: 50
   },
 
   {
-    id: 54,
+    id: 42,
     title: "Chat Champion",
     description: "Send 100 messages in the chat system.",
     icon: "chatbubble-ellipses-outline",
     iconType: "ionicons",
     progress: 0,
     color: "#4CAF50",
-    category: "Social"
+    category: "Social",
+    coins: 75
   },
   {
     id: 44,
@@ -469,7 +478,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "ionicons",
     progress: 0,
     color: "#795548",
-    category: "Social"
+    category: "Social",
+    coins: 250
   },
 
   // 🥇 Special Trophies
@@ -481,7 +491,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "fontawesome",
     progress: 0,
     color: "#8BC34A",
-    category: "Special Trophies"
+    category: "Special Trophies",
+    coins: 800
   },
   {
     id: 46,
@@ -491,7 +502,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "fontawesome",
     progress: 0,
     color: "#FFD700",
-    category: "Special Trophies"
+    category: "Special Trophies",
+    coins: 1000
   },
   {
     id: 47,
@@ -501,38 +513,11 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "fontawesome",
     progress: 0,
     color: "#E91E63",
-    category: "Special Trophies"
+    category: "Special Trophies",
+    coins: 1200
   },
-  {
-    id: 48,
-    title: "Achievement Marvel",
-    description: "Achieve 50 unique achievements.",
-    icon: "diamond",
-    iconType: "fontawesome",
-    progress: 0,
-    color: "#9C27B0",
-    category: "Special Trophies"
-  },
-  {
-    id: 49,
-    title: "Ultimate Athlete",
-    description: "Achieve advanced-level status across all muscle categories.",
-    icon: "star",
-    iconType: "fontawesome",
-    progress: 0,
-    color: "#FF5722",
-    category: "Special Trophies"
-  },
-  {
-    id: 50,
-    title: "Legendary Lifter",
-    description: "Set a personal best of twice your body weight.",
-    icon: "trophy",
-    iconType: "fontawesome",
-    progress: 0,
-    color: "#607D8B",
-    category: "Special Trophies"
-  },
+
+
   {
     id: 51,
     title: "Time Keeper",
@@ -541,17 +526,8 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     iconType: "fontawesome",
     progress: 0,
     color: "#00BCD4",
-    category: "Special Trophies"
-  },
-  {
-    id: 53,
-    title: "Community Leader",
-    description: "Be featured as a top community contributor.",
-    icon: "users",
-    iconType: "fontawesome",
-    progress: 0,
-    color: "#2196F3",
-    category: "Special Trophies"
+    category: "Special Trophies",
+    coins: 1500
   },
   {
     id: 54,
@@ -560,8 +536,20 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     icon: "trophy",
     iconType: "fontawesome",
     progress: 0,
-    color: "#FFD700",
-    category: "Special Trophies"
+    color: "#9C27B0",
+    category: "Special Trophies",
+    coins: 2000
+  },
+  {
+    id: 56,
+    title: "Weight Lifting Legend",
+    description: "Lift a cumulative total of 1,000,000 kg.",
+    icon: "fitness",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#FF6B35",
+    category: "Special Trophies",
+    coins: 2500
   }
 ];
 
@@ -679,7 +667,8 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
   iconType, 
   progress, 
   color, 
-  category 
+  category,
+  coins 
 }) => {
   const { colors } = useTheme();
   const progressWidth = useSharedValue(0);
@@ -735,6 +724,11 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
               <Text style={styles.categoryText}>{category}</Text>
             </View>
           </View>
+          
+          <View style={[styles.coinsBadgeTop, { backgroundColor: `${color}22` }]}>
+            <Image source={require('@/assets/images/coin.png')} style={styles.coinImage} />
+            <Text style={styles.coinsTextTop}>{coins}</Text>
+          </View>
         </View>
         
         <Text style={styles.achievementDescription}>{description}</Text>
@@ -757,7 +751,7 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
             <View style={styles.completedBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
               <Text style={styles.completedText}>Completed</Text>
-                </View>
+            </View>
           ) : (
             <View style={styles.inProgressBadge}>
               <Ionicons name="time-outline" size={16} color="#FF9800" />
@@ -912,6 +906,7 @@ const StatusFilter = ({
 // Main component with optimizations
 const AchievementsPage = () => {
   const { colors } = useTheme();
+  const { shouldRefresh, clearRefreshFlag, triggerCoinsRefresh } = useAchievements();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -1005,7 +1000,8 @@ const AchievementsPage = () => {
         return {
           ...staticAchievement,
           progress: userProgress?.progress || 0,
-          date: userProgress?.unlocked_at ? new Date(userProgress.unlocked_at).toLocaleDateString('en-US') : undefined
+          date: userProgress?.unlocked_at ? new Date(userProgress.unlocked_at).toLocaleDateString('en-US') : undefined,
+          coins: staticAchievement.coins
         };
       });
 
@@ -1021,19 +1017,34 @@ const AchievementsPage = () => {
       setTimeout(() => {
         updateAllAchievements(userId).then(newUnlocks => {
           if (newUnlocks.length > 0) {
-            // Show notification for new unlocks
+            // Get achievement details for the newly unlocked achievements
+            const unlockedAchievements = newUnlocks.map(achievementId => {
+              return ACHIEVEMENTS_DATA.find(a => a.id === achievementId);
+            }).filter(achievement => achievement !== undefined);
+            
+            // Calculate total coins earned
+            const totalCoins = unlockedAchievements.reduce((sum, achievement) => sum + achievement.coins, 0);
+            
+            const achievementTitles = unlockedAchievements.map(a => a.title);
+            const achievementList = achievementTitles.length <= 3 
+              ? achievementTitles.join(', ')
+              : `${achievementTitles.slice(0, 3).join(', ')} and ${achievementTitles.length - 3} more`;
+            
+            // Show notification for new unlocks with coins
             if (Platform.OS === 'web') {
-              alert(`🏆 Congratulations! You unlocked ${newUnlocks.length} new achievement${newUnlocks.length === 1 ? '' : 's'}!`);
+              alert(`🏆 Congratulations! You unlocked: ${achievementList}!\n💎 You earned ${totalCoins} coins!`);
             } else {
               Alert.alert(
                 '🏆 New Achievement Unlocked!',
-                `Congratulations! You unlocked ${newUnlocks.length} new achievement${newUnlocks.length === 1 ? '' : 's'}!`,
-                [{ text: 'View', style: 'default' }]
+                `Congratulations! You unlocked:\n\n${achievementList}\n\n💎 You earned ${totalCoins} coins!`,
+                [{ text: 'OK', style: 'default' }]
               );
             }
             
             // Refresh data after unlocking new achievements
             fetchUserAchievements();
+            // Trigger coins refresh in header
+            triggerCoinsRefresh();
           }
         });
       }, 100);
@@ -1057,6 +1068,14 @@ const AchievementsPage = () => {
     const uniqueCategories = ['All', ...new Set(ACHIEVEMENTS_DATA.map(item => item.category))];
     setCategories(uniqueCategories);
   }, []);
+  
+  // Listen for refresh triggers from context
+  useEffect(() => {
+    if (shouldRefresh) {
+      fetchUserAchievements();
+      clearRefreshFlag();
+    }
+  }, [shouldRefresh, clearRefreshFlag, fetchUserAchievements]);
   
   // Filter achievements based on selected category and status
   const filteredAchievements = useMemo(() => {
@@ -1117,7 +1136,8 @@ const AchievementsPage = () => {
       iconType={item.iconType} 
       progress={item.progress}
       color={item.color}
-      category={item.category} 
+      category={item.category}
+      coins={item.coins}
     />
   ), []);
 
@@ -1489,6 +1509,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  coinsBadgeTop: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backdropFilter: 'blur(10px)',
+  },
+  coinImage: {
+    width: 18,
+    height: 18,
+    marginRight: 4,
+    opacity: 0.9,
+  },
+  coinsTextTop: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   completedBadge: {
     flexDirection: 'row',

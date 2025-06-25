@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getGoalStats } from './personalRecordsService';
 
 // Types for achievement system
 export interface UserAchievement {
@@ -26,6 +27,10 @@ export interface UserMetrics {
   longestStreak: number;
   uniqueExercises: number;
   personalBests: number;
+  achievedGoals: number;
+  goalsSet: number; // total number of goals set (including active and achieved)
+  uniqueExercisesWithPRs: number;
+  maxPRIncrease: number; // maximum percentage increase achieved on any personal record
   workoutTemplates: number;
   earlyWorkouts: number; // before 7 AM
   lateWorkouts: number; // after 9 PM
@@ -36,6 +41,7 @@ export interface UserMetrics {
   socialPosts: number; // number of social posts
   socialComments: number; // comments made by user
   socialStories: number; // stories created by user
+  socialMessages: number; // number of messages sent in chat
   followersCount: number; // number of followers
   followingCount: number; // number of people user follows
   maxLikesOnPost: number; // highest likes on a single post
@@ -44,6 +50,8 @@ export interface UserMetrics {
   completedAchievements: number; // number of achievements at 100% progress
   isAdvancedLevel: boolean;
   muscleGroupsThisWeek: number; // unique muscle groups trained in last 7 days
+  currentMonthWeekendCompletion: number; // percentage of weekends completed in current month
+  consecutiveWeeksWithWorkout: number; // consecutive weeks with at least one workout
 }
 
 // Achievement calculation functions for each achievement
@@ -63,25 +71,25 @@ const achievementCalculators: Record<number, (metrics: UserMetrics) => number> =
   13: (metrics) => Math.round(Math.min((metrics.personalBests / 5) * 100, 100)), // Strength Seeker - 5 personal bests
   14: (metrics) => Math.round(Math.min((metrics.totalMinutes / 6000) * 100, 100)), // Endurance Ace - 100 hours (6000 minutes)
   16: (metrics) => Math.round(Math.min((metrics.socialPosts / 10) * 100, 100)), // Visual Vanguard - 10 progress photos (using social posts)
-  17: (metrics) => Math.round(Math.min((metrics.personalBests / 20) * 100, 100)), // Record Breaker - 20 personal bests
+  17: (metrics) => Math.round(Math.min((metrics.achievedGoals / 20) * 100, 100)), // Record Breaker - 20 personal goals achieved
   18: (metrics) => 0, // Workout Historian - placeholder for history views
 
   // Consistency
-  19: (metrics) => Math.round(Math.min((metrics.currentStreak / 3) * 100, 100)), // First Streak - 3 day streak
+  19: (metrics) => Math.round(Math.min((metrics.longestStreak / 3) * 100, 100)), // Streak Starter - Progress towards first 3 consecutive workout days
   20: (metrics) => Math.round(Math.min((metrics.currentStreak / 7) * 100, 100)), // Week Warrior - 7 day streak
   21: (metrics) => Math.round(Math.min((metrics.currentStreak / 30) * 100, 100)), // Month of Motivation - 30 day streak
   22: (metrics) => Math.round(Math.min((metrics.currentStreak / 60) * 100, 100)), // Unstoppable - 60 day streak
   23: (metrics) => Math.round(Math.min((metrics.currentStreak / 100) * 100, 100)), // Habit Hero - 100 day streak
   24: (metrics) => Math.round(Math.min((metrics.earlyWorkouts / 10) * 100, 100)), // Early Bird - 10 workouts before 7 AM
   25: (metrics) => Math.round(Math.min((metrics.lateWorkouts / 30) * 100, 100)), // Night Owl - 30 late workouts
-  26: (metrics) => Math.round(Math.min((metrics.weekendWorkouts / 8) * 100, 100)), // Weekend Warrior - 8 weekend workouts (4 weeks * 2 days)
+  26: (metrics) => metrics.currentMonthWeekendCompletion, // Weekend Warrior - workout every weekend in current month
   27: (metrics) => 0, // Routine Ritualist - placeholder for schedule consistency
   28: (metrics) => Math.round(Math.min((metrics.totalWorkouts / 200) * 100, 100)), // Consistency Champion - 200 completed sessions
 
   // Goals & Milestones
-  29: (metrics) => 0, // Goal Setter - placeholder for goals set
-  30: (metrics) => 0, // Goal Getter - placeholder for goals achieved
-  31: (metrics) => 0, // Lift Legend - placeholder for bodyweight bench
+  29: (metrics) => metrics.goalsSet >= 1 ? 100 : 0, // Goal Setter - Set your first fitness goal
+  30: (metrics) => metrics.achievedGoals >= 1 ? 100 : 0, // Goal Getter - Achieve your first set fitness goal
+  31: (metrics) => metrics.maxPRIncrease >= 50 ? 100 : 0, // Lift Legend - Achieve 50% increase on any personal record
   32: (metrics) => Math.round(Math.min((metrics.totalMinutes / 6000) * 100, 100)), // Endurance Elite - 100 hours
   33: (metrics) => 0, // Weight Wizard - placeholder for weight tracking
   34: (metrics) => metrics.isAdvancedLevel ? 100 : 0, // Fitness Veteran - reach Advanced level
@@ -101,15 +109,13 @@ const achievementCalculators: Record<number, (metrics: UserMetrics) => number> =
   // Special Trophies
   45: (metrics) => Math.round(Math.min((metrics.totalVolume / 100000) * 100, 100)), // Iron Titan - 100,000 kg total volume
   46: (metrics) => Math.round(Math.min((metrics.totalMinutes / 30000) * 100, 100)), // Endurance Emperor - 500 hours
-  47: (metrics) => Math.round(Math.min((metrics.consecutiveDays / 365) * 100, 100)), // Consistency Conqueror - 1 year streak
-  48: (metrics) => Math.round(Math.min((metrics.completedAchievements / 50) * 100, 100)), // Milestone Marvel - 50 completed achievements
-  49: (metrics) => 0, // Ultimate Athlete - placeholder
-  50: (metrics) => 0, // Legendary Lifter - placeholder for 2x bodyweight
+  47: (metrics) => Math.round(Math.min((metrics.consecutiveWeeksWithWorkout / 52) * 100, 100)), // Consistency Conqueror - workout every week for one full year
+  49: (metrics) => Math.round(Math.min((metrics.uniqueExercisesWithPRs / 5) * 100, 100)), // PR Machine - Set personal records in 5 different exercises
   51: (metrics) => Math.round(Math.min((metrics.totalMinutes / 60000) * 100, 100)), // Time Keeper - 1000 hours
-  52: (metrics) => 0, // Transformation Triumph - placeholder
-  53: (metrics) => 0, // Community Leader - placeholder
-  54: (metrics) => metrics.completedAchievements >= 53 ? 100 : Math.round(Math.min((metrics.completedAchievements / 53) * 100, 100)), // Fitness Icon - unlock all achievements
+  42: (metrics) => Math.round(Math.min((metrics.socialMessages / 100) * 100, 100)), // Chat Champion - Send 100 messages
+  54: (metrics) => metrics.completedAchievements >= 40 ? 100 : Math.round(Math.min((metrics.completedAchievements / 40) * 100, 100)), // Fitness Icon - unlock all achievements
   55: (metrics) => metrics.muscleGroupsThisWeek >= 13 ? 100 : Math.round(Math.min((metrics.muscleGroupsThisWeek / 13) * 100, 100)), // Muscle Master - Target all major muscle groups in a single week
+  56: (metrics) => Math.round(Math.min((metrics.totalVolume / 1000000) * 100, 100)), // Weight Lifting Legend - 1,000,000 kg total volume
 };
 
 // Calculate user metrics from database
@@ -148,6 +154,7 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
 
     // Calculate streak
     const currentStreak = await calculateWorkoutStreak(userId);
+    const longestStreak = await calculateLongestStreak(userId);
 
     // Get workouts by time of day
     const earlyWorkouts = sessionData?.filter(session => {
@@ -160,11 +167,17 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       return hour >= 21;
     }).length || 0;
 
-    // Get weekend workouts
+    // Get weekend workouts (total count for other achievements)
     const weekendWorkouts = sessionData?.filter(session => {
       const day = new Date(session.start_time).getDay();
       return day === 0 || day === 6; // Sunday = 0, Saturday = 6
     }).length || 0;
+
+    // Calculate current month weekend completion for Weekend Warrior achievement
+    const currentMonthWeekendCompletion = await calculateCurrentMonthWeekendCompletion(userId);
+    
+    // Calculate consecutive weeks with at least one workout for Consistency Conqueror
+    const consecutiveWeeksWithWorkout = await calculateConsecutiveWeeksWithWorkout(userId);
 
     // Get unique workout templates created
     const { data: workoutTemplatesData } = await supabase
@@ -181,6 +194,83 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       .eq('user_id', userId);
 
     const personalBests = personalRecordsData?.length || 0;
+
+    // Get achieved goals count and total goals set
+    let achievedGoals = 0;
+    let goalsSet = 0;
+    try {
+      const goalStats = await getGoalStats();
+      achievedGoals = goalStats.achieved_goals;
+      
+      // Get total goals set (both active and achieved)
+      const { data: allGoalsData } = await supabase
+        .from('personal_records')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('record_category', 'goal');
+      
+      goalsSet = allGoalsData?.length || 0;
+    } catch (error) {
+      console.error('Error fetching goal stats:', error);
+      achievedGoals = 0;
+      goalsSet = 0;
+    }
+
+    // Get unique exercises with personal records
+    const { data: prExercisesData } = await supabase
+      .from('personal_records')
+      .select('exercise_name')
+      .eq('user_id', userId)
+      .neq('record_category', 'goal'); // Exclude goals, only actual records
+
+    const uniqueExercisesWithPRs = new Set(prExercisesData?.map(pr => pr.exercise_name) || []).size;
+
+    // Calculate maximum PR increase percentage
+    let maxPRIncrease = 0;
+    try {
+      // Get all personal records for this user, ordered by date
+      const { data: allPRData } = await supabase
+        .from('personal_records')
+        .select('exercise_name, value, achieved_at')
+        .eq('user_id', userId)
+        .neq('record_category', 'goal') // Exclude goals, only actual records
+        .not('value', 'is', null)
+        .order('achieved_at', { ascending: true });
+
+      if (allPRData && allPRData.length > 1) {
+        // Group records by exercise
+        const exerciseRecords: { [key: string]: Array<{ value: number, date: string }> } = {};
+        
+        allPRData.forEach(record => {
+          if (!exerciseRecords[record.exercise_name]) {
+            exerciseRecords[record.exercise_name] = [];
+          }
+          exerciseRecords[record.exercise_name].push({
+            value: record.value,
+            date: record.achieved_at
+          });
+        });
+
+        // Calculate max increase for each exercise
+        Object.values(exerciseRecords).forEach(records => {
+          if (records.length >= 2) {
+            // Sort by date to get chronological order
+            records.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            
+            const firstRecord = records[0].value;
+            const maxRecord = Math.max(...records.map(r => r.value));
+            
+            if (firstRecord > 0) {
+              const increase = ((maxRecord - firstRecord) / firstRecord) * 100;
+              maxPRIncrease = Math.max(maxPRIncrease, increase);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error calculating max PR increase:', error);
+      maxPRIncrease = 0;
+    }
 
     // Get user's experience level
     const { data: userData } = await supabase
@@ -215,6 +305,14 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       .eq('user_id', userId);
 
     const socialStories = storiesData?.length || 0;
+
+    // Get messages sent by user
+    const { data: messagesData } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('sender_id', userId);
+
+    const socialMessages = messagesData?.length || 0;
 
     // Get followers count
     const { data: followersData } = await supabase
@@ -393,9 +491,13 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       totalVolume: Math.round(totalVolume),
       totalMinutes,
       currentStreak,
-      longestStreak: currentStreak, // Simplified for now
+      longestStreak,
       uniqueExercises,
       personalBests,
+      achievedGoals,
+      goalsSet,
+      uniqueExercisesWithPRs,
+      maxPRIncrease,
       workoutTemplates,
       earlyWorkouts,
       lateWorkouts,
@@ -406,6 +508,7 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       socialPosts,
       socialComments,
       socialStories,
+      socialMessages,
       followersCount,
       followingCount,
       maxLikesOnPost,
@@ -414,6 +517,8 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       completedAchievements,
       isAdvancedLevel,
       muscleGroupsThisWeek,
+      currentMonthWeekendCompletion,
+      consecutiveWeeksWithWorkout,
     };
   } catch (error) {
     console.error('Error calculating user metrics:', error);
@@ -425,6 +530,10 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       longestStreak: 0,
       uniqueExercises: 0,
       personalBests: 0,
+      achievedGoals: 0,
+      goalsSet: 0,
+      uniqueExercisesWithPRs: 0,
+      maxPRIncrease: 0,
       workoutTemplates: 0,
       earlyWorkouts: 0,
       lateWorkouts: 0,
@@ -435,6 +544,7 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       socialPosts: 0,
       socialComments: 0,
       socialStories: 0,
+      socialMessages: 0,
       followersCount: 0,
       followingCount: 0,
       maxLikesOnPost: 0,
@@ -443,11 +553,224 @@ export const calculateUserMetrics = async (userId: string): Promise<UserMetrics>
       completedAchievements: 0,
       isAdvancedLevel: false,
       muscleGroupsThisWeek: 0,
+      currentMonthWeekendCompletion: 0,
+      consecutiveWeeksWithWorkout: 0,
     };
   }
 };
 
-// Calculate workout streak
+// Calculate consecutive weeks with at least one workout
+const calculateConsecutiveWeeksWithWorkout = async (userId: string): Promise<number> => {
+  try {
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('start_time')
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .order('start_time', { ascending: false });
+
+    if (!sessions || sessions.length === 0) return 0;
+
+    // Get unique workout days
+    const workoutDays = new Set<string>();
+    sessions.forEach(session => {
+      const dateString = new Date(session.start_time).toISOString().split('T')[0];
+      workoutDays.add(dateString);
+    });
+
+    const sortedDays = Array.from(workoutDays).sort().reverse(); // Most recent first
+    
+    // Helper function to get week start (Monday) for a given date
+    const getWeekStart = (dateStr: string): string => {
+      const date = new Date(dateStr);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+      const monday = new Date(date.setDate(diff));
+      return monday.toISOString().split('T')[0];
+    };
+
+    // Group workout days by week
+    const weeksWithWorkouts = new Set<string>();
+    sortedDays.forEach(day => {
+      const weekStart = getWeekStart(day);
+      weeksWithWorkouts.add(weekStart);
+    });
+
+    const sortedWeeks = Array.from(weeksWithWorkouts).sort().reverse(); // Most recent first
+    
+    if (sortedWeeks.length === 0) return 0;
+
+    // Count consecutive weeks from most recent
+    let consecutiveWeeks = 1; // Count the most recent week
+    const currentWeekStart = getWeekStart(new Date().toISOString().split('T')[0]);
+    
+    // Check if current week has a workout, if not, check last week
+    let startWeek = sortedWeeks[0];
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const lastWeekStart = getWeekStart(oneWeekAgo.toISOString().split('T')[0]);
+    
+    // If the most recent workout week is not current week or last week, streak is broken
+    if (startWeek !== currentWeekStart && startWeek !== lastWeekStart) {
+      return 0;
+    }
+
+    // Count consecutive weeks backwards
+    for (let i = 1; i < sortedWeeks.length; i++) {
+      const currentWeekDate = new Date(sortedWeeks[i - 1]);
+      const previousWeekDate = new Date(sortedWeeks[i]);
+      
+      // Calculate the difference in weeks
+      const diffTime = currentWeekDate.getTime() - previousWeekDate.getTime();
+      const diffWeeks = Math.round(diffTime / (1000 * 60 * 60 * 24 * 7));
+      
+      if (diffWeeks === 1) {
+        // Consecutive week
+        consecutiveWeeks++;
+      } else {
+        // Break in weekly streak
+        break;
+      }
+    }
+
+    return consecutiveWeeks;
+  } catch (error) {
+    console.error('Error calculating consecutive weeks with workout:', error);
+    return 0;
+  }
+};
+
+// Calculate current month weekend completion percentage
+const calculateCurrentMonthWeekendCompletion = async (userId: string): Promise<number> => {
+  try {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    // Get first and last day of current month
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    
+    // Find all weekends in current month
+    const weekendsInMonth: string[] = [];
+    for (let date = new Date(firstDayOfMonth); date <= lastDayOfMonth; date.setDate(date.getDate() + 1)) {
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday = 0, Saturday = 6
+        weekendsInMonth.push(date.toISOString().split('T')[0]);
+      }
+    }
+    
+    // Group weekends by weekend period (Sat-Sun pairs)
+    const weekendPeriods: string[][] = [];
+    let currentWeekend: string[] = [];
+    
+    for (const day of weekendsInMonth) {
+      const dayOfWeek = new Date(day).getDay();
+      
+      if (dayOfWeek === 6) { // Saturday - start new weekend
+        if (currentWeekend.length > 0) {
+          weekendPeriods.push(currentWeekend);
+        }
+        currentWeekend = [day];
+      } else if (dayOfWeek === 0) { // Sunday - complete weekend
+        currentWeekend.push(day);
+      }
+    }
+    
+    // Don't forget the last weekend if it exists
+    if (currentWeekend.length > 0) {
+      weekendPeriods.push(currentWeekend);
+    }
+    
+    if (weekendPeriods.length === 0) return 100; // No weekends in month = 100%
+    
+    // Get user's workout sessions for current month
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('start_time')
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .gte('start_time', firstDayOfMonth.toISOString())
+      .lte('start_time', lastDayOfMonth.toISOString());
+
+    if (!sessions || sessions.length === 0) return 0;
+    
+    // Create set of workout days
+    const workoutDays = new Set<string>();
+    sessions.forEach(session => {
+      const dateString = new Date(session.start_time).toISOString().split('T')[0];
+      workoutDays.add(dateString);
+    });
+    
+    // Check how many weekends have at least one workout
+    let completedWeekends = 0;
+    for (const weekend of weekendPeriods) {
+      // Check if user worked out on Saturday OR Sunday of this weekend
+      const hasWeekendWorkout = weekend.some(day => workoutDays.has(day));
+      if (hasWeekendWorkout) {
+        completedWeekends++;
+      }
+    }
+    
+    return Math.round((completedWeekends / weekendPeriods.length) * 100);
+  } catch (error) {
+    console.error('Error calculating current month weekend completion:', error);
+    return 0;
+  }
+};
+
+// Calculate longest workout streak ever achieved
+const calculateLongestStreak = async (userId: string): Promise<number> => {
+  try {
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('start_time')
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .order('start_time', { ascending: true });
+
+    if (!sessions || sessions.length === 0) return 0;
+
+    // Group sessions by day and convert to Date objects for proper comparison
+    const workoutDays = new Set<string>();
+    sessions.forEach(session => {
+      const dateString = new Date(session.start_time).toISOString().split('T')[0];
+      workoutDays.add(dateString);
+    });
+
+    const sortedDays = Array.from(workoutDays).sort();
+    
+    if (sortedDays.length === 0) return 0;
+    
+    let maxStreak = 1; // At least 1 day if there are any workouts
+    let currentStreak = 1;
+
+    for (let i = 1; i < sortedDays.length; i++) {
+      const previousDate = new Date(sortedDays[i - 1]);
+      const currentDate = new Date(sortedDays[i]);
+      
+      // Calculate the difference in days
+      const diffTime = currentDate.getTime() - previousDate.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        // Consecutive day - extend the streak
+        currentStreak++;
+        maxStreak = Math.max(maxStreak, currentStreak);
+      } else {
+        // Break in streak - reset to 1
+        currentStreak = 1;
+      }
+    }
+    
+    return maxStreak;
+  } catch (error) {
+    console.error('Error calculating longest streak:', error);
+    return 0;
+  }
+};
+
+// Calculate current workout streak
 const calculateWorkoutStreak = async (userId: string): Promise<number> => {
   try {
     const { data: sessions } = await supabase
@@ -466,29 +789,45 @@ const calculateWorkoutStreak = async (userId: string): Promise<number> => {
       workoutDays.add(dateString);
     });
 
-    const sortedDays = Array.from(workoutDays).sort().reverse();
+    const sortedDays = Array.from(workoutDays).sort().reverse(); // Most recent first
     const today = new Date().toISOString().split('T')[0];
     
-    let streak = 0;
-    let currentDate = new Date();
-
-    // Check if there's a workout today or yesterday
-    for (const day of sortedDays) {
-      const dayDate = new Date(day);
-      const diffTime = currentDate.getTime() - dayDate.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 1) {
+    if (sortedDays.length === 0) return 0;
+    
+    // Check if the most recent workout was today or yesterday
+    const mostRecentWorkout = sortedDays[0];
+    const mostRecentDate = new Date(mostRecentWorkout);
+    const todayDate = new Date(today);
+    const diffTime = todayDate.getTime() - mostRecentDate.getTime();
+    const daysSinceLastWorkout = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // If last workout was more than 1 day ago, streak is broken
+    if (daysSinceLastWorkout > 1) {
+      return 0;
+    }
+    
+    // Count consecutive days working backwards from the most recent workout
+    let streak = 1; // Count the most recent workout day
+    
+    for (let i = 1; i < sortedDays.length; i++) {
+      const currentDay = new Date(sortedDays[i - 1]);
+      const previousDay = new Date(sortedDays[i]);
+      
+      const diffTime = currentDay.getTime() - previousDay.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        // Consecutive day
         streak++;
-        currentDate = new Date(dayDate.getTime() - 24 * 60 * 60 * 1000); // Move to previous day
       } else {
+        // Break in streak
         break;
       }
     }
 
     return streak;
   } catch (error) {
-    console.error('Error calculating streak:', error);
+    console.error('Error calculating current streak:', error);
     return 0;
   }
 };
