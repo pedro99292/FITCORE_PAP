@@ -37,6 +37,7 @@ import {
   UserAchievement
 } from '@/utils/achievementService';
 import { useAchievements } from '@/contexts/AchievementContext';
+import { CoinService } from '@/utils/coinService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -1005,28 +1006,50 @@ const AchievementsPage = () => {
       
       // Update achievements in background without blocking UI
       setTimeout(() => {
-        updateAllAchievements(userId).then(newUnlocks => {
+        updateAllAchievements(userId).then(async newUnlocks => {
           if (newUnlocks.length > 0) {
             // Get achievement details for the newly unlocked achievements
             const unlockedAchievements = newUnlocks.map(achievementId => {
               return ACHIEVEMENTS_DATA.find(a => a.id === achievementId);
             }).filter(achievement => achievement !== undefined);
             
-            // Calculate total coins earned
-            const totalCoins = unlockedAchievements.reduce((sum, achievement) => sum + achievement.coins, 0);
+            // Calculate total coins earned (with boost if active)
+            const totalBaseCoins = unlockedAchievements.reduce((sum, achievement) => sum + achievement.coins, 0);
+            
+            // Debug: Log the calculation process
+            console.log('Achievement Debug:', {
+              unlockedAchievements: unlockedAchievements.map(a => ({ title: a.title, coins: a.coins })),
+              totalBaseCoins,
+            });
+            
+            const boostedCoins = await CoinService.updateCoinsFromNewAchievements(unlockedAchievements);
+            const currentMultiplier = await CoinService.getCurrentMultiplier();
+            
+            console.log('Coin Calculation Debug:', {
+              totalBaseCoins,
+              boostedCoins,
+              currentMultiplier,
+              expectedBoosted: totalBaseCoins * currentMultiplier
+            });
             
             const achievementTitles = unlockedAchievements.map(a => a.title);
             const achievementList = achievementTitles.length <= 3 
               ? achievementTitles.join(', ')
               : `${achievementTitles.slice(0, 3).join(', ')} and ${achievementTitles.length - 3} more`;
             
+            // Check if boost was applied
+            const boostActive = currentMultiplier > 1;
+            const coinMessage = boostActive 
+              ? `💎 You earned ${boostedCoins} coins (${totalBaseCoins} base + ${boostedCoins - totalBaseCoins} bonus from ${currentMultiplier}x boost)!`
+              : `💎 You earned ${boostedCoins} coins!`;
+            
             // Show notification for new unlocks with coins
             if (Platform.OS === 'web') {
-              alert(`🏆 Congratulations! You unlocked: ${achievementList}!\n💎 You earned ${totalCoins} coins!`);
+              alert(`🏆 Congratulations! You unlocked: ${achievementList}!\n${coinMessage}`);
             } else {
               Alert.alert(
                 '🏆 New Achievement Unlocked!',
-                `Congratulations! You unlocked:\n\n${achievementList}\n\n💎 You earned ${totalCoins} coins!`,
+                `Congratulations! You unlocked:\n\n${achievementList}\n\n${coinMessage}`,
                 [{ text: 'OK', style: 'default' }]
               );
             }

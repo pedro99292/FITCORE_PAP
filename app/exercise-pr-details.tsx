@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { getExercisePersonalRecords, deletePersonalRecord } from '@/utils/personalRecordsService';
+import { useAchievements } from '@/contexts/AchievementContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { PersonalRecord, RecordType } from '@/types/personalRecords';
 import AddPRModal from '@/components/AddPRModal';
 // SVG Charts imports
@@ -29,6 +31,8 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function ExercisePRDetailsScreen() {
   const { colors, isDarkMode } = useTheme();
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>();
+  const { checkAndShowAchievementNotifications } = useAchievements();
+  const { user } = useAuth();
   
   const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -568,6 +572,12 @@ export default function ExercisePRDetailsScreen() {
             const { createPersonalRecord } = await import('@/utils/personalRecordsService');
             await createPersonalRecord(newRecord);
             await loadRecords();
+            
+            // Check for achievement unlocks after adding PR
+            if (user?.id) {
+              await checkAndShowAchievementNotifications(user.id);
+            }
+            
             Alert.alert('Success', 'Personal record added successfully!');
           } catch (error) {
             console.error('Error adding PR:', error);

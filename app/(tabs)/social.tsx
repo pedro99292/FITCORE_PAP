@@ -27,6 +27,7 @@ import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import * as Location from 'expo-location';
+import { useAchievements } from '@/contexts/AchievementContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -64,6 +65,7 @@ type ImageMapping = {
 
 export default function SocialScreen() {
   const { isDarkMode, colors } = useTheme();
+  const { checkAndShowAchievementNotifications } = useAchievements();
   const [searchQuery, setSearchQuery] = useState('');
   const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
@@ -669,6 +671,16 @@ export default function SocialScreen() {
       // Refresh posts to show the new one
       fetchPosts();
       
+      // Check for achievement unlocks after creating a post
+      try {
+        if (currentUserId) {
+          await checkAndShowAchievementNotifications(currentUserId);
+        }
+      } catch (achievementError) {
+        console.error('Error checking achievements after post creation:', achievementError);
+        // Don't fail the post creation if achievements fail
+      }
+      
       // Reset post creation form
       setNewPost('');
       setImage(null);
@@ -959,6 +971,16 @@ export default function SocialScreen() {
             : post
         )
       );
+      
+      // Check for achievement unlocks after adding a comment
+      try {
+        if (currentUserId) {
+          await checkAndShowAchievementNotifications(currentUserId);
+        }
+      } catch (achievementError) {
+        console.error('Error checking achievements after comment creation:', achievementError);
+        // Don't fail the comment creation if achievements fail
+      }
 
     } catch (error) {
       console.error('Error adding comment:', error);

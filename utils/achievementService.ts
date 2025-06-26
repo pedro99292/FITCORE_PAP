@@ -1,5 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { getGoalStats } from './personalRecordsService';
+import { CoinService } from './coinService';
 
 // Types for achievement system
 export interface UserAchievement {
@@ -801,8 +803,39 @@ const calculateWorkoutStreak = async (userId: string): Promise<number> => {
     const diffTime = todayDate.getTime() - mostRecentDate.getTime();
     const daysSinceLastWorkout = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
-    // If last workout was more than 1 day ago, streak is broken
-    if (daysSinceLastWorkout > 1) {
+    // Check if streak protection is active
+    const isProtectionActive = await CoinService.isStreakProtectionActive();
+    
+    // If streak protection is active, allow up to 4 days (1 regular + 3 from saver)
+    // Otherwise, allow only 1 day as before
+    const maxAllowedDays = isProtectionActive ? 4 : 1;
+    
+    // If last workout was more than the allowed days ago, check if we should auto-activate streak saver
+    if (daysSinceLastWorkout > 1 && daysSinceLastWorkout <= 4 && !isProtectionActive) {
+      // User is at risk of losing streak - try to auto-activate a streak saver
+      const hasUnusedSavers = (await CoinService.getUnusedStreakSaverCount()) > 0;
+      if (hasUnusedSavers) {
+        const activated = await CoinService.activateStreakSaver();
+        if (activated) {
+          // Streak saver activated! Streak is now protected
+          console.log('Streak Saver auto-activated to protect streak!');
+          
+          // Show notification (you can customize this based on your notification system)
+          if (typeof window !== 'undefined' && window.alert) {
+            setTimeout(() => {
+              window.alert('🛡️ Streak Saver Activated!\n\nYour workout streak has been automatically protected for 3 extra days. Keep up the great work!');
+            }, 100);
+          }
+        }
+      }
+    }
+    
+    // Re-check protection status after potential auto-activation
+    const finalProtectionStatus = await CoinService.isStreakProtectionActive();
+    const finalMaxAllowedDays = finalProtectionStatus ? 4 : 1;
+    
+    // If last workout was more than allowed days ago, streak is broken
+    if (daysSinceLastWorkout > finalMaxAllowedDays) {
       return 0;
     }
     

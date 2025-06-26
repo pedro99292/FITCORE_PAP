@@ -6,6 +6,7 @@ import { supabase } from '@/utils/supabase';
 import { getUserAchievements } from '@/utils/achievementService';
 import { ACHIEVEMENTS_DATA } from '@/app/(tabs)/achievements';
 import { useAchievements } from '@/contexts/AchievementContext';
+import { CoinService } from '@/utils/coinService';
 
 export default function HeaderStats() {
   const [streakCount, setStreakCount] = useState(0);
@@ -36,26 +37,9 @@ export default function HeaderStats() {
         return;
       }
 
-      // Get user achievements
-      const userAchievements = await getUserAchievements(userData.user.id);
-      
-      // Calculate total coins from completed achievements (progress = 100)
-      let totalCoins = 0;
-      
-      userAchievements.forEach(userAchievement => {
-        if (userAchievement.progress === 100) {
-          // Find the corresponding achievement data to get coins value
-          const achievementData = ACHIEVEMENTS_DATA.find(
-            achievement => achievement.id === userAchievement.achievement_id
-          );
-          
-          if (achievementData) {
-            totalCoins += achievementData.coins;
-          }
-        }
-      });
-      
-      setCurrencyCount(totalCoins);
+      // Use CoinService to get current coins (includes any coins from shop purchases, boosts applied, etc.)
+      const currentCoins = await CoinService.getCoins();
+      setCurrencyCount(currentCoins);
     } catch (error) {
       console.error('Error calculating total coins:', error);
       setCurrencyCount(0);

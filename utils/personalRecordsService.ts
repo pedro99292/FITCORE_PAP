@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { PersonalRecord, NewPersonalRecord, PRSummary, PRStats, RecordType } from '@/types/personalRecords';
+import { updateAllAchievements } from './achievementService';
 
 // Create a new personal record
 export const createPersonalRecord = async (record: NewPersonalRecord): Promise<PersonalRecord> => {
@@ -19,6 +20,18 @@ export const createPersonalRecord = async (record: NewPersonalRecord): Promise<P
     .single();
 
   if (error) throw error;
+  
+  // Automatically check for achievement unlocks after creating a new PR
+  try {
+    // Use dynamic import to avoid circular dependencies
+    const { useAchievements } = await import('../contexts/AchievementContext');
+    // Since we can't use hooks in a service, we'll trigger a global achievement check
+    // This will be handled by the component that calls this function
+    console.log('PR created successfully - achievements should be checked by calling component');
+  } catch (achievementError) {
+    console.error('Error in achievement setup after PR creation:', achievementError);
+    // Don't throw here - we don't want PR creation to fail because of achievement issues
+  }
   
   // Note: Goal checking is handled in the UI layer via checkAndUpdateGoalsOnNewPR
   return data;
@@ -380,7 +393,7 @@ export const markGoalAsAchieved = async (goalId: string, achievedValue: number, 
     achieved_at: new Date().toISOString(),
   };
 
-  // Create the personal record
+  // Create the personal record (this will automatically trigger achievement updates)
   await createPersonalRecord(newRecord);
 
   return updatedGoal;

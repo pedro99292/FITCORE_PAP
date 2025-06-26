@@ -24,6 +24,7 @@ import SubscriptionModal from '../components/SubscriptionModal';
 import SurveyModal from '../components/SurveyModal';
 import WorkoutGenerationModal from '../components/WorkoutGenerationModal';
 import { initializeAppResources } from '../utils/appInit';
+import SplashScreenComponent from '../components/SplashScreen';
 
 // Disable specific LogBox warnings
 LogBox.ignoreLogs([
@@ -291,6 +292,7 @@ const MainLayout = () => {
 
 const RootLayout = () => {
   const [appIsReady, setAppIsReady] = React.useState(false);
+  const [showCustomSplash, setShowCustomSplash] = React.useState(true);
 
   useEffect(() => {
     // Initialize app and load resources
@@ -327,6 +329,10 @@ const RootLayout = () => {
     prepare();
   }, []);
 
+  const handleSplashFinish = () => {
+    setShowCustomSplash(false);
+  };
+
   if (!appIsReady) {
     return null;
   }
@@ -340,6 +346,9 @@ const RootLayout = () => {
               <WorkoutProvider>
                 <AchievementProvider>
                   <MainLayout />
+                  {showCustomSplash && (
+                    <SplashScreenComponent onFinish={handleSplashFinish} />
+                  )}
                 </AchievementProvider>
               </WorkoutProvider>
             </SubscriptionProvider>

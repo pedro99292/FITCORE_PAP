@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar, ScrollView, Dimensions, Modal } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar, ScrollView, Dimensions, Modal, Alert } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
@@ -182,6 +182,53 @@ export default function CalendarScreen() {
     setPreviewVisible(false);
   };
 
+  // Handle workout deletion
+  const handleDeleteWorkout = async (sessionId: string) => {
+    Alert.alert(
+      'Delete Workout',
+      'Are you sure you want to delete this workout session? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete the session from the database
+              const { error } = await supabase
+                .from('sessions')
+                .delete()
+                .eq('session_id', sessionId)
+                .eq('user_id', user?.id);
+
+              if (error) {
+                console.error('Error deleting workout session:', error);
+                Alert.alert('Error', 'Failed to delete workout session. Please try again.');
+                return;
+              }
+
+              // Refresh the workouts for the selected day
+              if (selectedDate) {
+                fetchWorkoutsForDay(selectedDate);
+              }
+              
+              // Refresh the calendar to update marked dates
+              fetchWorkoutSessions();
+              
+              Alert.alert('Success', 'Workout session deleted successfully.');
+            } catch (error) {
+              console.error('Error deleting workout session:', error);
+              Alert.alert('Error', 'Failed to delete workout session. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -298,33 +345,42 @@ export default function CalendarScreen() {
               <ActivityIndicator size="small" color="#4a90e2" style={styles.workoutsLoading} />
             ) : workoutsForDay.length > 0 ? (
               workoutsForDay.map((workout) => (
-                <TouchableOpacity 
-                  key={workout.session_id}
-                  style={styles.workoutItem}
-                  onPress={() => handleWorkoutPress(workout)}
-                  activeOpacity={0.7}
-                >
+                <View key={workout.session_id} style={styles.workoutItem}>
                   <LinearGradient
                     colors={['rgba(74, 144, 226, 0.8)', 'rgba(90, 107, 255, 0.8)']}
                     start={[0, 0]}
                     end={[1, 0]}
                     style={styles.workoutGradient}
                   >
-                    <View style={styles.workoutIconContainer}>
-                      <Ionicons name="barbell-outline" size={24} color="#fff" />
-                    </View>
-                    <View style={styles.workoutDetails}>
-                      <Text style={styles.workoutName}>{workout.workouts?.title || 'Workout'}</Text>
-                      <View style={styles.workoutMetaInfo}>
-                        <Ionicons name="time-outline" size={14} color="rgba(255, 255, 255, 0.8)" />
-                        <Text style={styles.workoutDuration}>{formatDuration(workout.duration)}</Text>
+                    <TouchableOpacity 
+                      style={styles.workoutMainContent}
+                      onPress={() => handleWorkoutPress(workout)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.workoutIconContainer}>
+                        <Ionicons name="barbell-outline" size={24} color="#fff" />
                       </View>
-                    </View>
-                    <View style={styles.workoutArrowContainer}>
-                      <Ionicons name="chevron-forward" size={22} color="#fff" />
-                    </View>
+                      <View style={styles.workoutDetails}>
+                        <Text style={styles.workoutName}>{workout.workouts?.title || 'Workout'}</Text>
+                        <View style={styles.workoutMetaInfo}>
+                          <Ionicons name="time-outline" size={14} color="rgba(255, 255, 255, 0.8)" />
+                          <Text style={styles.workoutDuration}>{formatDuration(workout.duration)}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.workoutArrowContainer}>
+                        <Ionicons name="chevron-forward" size={22} color="#fff" />
+                      </View>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteWorkout(workout.session_id)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={20} color="#fff" />
+                    </TouchableOpacity>
                   </LinearGradient>
-                </TouchableOpacity>
+                </View>
               ))
             ) : (
               <View style={styles.noWorkoutsContainer}>
@@ -532,6 +588,11 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingVertical: 18,
   },
+  workoutMainContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   workoutIconContainer: {
     width: 45,
     height: 45,
@@ -566,6 +627,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
   noWorkoutsContainer: {
     padding: 30,

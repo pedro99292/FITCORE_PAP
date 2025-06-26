@@ -19,8 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack } from 'expo-router';
 import { supabase } from '../utils/supabase';
 import { useTheme } from '@/hooks/useTheme';
-import StoryRing from '@/components/StoryRing';
-import { fetchActiveStories, UserWithStories } from '@/utils/storyService';
+
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -42,7 +41,7 @@ export default function DiscoverUsersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [stories, setStories] = useState<UserWithStories[]>([]);
+
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -55,10 +54,7 @@ export default function DiscoverUsersScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCurrentUserId(user.id);
-        await Promise.all([
-          fetchDiscoverUsers(user.id),
-          fetchStories(),
-        ]);
+        await fetchDiscoverUsers(user.id);
       }
     } catch (error) {
       console.error('Error initializing data:', error);
@@ -67,14 +63,7 @@ export default function DiscoverUsersScreen() {
     }
   };
 
-  const fetchStories = async () => {
-    try {
-      const storiesData = await fetchActiveStories(currentUserId);
-      setStories(storiesData);
-    } catch (error) {
-      console.error('Error fetching stories:', error);
-    }
-  };
+
 
   const fetchDiscoverUsers = async (userId: string) => {
     try {
@@ -244,9 +233,6 @@ export default function DiscoverUsersScreen() {
   };
 
   const renderUser = (user: DiscoverUser) => {
-    const hasStories = stories.some(userStories => userStories.id === user.id);
-    const hasUnviewedStories = stories.find(userStories => userStories.id === user.id)?.hasUnviewedStories;
-
     return (
       <View key={user.id} style={[styles.userCard, { 
         backgroundColor: isDarkMode ? '#2c2c3e' : '#ffffff',
@@ -257,26 +243,20 @@ export default function DiscoverUsersScreen() {
           onPress={() => router.push(`/${user.id}`)}
           activeOpacity={0.7}
         >
-          <StoryRing 
-            size={60} 
-            hasStories={hasStories}
-            seen={!hasUnviewedStories}
-          >
-            {user.avatar_url ? (
-              <Image
-                source={{ uri: user.avatar_url }}
-                style={styles.avatar}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.avatar, { 
-                backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
-                borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
-              }]}>
-                <FontAwesome name="user" size={24} color={isDarkMode ? "#fff" : "#333"} />
-              </View>
-            )}
-          </StoryRing>
+          {user.avatar_url ? (
+            <Image
+              source={{ uri: user.avatar_url }}
+              style={styles.avatar}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.avatar, { 
+              backgroundColor: isDarkMode ? '#3e3e50' : '#f5f5f5',
+              borderColor: isDarkMode ? '#2c2c3e' : '#e0e0e0'
+            }]}>
+              <FontAwesome name="user" size={24} color={isDarkMode ? "#fff" : "#333"} />
+            </View>
+          )}
           
           <View style={styles.userDetails}>
             <Text style={[styles.username, { color: isDarkMode ? '#fff' : '#000' }]}>

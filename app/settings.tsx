@@ -12,7 +12,7 @@ const { width: screenWidth } = Dimensions.get('window');
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { isDarkMode, toggleTheme, colors } = useTheme();
+  const { colors } = useTheme();
   const { signOut, loading } = useAuth();
   const { isSubscribed } = useSubscription();
   const [notifications, setNotifications] = useState(true);
@@ -198,13 +198,6 @@ export default function SettingsScreen() {
               hasSwitch
               switchValue={safetyWarningsEnabled}
               onSwitchChange={handleSafetyWarningsToggle}
-            />
-            <SettingItem
-              icon="moon-o"
-              title="Dark Mode"
-              hasSwitch
-              switchValue={isDarkMode}
-              onSwitchChange={toggleTheme}
             />
           </View>
         </View>

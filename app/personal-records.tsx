@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAchievements } from '@/contexts/AchievementContext';
 import {
   getPRSummaries,
   getPRStats,
@@ -54,6 +55,7 @@ type FilterType = 'all' | 'chest' | 'back' | 'shoulders' | 'arms' | 'legs' | 'ab
 export default function PersonalRecordsScreen() {
   const { colors, isDarkMode } = useTheme();
   const { user } = useAuth();
+  const { checkAndShowAchievementNotifications } = useAchievements();
   
   const [prSummaries, setPRSummaries] = useState<PRSummary[]>([]);
   const [stats, setStats] = useState<PRStats | null>(null);
@@ -195,6 +197,11 @@ export default function PersonalRecordsScreen() {
       const achievedGoals = await checkAndUpdateGoalsOnNewPR(newPR);
       
       await loadData(); // Refresh data
+      
+      // Check for achievement unlocks after adding PR
+      if (user?.id) {
+        await checkAndShowAchievementNotifications(user.id);
+      }
       
       let message = 'Personal record added successfully!';
       if (achievedGoals.length > 0) {
