@@ -1,6 +1,6 @@
 # FitCore - Fitness Tracking & Social Workout App
 
-<img src="./assets/images/logo.png" alt="FitCore Logo" width="200" />
+<img src="./assets/images/logo2.png" alt="FitCore Logo" width="200" />
 
 FitCore is a comprehensive fitness tracking application built with React Native and Expo. It allows users to track workouts, build custom workout routines, connect with other fitness enthusiasts, and track achievements.
 
