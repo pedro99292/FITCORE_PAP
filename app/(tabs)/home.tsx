@@ -1,23 +1,23 @@
-import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
-import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate, Extrapolate } from 'react-native-reanimated';
-import { Image as ExpoImage } from 'expo-image';
-import { Asset } from 'expo-asset';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate, Extrapolate, withSpring } from 'react-native-reanimated';
+import { useFocusEffect } from '@react-navigation/native';
+
 import { router } from 'expo-router';
 import { useWorkoutStats } from '@/contexts/WorkoutContext';
 import { useAuth } from '@/contexts/AuthContext';
 import InteractiveMuscleSilhouette, { MuscleState } from '../../components/InteractiveMuscleSilhouette';
 import { generateMuscleStatesWithWeeklyActivity } from '@/utils/muscleColorService';
+import { supabase } from '@/utils/supabase';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Pre-loaded images for faster loading (keeping back silhouette until you create back SVG)
-const BACK_SILHOUETTE = require('../../assets/images/muscle-silhouette-back.png');
+// Pre-loaded images for faster loading - no longer needed since we're using SVG for back view
 
 // Removed local useWorkoutStats hook - now using context
 
@@ -138,30 +138,14 @@ const StatsContainer = memo(({ statsOpacity }: { statsOpacity: Animated.SharedVa
   );
 });
 
-// Create a platform-optimized image component
-const OptimizedImage = ({ 
-  source, 
-  style, 
-  ...props 
-}: { 
-  source: any; 
-  style?: any; 
-  [key: string]: any 
-}) => {
-  // Use standard Image on web to avoid fetchPriority warning
-  if (Platform.OS === 'web') {
-    return <Image source={source} style={style} {...props} />;
-  }
-  
-  // Use ExpoImage on native platforms for better performance
-  return <ExpoImage source={source} style={style} {...props} />;
-};
+// Removed OptimizedImage component since we're now using SVG for both front and back views
 
 // Main component with performance optimizations
 const HomeScreen = () => {
   // Use theme from context
   const { colors, isDarkMode } = useTheme();
   const { user } = useAuth();
+  const { refreshStats } = useWorkoutStats();
   
   // Animation values
   const rotation = useSharedValue(0);
@@ -174,41 +158,128 @@ const HomeScreen = () => {
   // State for muscle states
   const [muscleStates, setMuscleStates] = useState<Record<string, MuscleState>>({});
   const [muscleStatesLoading, setMuscleStatesLoading] = useState(true);
+  const [isUpdatingMuscles, setIsUpdatingMuscles] = useState(false);
+  const [hasLoadedInitially, setHasLoadedInitially] = useState(false);
+  const [lastSessionCount, setLastSessionCount] = useState<number | null>(null);
+  
+  // Animation value for muscle update effects
+  const muscleUpdateScale = useSharedValue(1);
 
-  // Load muscle states with weekly activity
-  useEffect(() => {
-    const loadMuscleStates = async () => {
-      if (!user?.id) return;
-      
-      try {
-        setMuscleStatesLoading(true);
-        const states = await generateMuscleStatesWithWeeklyActivity(user.id);
-        setMuscleStates(states);
-      } catch (error) {
-        console.error('Error loading muscle states:', error);
-        // Set default states if error occurs
-        setMuscleStates({});
-      } finally {
-        setMuscleStatesLoading(false);
-      }
-    };
-
-    loadMuscleStates();
-  }, [user?.id]);
-
-  // Preload silhouette images (only back for now)
-  useEffect(() => {
-    const preloadImages = async () => {
-      try {
-        await Asset.loadAsync([BACK_SILHOUETTE]);
-        console.log('Back silhouette image preloaded successfully');
-      } catch (error) {
-        console.error('Error preloading images:', error);
-      }
-    };
+  // Function to load muscle states with optional animation
+  const loadMuscleStates = useCallback(async (animate = false) => {
+    if (!user?.id) return;
     
-    preloadImages();
-  }, []);
+    try {
+      setMuscleStatesLoading(true);
+      
+      // Show updating indicator for animations
+      if (animate) {
+        setIsUpdatingMuscles(true);
+        
+        // Add subtle animation when updating after workout completion
+        muscleUpdateScale.value = withSpring(0.95, {
+          damping: 15,
+          stiffness: 400,
+        });
+      }
+      
+      const states = await generateMuscleStatesWithWeeklyActivity(user.id);
+      setMuscleStates(states);
+      
+      // Mark as initially loaded and store session count for workout completion detection
+      if (!hasLoadedInitially) {
+        setHasLoadedInitially(true);
+        
+        // Store initial session count to detect new workouts
+        if (user?.id && lastSessionCount === null) {
+          try {
+            const { data: sessionData } = await supabase
+              .from('sessions')
+              .select('session_id', { count: 'exact' })
+              .eq('user_id', user.id)
+              .eq('status', 'completed');
+            
+            setLastSessionCount(sessionData?.length || 0);
+          } catch (error) {
+            console.log('Error fetching initial session count:', error);
+          }
+        }
+      }
+      
+      // Animate back to normal size with a slight bounce
+      if (animate) {
+        setTimeout(() => {
+          muscleUpdateScale.value = withSpring(1, {
+            damping: 12,
+            stiffness: 300,
+          });
+          
+          // Hide updating indicator after animation completes
+          setTimeout(() => {
+            setIsUpdatingMuscles(false);
+          }, 400);
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Error loading muscle states:', error);
+      // Set default states if error occurs
+      setMuscleStates({});
+    } finally {
+      setMuscleStatesLoading(false);
+    }
+  }, [user?.id, muscleUpdateScale]);
+
+  // Load muscle states with weekly activity on mount
+  useEffect(() => {
+    loadMuscleStates(false);
+  }, [loadMuscleStates]);
+
+  // Auto-refresh muscle states and stats when screen comes into focus (ONLY after completing a workout)
+  useFocusEffect(
+    useCallback(() => {
+      const checkForNewWorkouts = async () => {
+        // Only check if we have loaded initially and have a baseline session count
+        if (!user?.id || !hasLoadedInitially || lastSessionCount === null) {
+          return;
+        }
+
+        try {
+          // Check current session count
+          const { data: sessionData } = await supabase
+            .from('sessions')
+            .select('session_id', { count: 'exact' })
+            .eq('user_id', user.id)
+            .eq('status', 'completed');
+          
+          const currentSessionCount = sessionData?.length || 0;
+          
+          // Only refresh if there are new completed sessions
+          if (currentSessionCount > lastSessionCount) {
+            console.log(`🎯 New workout detected! Sessions: ${lastSessionCount} → ${currentSessionCount}`);
+            console.log('🔄 Refreshing muscle silhouette with animation...');
+            
+            // Update the session count first
+            setLastSessionCount(currentSessionCount);
+            
+            // Add a small delay to ensure database updates have finished
+            setTimeout(async () => {
+              // Refresh both muscle states and workout stats with animation
+              await Promise.all([
+                loadMuscleStates(true), // Pass true to enable animation
+                refreshStats()
+              ]);
+            }, 500);
+          }
+        } catch (error) {
+          console.log('Error checking for new workouts:', error);
+        }
+      };
+      
+      checkForNewWorkouts();
+    }, [user?.id, hasLoadedInitially, lastSessionCount, loadMuscleStates, refreshStats])
+  );
+
+  // No longer need to preload images since we're using SVG for both front and back views
   
   // Animate elements on component mount - deferred for better startup performance
   useEffect(() => {
@@ -258,7 +329,10 @@ const HomeScreen = () => {
   });
 
   const silhouetteAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: silhouetteScale.value }]
+    transform: [
+      { scale: silhouetteScale.value },
+      { scale: muscleUpdateScale.value } // Add muscle update animation
+    ]
   }));
 
   const handleMusclePress = (muscleId: string) => {
@@ -279,6 +353,8 @@ const HomeScreen = () => {
     }
   };
 
+
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
@@ -286,7 +362,7 @@ const HomeScreen = () => {
       {/* Stats Box */}
       <StatsContainer statsOpacity={statsOpacity} />
       
-      {/* Silhouette Image - True 3D flip with both images preloaded */}
+      {/* Silhouette Components - True 3D flip with both front and back SVG views */}
       <Animated.View style={[styles.silhouetteContainer, silhouetteAnimatedStyle]}>
         {/* Container for front view */}
         <Animated.View style={[rotateStyle, styles.silhouetteWrapper]}>
@@ -316,10 +392,12 @@ const HomeScreen = () => {
             })
           ]}
         >
-          <OptimizedImage
-            source={BACK_SILHOUETTE}
-            contentFit="contain"
-            style={styles.silhouette}
+          <InteractiveMuscleSilhouette
+            view="back"
+            interactive={true}
+            showIntensityColors={true}
+            muscleStates={muscleStates}
+            onMusclePress={handleMusclePress}
           />
         </Animated.View>
       </Animated.View>
@@ -327,34 +405,23 @@ const HomeScreen = () => {
       {/* Loading indicator for muscle states */}
       {muscleStatesLoading && (
         <View style={styles.loadingOverlay}>
-          <Text style={styles.loadingText}>Loading muscle activity...</Text>
+          <MaterialCommunityIcons name="dots-horizontal" size={20} color="rgba(255, 255, 255, 0.8)" />
         </View>
       )}
       
-      {/* Color Legend */}
-      {!muscleStatesLoading && (
-        <View style={styles.legendContainer}>
-          <Text style={styles.legendTitle}>Weekly Training Frequency</Text>
-          <View style={styles.legendItems}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: '#ffffff' }]} />
-              <Text style={styles.legendText}>Not trained</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: '#ffcccb' }]} />
-              <Text style={styles.legendText}>1 day</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: '#ff6b6b' }]} />
-              <Text style={styles.legendText}>2 days</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: '#dc143c' }]} />
-              <Text style={styles.legendText}>3+ days</Text>
-            </View>
-          </View>
+      {/* Updating indicator for muscle state refresh */}
+      {isUpdatingMuscles && (
+        <View style={styles.updatingOverlay}>
+          <LinearGradient
+            colors={['rgba(74, 144, 226, 0.9)', 'rgba(53, 112, 178, 0.9)']}
+            style={styles.updatingContent}
+          >
+            <MaterialCommunityIcons name="arm-flex" size={20} color="#fff" />
+          </LinearGradient>
         </View>
       )}
+      
+      
       
       {/* Bottom Button - Only main button now */}
       <View style={styles.buttonsContainer}>
@@ -370,24 +437,26 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
       
-      {/* Rotate Button - Now positioned at bottom right of screen */}
-      <TouchableOpacity 
-        style={[
-          styles.rotateButton,
-          isFlipCooldown && styles.disabledRotateButton
-        ]}
-        onPress={toggleSilhouetteView}
-        disabled={isFlipCooldown}
-      >
-        <LinearGradient
-          colors={isFlipCooldown 
-            ? ['rgba(150, 150, 150, 0.9)', 'rgba(120, 120, 120, 0.9)'] 
-            : ['rgba(74, 144, 226, 0.9)', 'rgba(53, 112, 178, 0.9)']}
-          style={styles.rotateButtonGradient}
+      {/* Rotate Button */}
+      <View style={styles.floatingButtonsContainer}>
+        <TouchableOpacity 
+          style={[
+            styles.rotateButton,
+            isFlipCooldown && styles.disabledRotateButton
+          ]}
+          onPress={toggleSilhouetteView}
+          disabled={isFlipCooldown}
         >
-          <MaterialCommunityIcons name="rotate-3d-variant" size={26} color="#fff" />
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={isFlipCooldown 
+              ? ['rgba(150, 150, 150, 0.9)', 'rgba(120, 120, 120, 0.9)'] 
+              : ['rgba(74, 144, 226, 0.9)', 'rgba(53, 112, 178, 0.9)']}
+            style={styles.rotateButtonGradient}
+          >
+            <MaterialCommunityIcons name="rotate-3d-variant" size={26} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -490,11 +559,21 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     alignSelf: 'center',
   },
-  rotateButton: {
+  floatingButtonsContainer: {
     position: 'absolute',
     bottom: screenWidth * 0.06,
     right: screenWidth * 0.06,
+    flexDirection: 'column',
+    gap: 12,
     zIndex: 10,
+  },
+
+  rotateButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   disabledRotateButton: {
     opacity: 0.5,
@@ -536,13 +615,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -75 }, { translateY: -10 }],
+    transform: [{ translateX: -10 }, { translateY: -10 }],
     zIndex: 10,
   },
-  loadingText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    textAlign: 'center',
+  updatingOverlay: {
+    position: 'absolute',
+    top: '60%',
+    left: '50%',
+    transform: [{ translateX: -100 }, { translateY: -15 }],
+    zIndex: 15,
+  },
+  updatingContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 20,
   },
   legendContainer: {
     position: 'absolute',

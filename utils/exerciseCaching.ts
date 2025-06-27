@@ -14,6 +14,21 @@ const CACHE_KEY = 'fitcore_exercises_cache';
 const CACHE_TIMESTAMP_KEY = 'fitcore_exercises_cache_timestamp';
 
 /**
+ * Manually clear all exercise cache data
+ * Call this when changing API keys or when you need fresh data
+ */
+export async function clearExerciseCache(): Promise<void> {
+  try {
+    cachedExercises.length = 0; // Clear memory cache
+    await AsyncStorage.removeItem(CACHE_KEY);
+    await AsyncStorage.removeItem(CACHE_TIMESTAMP_KEY);
+    console.log('Exercise cache cleared successfully');
+  } catch (error) {
+    console.error('Error clearing exercise cache:', error);
+  }
+}
+
+/**
  * Check if cached data is still valid
  */
 async function isCacheValid(): Promise<boolean> {

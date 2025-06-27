@@ -11,6 +11,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -28,6 +29,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useAchievements } from '../contexts/AchievementContext';
 import { subscriptionService, SubscriptionType } from '../utils/subscriptionService';
 import { supabase } from '../utils/supabase';
 import { CoinService } from '../utils/coinService';
@@ -105,6 +107,7 @@ export default function ShopScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const { subscriptionType, isSubscribed } = useSubscription();
+  const { triggerCoinsRefresh } = useAchievements();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [userCoins, setUserCoins] = useState(0);
   const [purchasedItems, setPurchasedItems] = useState<string[]>([]);
@@ -134,6 +137,11 @@ export default function ShopScreen() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Refresh coins when screen comes into focus
+  useFocusEffect(() => {
+    loadUserCoins();
+  });
 
   const loadUserCoins = async () => {
     try {
@@ -376,6 +384,9 @@ export default function ShopScreen() {
               // Update local state
               const newCoins = await CoinService.getCoins();
               setUserCoins(newCoins);
+              
+              // Trigger global coins refresh for HeaderStats
+              triggerCoinsRefresh();
               
               let newPurchasedItems = [...purchasedItems];
               

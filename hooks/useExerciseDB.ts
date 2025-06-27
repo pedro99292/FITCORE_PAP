@@ -127,7 +127,7 @@ export const useExerciseDB = (params?: FetchExercisesParams) => {
       }
       else {
         // Fetch all exercises with maximum limit
-        console.log(`Fetching all exercises from ExerciseDB with limit: ${maxLimit}`);
+        // Exercise fetching log removed for cleaner console output
         try {
           results = await fetchFromExerciseDB(`?limit=${maxLimit}`, `/all`);
           console.log(`Successfully fetched ${results.length} exercises from ExerciseDB`);

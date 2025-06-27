@@ -690,12 +690,7 @@ const WorkoutSessionScreen = () => {
       const parsedTime = time && time !== '' ? parseInt(time) : null;
       const parsedDistance = distance && distance !== '' ? parseFloat(distance) : null;
       
-      // Debug logging for cardio exercises
-      if (time !== undefined || distance !== undefined) {
-        console.log(`Cardio update - Exercise: ${exerciseId}, Set: ${setIndex}`);
-        console.log(`Time input: "${time}" -> parsed: ${parsedTime}`);
-        console.log(`Distance input: "${distance}" -> parsed: ${parsedDistance}`);
-      }
+      // Debug logging for cardio exercises - removed for cleaner console output
       
       // Update the specific set with the parsed values
       updatedSets[setIndex] = {
@@ -717,52 +712,115 @@ const WorkoutSessionScreen = () => {
     setElapsed(time);
   }, []);
   
-  // Function to handle showing exercise details
+  // Function to handle showing exercise details - navigate to dedicated screen
   const handleShowExerciseDetails = (exerciseName: string) => {
-    if (!allExercises || allExercises.length === 0) {
-      Alert.alert('Exercise Details', 'Exercise details are still loading. Please try again in a moment.');
+    console.log('=== Exercise Details Debug ===');
+    console.log('Searching for exercise:', exerciseName);
+    console.log('All exercises loading:', loadingAllExercises);
+    console.log('All exercises count:', allExercises?.length || 0);
+    
+    // Check if exercises are still loading
+    if (loadingAllExercises) {
+      Alert.alert('Exercise Details', 'Exercise database is still loading. Please wait a moment and try again.');
       return;
     }
     
-    console.log('Searching for exercise:', exerciseName);
-    console.log('Available exercises count:', allExercises.length);
-    
-    // First try exact match (case insensitive)
-    let exerciseDetails = allExercises.find(ex => 
-      ex.name.toLowerCase() === exerciseName.toLowerCase()
-    );
-    
-    // If no exact match, try partial match
-    if (!exerciseDetails) {
-      exerciseDetails = allExercises.find(ex => 
-        ex.name.toLowerCase().includes(exerciseName.toLowerCase()) ||
-        exerciseName.toLowerCase().includes(ex.name.toLowerCase())
+    // Check if we have any exercises loaded
+    if (!allExercises || allExercises.length === 0) {
+      Alert.alert(
+        'Exercise Details', 
+        'No exercises loaded from database. This might be due to:\n\n• Network connection issues\n• API configuration problems\n• Database temporarily unavailable\n\nPlease check your connection and try again.'
       );
+      return;
     }
     
-    // If still no match, try matching individual words
+    // Enhanced search logic
+    let exerciseDetails = null;
+    
+    // 1. First try exact match (case insensitive)
+    exerciseDetails = allExercises.find(ex => 
+      ex.name.toLowerCase().trim() === exerciseName.toLowerCase().trim()
+    );
+    console.log('Exact match result:', exerciseDetails?.name || 'none');
+    
+    // 2. If no exact match, try partial match (both directions)
     if (!exerciseDetails) {
-      const searchWords = exerciseName.toLowerCase().split(/\s+/);
       exerciseDetails = allExercises.find(ex => {
-        const exerciseWords = ex.name.toLowerCase().split(/\s+/);
+        const exName = ex.name.toLowerCase().trim();
+        const searchName = exerciseName.toLowerCase().trim();
+        return exName.includes(searchName) || searchName.includes(exName);
+      });
+      console.log('Partial match result:', exerciseDetails?.name || 'none');
+    }
+    
+    // 3. If still no match, try word-by-word matching
+    if (!exerciseDetails) {
+      const searchWords = exerciseName.toLowerCase().trim().split(/[\s\-_()]+/).filter(w => w.length > 2);
+      exerciseDetails = allExercises.find(ex => {
+        const exerciseWords = ex.name.toLowerCase().trim().split(/[\s\-_()]+/).filter(w => w.length > 2);
         return searchWords.some(searchWord => 
           exerciseWords.some(exerciseWord => 
             exerciseWord.includes(searchWord) || searchWord.includes(exerciseWord)
           )
         );
       });
+      console.log('Word matching result:', exerciseDetails?.name || 'none');
+      console.log('Search words:', searchWords);
+    }
+    
+    // 4. Last resort: fuzzy matching with common variations
+    if (!exerciseDetails) {
+      const cleanExerciseName = exerciseName.toLowerCase()
+        .replace(/[\-_()]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+        
+      exerciseDetails = allExercises.find(ex => {
+        const cleanDbName = ex.name.toLowerCase()
+          .replace(/[\-_()]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        // Check if 70% of words match
+        const searchWords = cleanExerciseName.split(' ');
+        const dbWords = cleanDbName.split(' ');
+        
+        const matchingWords = searchWords.filter(word => 
+          dbWords.some(dbWord => dbWord.includes(word) || word.includes(dbWord))
+        );
+        
+        return (matchingWords.length / searchWords.length) >= 0.7;
+      });
+      console.log('Fuzzy match result:', exerciseDetails?.name || 'none');
     }
     
     if (exerciseDetails) {
-      console.log('Found exercise:', exerciseDetails.name);
+      console.log('✅ Successfully found exercise:', exerciseDetails.name);
+      console.log('Setting selectedExerciseDetails to:', exerciseDetails.name);
       setSelectedExerciseDetails(exerciseDetails);
+      console.log('State should be set now');
     } else {
-      console.log('No exercise found. First 5 available exercises:', 
-        allExercises.slice(0, 5).map(ex => ex.name));
+      console.log('❌ No exercise found. Showing similar exercises...');
+      
+      // Find similar exercises for better user feedback
+      const similarExercises = allExercises
+        .filter(ex => {
+          const searchWords = exerciseName.toLowerCase().split(/\s+/);
+          const exerciseWords = ex.name.toLowerCase().split(/\s+/);
+          return searchWords.some(word => 
+            exerciseWords.some(exWord => exWord.includes(word) && word.length > 2)
+          );
+        })
+        .slice(0, 3)
+        .map(ex => ex.name);
+      
+      const similarText = similarExercises.length > 0 
+        ? `\n\nSimilar exercises found:\n• ${similarExercises.join('\n• ')}`
+        : '';
       
       Alert.alert(
-        'Exercise Details', 
-        `Could not find details for "${exerciseName}". This might be because:\n\n• The exercise is not in our database\n• The exercise name doesn't match exactly\n• The exercise database is still loading\n\nTry again in a few moments.`,
+        'Exercise Not Found', 
+        `Could not find details for "${exerciseName}".${similarText}\n\nThis might be because:\n• Exercise name doesn't match our database\n• It's a custom exercise not in our system\n• Database needs to be updated`,
         [{ text: 'OK' }]
       );
     }
@@ -770,16 +828,18 @@ const WorkoutSessionScreen = () => {
   
   // Add the modal component for exercise details
   const renderExerciseDetailsModal = () => {
+    console.log('renderExerciseDetailsModal called, selectedExerciseDetails:', !!selectedExerciseDetails);
     if (!selectedExerciseDetails) return null;
 
     return (
       <Modal
         visible={!!selectedExerciseDetails}
         animationType="slide"
-        transparent={true}
+        transparent={false}
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'}
         onRequestClose={() => setSelectedExerciseDetails(null)}
       >
-        <View style={styles.modalOverlay}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#2c2c3e' }}>
           <View style={styles.exerciseModalContent}>
             <ScrollView style={styles.modalScrollView}>
               {/* Header with close button */}
@@ -914,7 +974,7 @@ const WorkoutSessionScreen = () => {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     );
   };
@@ -1356,11 +1416,11 @@ const WorkoutSessionScreen = () => {
             </LinearGradient>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-      
-      {renderExerciseDetailsModal()}
-      
-      <WorkoutSafetyModal
+              </ScrollView>
+        
+        {renderExerciseDetailsModal()}
+        
+        <WorkoutSafetyModal
         visible={showSafetyModal}
         onClose={handleSafetyClose}
         onAcknowledge={handleSafetyAcknowledge}
@@ -1610,16 +1670,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exerciseModalContent: {
-    width: '90%',
-    maxHeight: '90%',
+    flex: 1,
     backgroundColor: '#2c2c3e',
-    borderRadius: 20,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    borderRadius: 0,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1771,6 +1824,14 @@ const styles = StyleSheet.create({
   },
   modalScrollView: {
     flex: 1,
+  },
+  modalSafeArea: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
   },
 });
 

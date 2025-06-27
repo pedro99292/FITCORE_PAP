@@ -17,38 +17,158 @@ export interface StreakSaver {
   used: boolean;
 }
 
+// Note: COINS_STORAGE_KEY is kept for migration purposes only
 const COINS_STORAGE_KEY = 'userCoins';
 const BOOSTS_STORAGE_KEY = 'activeBoosts';
 const STREAK_SAVERS_STORAGE_KEY = 'streakSavers';
 
 export class CoinService {
-  // Get current coins from AsyncStorage
-  static async getCoins(): Promise<number> {
+  // Get current coins from database
+  static async getCoins(userId?: string): Promise<number> {
     try {
-      const coins = await AsyncStorage.getItem(COINS_STORAGE_KEY);
-      return coins ? parseInt(coins) : 0;
+      // Get user ID if not provided
+      if (!userId) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) {
+          console.log('No authenticated user found');
+          return 0;
+        }
+        userId = userData.user.id;
+      }
+
+      // Get coins from users_data table
+      const { data, error } = await supabase
+        .from('users_data')
+        .select('coins')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No record found - create one with 0 coins
+          await this.initializeUserCoins(userId);
+          return 0;
+        }
+        console.error('Error getting coins from database:', error);
+        return 0;
+      }
+
+      return data?.coins || 0;
     } catch (error) {
       console.error('Error getting coins:', error);
       return 0;
     }
   }
 
-  // Set coins in AsyncStorage
-  static async setCoins(amount: number): Promise<void> {
+  // Set coins in database
+  static async setCoins(amount: number, userId?: string): Promise<void> {
     try {
-      await AsyncStorage.setItem(COINS_STORAGE_KEY, amount.toString());
+      // Get user ID if not provided
+      if (!userId) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) {
+          console.error('No authenticated user found');
+          return;
+        }
+        userId = userData.user.id;
+      }
+
+      // Update coins in users_data table using upsert
+      const { error } = await supabase
+        .from('users_data')
+        .upsert({
+          user_id: userId,
+          coins: Math.max(0, amount), // Ensure coins never go negative
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('Error setting coins in database:', error);
+      }
     } catch (error) {
       console.error('Error setting coins:', error);
     }
   }
 
-  // Add coins with boost calculation
-  static async addCoins(amount: number): Promise<number> {
+  // Initialize user coins record if it doesn't exist
+  static async initializeUserCoins(userId: string): Promise<void> {
     try {
-      const currentCoins = await this.getCoins();
+      const { error } = await supabase
+        .from('users_data')
+        .upsert({
+          user_id: userId,
+          coins: 0,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('Error initializing user coins:', error);
+      }
+    } catch (error) {
+      console.error('Error initializing user coins:', error);
+    }
+  }
+
+  // Migrate coins from AsyncStorage to database (run once during app upgrade)
+  static async migrateCoinsToDatabase(userId?: string): Promise<boolean> {
+    try {
+      // Get user ID if not provided
+      if (!userId) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) {
+          console.log('No authenticated user found for migration');
+          return false;
+        }
+        userId = userData.user.id;
+      }
+
+      // Check if user already has coins in database
+      const currentDbCoins = await this.getCoins(userId);
+      
+      // Get coins from AsyncStorage
+      const asyncStorageCoins = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+      const localCoins = asyncStorageCoins ? parseInt(asyncStorageCoins) : 0;
+      
+      // If user has coins in AsyncStorage but not in database, migrate them
+      if (localCoins > 0 && currentDbCoins === 0) {
+        console.log(`🪙 Migrating ${localCoins} coins from local storage to database`);
+        await this.setCoins(localCoins, userId);
+        
+        // Clear AsyncStorage after successful migration
+        await AsyncStorage.removeItem(COINS_STORAGE_KEY);
+        console.log('✅ Coins migrated successfully');
+        return true;
+      }
+      
+      // If user has no coins in either place, initialize to 0
+      if (localCoins === 0 && currentDbCoins === 0) {
+        await this.initializeUserCoins(userId);
+      }
+      
+      // Clean up AsyncStorage if database has coins
+      if (currentDbCoins > 0 && localCoins > 0) {
+        console.log('🧹 Cleaning up AsyncStorage coins (database already has coins)');
+        await AsyncStorage.removeItem(COINS_STORAGE_KEY);
+      }
+      
+      return false; // No migration needed
+    } catch (error) {
+      console.error('Error migrating coins to database:', error);
+      return false;
+    }
+  }
+
+  // Add coins with boost calculation
+  static async addCoins(amount: number, userId?: string): Promise<number> {
+    try {
+      const currentCoins = await this.getCoins(userId);
       const boostedAmount = await this.applyBoosts(amount);
       const newTotal = currentCoins + boostedAmount;
-      await this.setCoins(newTotal);
+      await this.setCoins(newTotal, userId);
       return boostedAmount; // Return the actual amount added (with boosts)
     } catch (error) {
       console.error('Error adding coins:', error);
@@ -57,11 +177,11 @@ export class CoinService {
   }
 
   // Subtract coins
-  static async subtractCoins(amount: number): Promise<boolean> {
+  static async subtractCoins(amount: number, userId?: string): Promise<boolean> {
     try {
-      const currentCoins = await this.getCoins();
+      const currentCoins = await this.getCoins(userId);
       if (currentCoins >= amount) {
-        await this.setCoins(currentCoins - amount);
+        await this.setCoins(currentCoins - amount, userId);
         return true;
       }
       return false;
@@ -206,12 +326,12 @@ export class CoinService {
   }
 
   // Update coins based on new achievement unlocks (with boost)
-  static async updateCoinsFromNewAchievements(unlockedAchievements: any[]): Promise<number> {
+  static async updateCoinsFromNewAchievements(unlockedAchievements: any[], userId?: string): Promise<number> {
     const totalNewCoins = unlockedAchievements.reduce((sum, achievement) => sum + achievement.coins, 0);
     const boostedCoins = await this.applyBoosts(totalNewCoins);
     
-    const currentCoins = await this.getCoins();
-    await this.setCoins(currentCoins + boostedCoins);
+    const currentCoins = await this.getCoins(userId);
+    await this.setCoins(currentCoins + boostedCoins, userId);
     
     return boostedCoins;
   }

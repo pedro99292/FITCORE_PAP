@@ -110,7 +110,7 @@ export const getUserWorkoutsWithDetails = async (userId: string) => {
   
   console.timeEnd('⚙️ Data processing time');
   
-  console.log(`📊 Query returned ${workouts.length} workouts with ${workoutStats?.length || 0} total sets`);
+  // Query stats logging removed for cleaner console output
   
   return result;
 };

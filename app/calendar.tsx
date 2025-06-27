@@ -197,15 +197,27 @@ export default function CalendarScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Delete the session from the database
-              const { error } = await supabase
+              // Delete any related session sets first (due to foreign key constraints)
+              const { error: setsDeleteError } = await supabase
+                .from('session_sets')
+                .delete()
+                .eq('session_id', sessionId);
+                
+              if (setsDeleteError) {
+                console.error('Error deleting session sets:', setsDeleteError);
+                Alert.alert('Error', 'Failed to delete workout session data. Please try again.');
+                return;
+              }
+
+              // Then delete the session itself
+              const { error: sessionDeleteError } = await supabase
                 .from('sessions')
                 .delete()
                 .eq('session_id', sessionId)
                 .eq('user_id', user?.id);
 
-              if (error) {
-                console.error('Error deleting workout session:', error);
+              if (sessionDeleteError) {
+                console.error('Error deleting workout session:', sessionDeleteError);
                 Alert.alert('Error', 'Failed to delete workout session. Please try again.');
                 return;
               }

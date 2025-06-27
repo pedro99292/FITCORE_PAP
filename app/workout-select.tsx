@@ -1,7 +1,7 @@
 import { StyleSheet, View, Text, TouchableOpacity, FlatList, Dimensions, SafeAreaView, StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useMemo, useCallback } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/hooks/useTheme';
 import { router } from 'expo-router';
@@ -9,6 +9,13 @@ import { supabase } from '@/utils/supabase';
 import { getUserWorkoutsWithDetails, getUserWorkoutsBasic } from '@/utils/workoutService';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// Simple in-memory cache for faster subsequent loads
+let workoutCache: {
+  data: WorkoutType[];
+  timestamp: number;
+  userId: string;
+} | null = null;
 
 // Define workout type based on DB schema
 interface WorkoutType {
@@ -23,15 +30,16 @@ interface WorkoutType {
 }
 
 // Workout item component
-const WorkoutItem = memo(({ workout, onSelect }: { 
+const WorkoutItem = memo(({ workout, onSelect, index }: { 
   workout: WorkoutType, 
-  onSelect: (workout: WorkoutType) => void 
+  onSelect: (workout: WorkoutType) => void,
+  index: number
 }) => {
   const { colors } = useTheme();
   
   return (
     <Animated.View 
-      entering={FadeInDown.delay(parseInt(workout.workout_id) * 50).springify()}
+      entering={FadeInDown.delay(index * 30).springify()}
       style={styles.workoutItemContainer}
     >
       <TouchableOpacity 
@@ -95,33 +103,66 @@ const WorkoutSelectScreen = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
-  // Cache duration: 5 minutes
-  const CACHE_DURATION = 5 * 60 * 1000;
+  // Cache duration: 10 minutes (increased for better performance)
+  const CACHE_DURATION = 10 * 60 * 1000;
+
+  // Instant cache check on component mount
+  useEffect(() => {
+    const checkInstantCache = async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user && workoutCache && 
+            workoutCache.userId === userData.user.id && 
+            (Date.now() - workoutCache.timestamp) < CACHE_DURATION) {
+          setWorkouts(workoutCache.data);
+          setLoading(false);
+          setLastFetchTime(workoutCache.timestamp);
+        }
+      } catch (error) {
+        console.log('Quick cache check failed, proceeding with normal load');
+      }
+    };
+    
+    checkInstantCache();
+  }, []);
+
+  // Memoize the workout loading check for better performance
+  const shouldLoadWorkouts = useMemo(() => {
+    const now = Date.now();
+    return workouts.length === 0 || (now - lastFetchTime) >= CACHE_DURATION;
+  }, [workouts.length, lastFetchTime, CACHE_DURATION]);
 
   // Fetch user's workouts from the database
   useEffect(() => {
     const fetchWorkouts = async () => {
-      // Check if we have cached data that's still fresh
-      const now = Date.now();
-      if (workouts.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        setLoading(true);
-        console.time('🏋️ Total workout loading time');
-        
-        // Get current user
-        console.time('👤 User authentication');
+        // Get current user first (fast check)
         const { data: userData } = await supabase.auth.getUser();
-        console.timeEnd('👤 User authentication');
         
         if (!userData.user) {
           Alert.alert('Not logged in', 'Please log in to view your workouts');
           router.replace('/(tabs)/profile');
           return;
         }
+
+        // Check in-memory cache first (instant)
+        if (workoutCache && 
+            workoutCache.userId === userData.user.id && 
+            (Date.now() - workoutCache.timestamp) < CACHE_DURATION) {
+          setWorkouts(workoutCache.data);
+          setLoading(false);
+          setLastFetchTime(workoutCache.timestamp);
+          return;
+        }
+
+        // Check if we have local cached data that's still fresh
+        if (!shouldLoadWorkouts) {
+          setLoading(false);
+          return;
+        }
+
+        setLoading(true);
+        console.time('🏋️ Total workout loading time');
         
         // Step 1: Load basic workout data FAST (no exercise details)
         console.time('📊 Basic workout data');
@@ -130,29 +171,45 @@ const WorkoutSelectScreen = () => {
         
         console.log(`✅ Loaded ${basicWorkouts.length} basic workouts`);
         setWorkouts(basicWorkouts);
+        const now = Date.now();
         setLastFetchTime(now);
+        
+        // Update in-memory cache
+        workoutCache = {
+          data: basicWorkouts,
+          timestamp: now,
+          userId: userData.user.id
+        };
+        
         setLoading(false); // Show workouts immediately
         
         console.timeEnd('🏋️ Total workout loading time');
         
-        // Step 2: Load detailed stats in background (async)
+        // Step 2: Load detailed stats in background (async) - removed delay for faster loading
         if (basicWorkouts.length > 0) {
           setLoadingDetails(true);
           
-          setTimeout(async () => {
+          // Load details immediately, no artificial delay
+          (async () => {
             try {
               console.time('📊 Detailed workout stats');
               const detailedWorkouts = await getUserWorkoutsWithDetails(userData.user.id);
               console.timeEnd('📊 Detailed workout stats');
               
               setWorkouts(detailedWorkouts);
+              
+              // Update cache with detailed data
+              if (workoutCache && workoutCache.userId === userData.user.id) {
+                workoutCache.data = detailedWorkouts;
+              }
+              
               setLoadingDetails(false);
             } catch (detailsError) {
               console.error('Error loading workout details:', detailsError);
               setLoadingDetails(false);
               // Keep basic data if details fail
             }
-          }, 100); // Small delay to let UI render
+          })();
         }
         
       } catch (err) {
@@ -163,19 +220,19 @@ const WorkoutSelectScreen = () => {
     };
     
     fetchWorkouts();
-  }, []);
+  }, [shouldLoadWorkouts]);
 
-  const handleSelectWorkout = (workout: WorkoutType) => {
+  const handleSelectWorkout = useCallback((workout: WorkoutType) => {
     // Navigate to workout session with the selected workout data
     router.push({
       pathname: "/workout-session",
       params: { workoutId: workout.workout_id }
     });
-  };
+  }, []);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     router.back();
-  };
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -223,14 +280,20 @@ const WorkoutSelectScreen = () => {
         <FlatList
           data={workouts}
           keyExtractor={(item) => item.workout_id.toString()}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <WorkoutItem 
               workout={item} 
               onSelect={handleSelectWorkout}
+              index={index}
             />
           )}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={8}
+          windowSize={10}
         />
       )}
     </SafeAreaView>

@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useMemo, useCall
 import { supabase } from '@/utils/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { router } from 'expo-router';
+import { CoinService } from '@/utils/coinService';
 
 // Define types
 type AuthContextType = {
@@ -40,6 +41,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Redirect to login if user exists but email is not verified
       if (currentUser && !isVerified) {
         router.replace('/login');
+      }
+      
+      // Migrate coins from AsyncStorage to database when user logs in
+      if (currentUser && isVerified) {
+        CoinService.migrateCoinsToDatabase(currentUser.id).catch(error => {
+          console.error('Error migrating coins to database:', error);
+        });
       }
       
       setLoading(false);

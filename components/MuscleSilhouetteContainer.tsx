@@ -56,22 +56,9 @@ const MuscleSilhouetteContainer: React.FC<MuscleSilhouetteContainerProps> = ({
   }, [isFlipCooldown, rotation]);
 
   // Handle muscle press with feedback
-  const handleMusclePress = useCallback((muscleId: string) => {
-    console.log(`Muscle pressed: ${muscleId}`);
-    
-    // Provide haptic feedback (optional)
-    // Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Call the parent handler
+  const handleMusclePress = (muscleId: string) => {
     onMusclePress?.(muscleId);
-    
-    // For demo purposes, show an alert
-    Alert.alert(
-      'Muscle Selected', 
-      `You selected: ${muscleId}`,
-      [{ text: 'OK' }]
-    );
-  }, [onMusclePress]);
+  };
 
   // Animated styles for the container
   const rotateStyle = useAnimatedStyle(() => {

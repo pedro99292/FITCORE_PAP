@@ -273,16 +273,11 @@ const MainLayout = () => {
           },
           headerShown: false,
         }}>
-        {/* Show auth screens when not logged in */}
-        {!user ? (
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        ) : (
-          <>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: true }} />
-            <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile', headerShown: true }} />
-          </>
-        )}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: true }} />
+        <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile', headerShown: true }} />
       </Stack>
       {/* Only render subscription components when user is logged in */}
       {user && <SubscriptionWrapper />}
@@ -313,10 +308,7 @@ const RootLayout = () => {
           // App can still function without these resources
         }
         
-        // Remove artificial delay in production
-        if (__DEV__ && Platform.OS !== 'web') {
-          await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 500ms
-        }
+        // No artificial delay needed - let splash screen handle timing
       } catch (e) {
         console.warn('Error during app initialization:', e);
       } finally {
@@ -345,9 +337,10 @@ const RootLayout = () => {
             <SubscriptionProvider>
               <WorkoutProvider>
                 <AchievementProvider>
-                  <MainLayout />
-                  {showCustomSplash && (
+                  {showCustomSplash ? (
                     <SplashScreenComponent onFinish={handleSplashFinish} />
+                  ) : (
+                    <MainLayout />
                   )}
                 </AchievementProvider>
               </WorkoutProvider>
