@@ -65,8 +65,11 @@ export default function WorkoutHistoryDetailScreen() {
             exercise_name,
             actual_reps,
             actual_weight,
+            actual_time,
+            actual_distance,
             set_order,
-            timestamp
+            timestamp,
+            exercise_target
           `)
           .eq('session_id', sessionId)
           .order('set_order', { ascending: true });
@@ -110,6 +113,28 @@ export default function WorkoutHistoryDetailScreen() {
     if (!seconds) return '0 min';
     const minutes = Math.floor(seconds / 60);
     return `${minutes} min`;
+  };
+
+  // Format time from seconds to MM:SS
+  const formatExerciseTime = (seconds: number) => {
+    if (!seconds) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Helper function to check if an exercise is cardio-based
+  const isCardioExercise = (exerciseName: string, exerciseTarget?: string): boolean => {
+    const timeBasedCardioExercises = [
+      'run', 'run (equipment)', 'stationary bike walk', 'stationary bike run v.3',
+      'walk elliptical cross trainer', 'walking on stepmill', 'cycle cross trainer',
+      'jump rope', 'wheel run', 'push to run', 'treadmill running', 'cycling',
+      'elliptical', 'rowing', 'swimming'
+    ];
+    
+    return timeBasedCardioExercises.some(timeBasedName => 
+      exerciseName.toLowerCase().includes(timeBasedName.toLowerCase())
+    ) || (exerciseTarget?.toLowerCase().includes('cardiovascular') ?? false);
   };
   
   // Group exercises by name for better display
@@ -199,31 +224,65 @@ export default function WorkoutHistoryDetailScreen() {
                 </Text>
               </View>
             ) : (
-              Object.entries(groupedExercises).map(([name, sets]: [string, any]) => (
-                <View key={name} style={styles.exerciseContainer}>
-                  <Text style={[styles.exerciseName, { color: colors.text }]}>{name}</Text>
-                  
-                  <View style={styles.setsHeaderContainer}>
-                    <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.2 }]}>Set</Text>
-                    <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Weight</Text>
-                    <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Reps</Text>
-                  </View>
-                  
-                  {sets.map((set: any, index: number) => (
-                    <View key={set.id} style={styles.setRow}>
-                      <View style={[styles.setNumberContainer, { backgroundColor: colors.primary + '20' }]}>
-                        <Text style={[styles.setNumber, { color: colors.primary }]}>{index + 1}</Text>
-                      </View>
-                      <Text style={[styles.setValue, { color: colors.text }]}>
-                        {set.actual_weight} kg
-                      </Text>
-                      <Text style={[styles.setValue, { color: colors.text }]}>
-                        {set.actual_reps} reps
-                      </Text>
+              Object.entries(groupedExercises).map(([name, sets]: [string, any]) => {
+                const isCardio = isCardioExercise(name, sets[0]?.exercise_target);
+                
+                return (
+                  <View key={name} style={styles.exerciseContainer}>
+                    <Text style={[styles.exerciseName, { color: colors.text }]}>{name}</Text>
+                    
+                    <View style={styles.setsHeaderContainer}>
+                      <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.2 }]}>Set</Text>
+                      {isCardio ? (
+                        <>
+                          <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Time</Text>
+                          <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Distance</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Weight</Text>
+                          <Text style={[styles.setsHeaderText, { color: colors.text, flex: 0.4 }]}>Reps</Text>
+                        </>
+                      )}
                     </View>
-                  ))}
-                </View>
-              ))
+                    
+                    {sets.map((set: any, index: number) => (
+                      <View key={set.id} style={styles.setRow}>
+                        <View style={[styles.setNumberContainer, { backgroundColor: colors.primary + '20' }]}>
+                          <Text style={[styles.setNumber, { color: colors.primary }]}>{index + 1}</Text>
+                        </View>
+                        {isCardio ? (
+                          <>
+                            <View style={{ flex: 0.4 }}>
+                              <Text style={[styles.setValue, { color: colors.text }]}>
+                                {set.actual_time ? formatExerciseTime(set.actual_time) : '-'}
+                              </Text>
+                            </View>
+                            <View style={{ flex: 0.4 }}>
+                              <Text style={[styles.setValue, { color: colors.text }]}>
+                                {set.actual_distance ? `${set.actual_distance} km` : '-'}
+                              </Text>
+                            </View>
+                          </>
+                        ) : (
+                          <>
+                            <View style={{ flex: 0.4 }}>
+                              <Text style={[styles.setValue, { color: colors.text }]}>
+                                {set.actual_weight ? `${set.actual_weight} kg` : '-'}
+                              </Text>
+                            </View>
+                            <View style={{ flex: 0.4 }}>
+                              <Text style={[styles.setValue, { color: colors.text }]}>
+                                {set.actual_reps ? `${set.actual_reps} reps` : '-'}
+                              </Text>
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                );
+              })
             )}
           </View>
           
@@ -392,11 +451,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     opacity: 0.7,
+    textAlign: 'center',
   },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(150, 150, 150, 0.1)',
   },
@@ -406,7 +467,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    flex: 0.2,
   },
   setNumber: {
     fontSize: 14,
@@ -414,7 +475,7 @@ const styles = StyleSheet.create({
   },
   setValue: {
     fontSize: 15,
-    flex: 1,
+    textAlign: 'center',
   },
   notesText: {
     fontSize: 15,
