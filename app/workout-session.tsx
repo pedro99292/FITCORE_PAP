@@ -15,6 +15,7 @@ import { useAchievements } from '@/contexts/AchievementContext';
 import WorkoutSafetyModal from '@/components/WorkoutSafetyModal';
 import { getTopPriorityWarnings } from '@/constants/safetyWarnings';
 import SafetyPreferences from '@/utils/safetyPreferences';
+import CardioExerciseItem from '@/components/CardioExerciseItem';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -54,6 +55,8 @@ interface SessionSetType {
   exercise_id: string;
   actual_reps: number | null;
   actual_weight: number | null;
+  actual_time: number | null; // Time in seconds for cardio exercises
+  actual_distance: number | null; // Distance in km for cardio exercises
   set_order: number;
 }
 
@@ -107,7 +110,8 @@ const Stopwatch = memo(({ onTimeUpdate }: { onTimeUpdate: (time: number) => void
       timerRef.current = setInterval(() => {
         setTime(prevTime => {
           const newTime = prevTime + 1;
-          onTimeUpdate(newTime);
+          // Call onTimeUpdate after state update, not during
+          setTimeout(() => onTimeUpdate(newTime), 0);
           return newTime;
         });
       }, 1000);
@@ -158,22 +162,57 @@ const Stopwatch = memo(({ onTimeUpdate }: { onTimeUpdate: (time: number) => void
   );
 });
 
+// Helper function to check if an exercise should use time-based input
+const isTimeBasedExercise = (exerciseName: string): boolean => {
+  const timeBasedCardioExercises = [
+    'run', 'run (equipment)', 'stationary bike walk', 'stationary bike run v.3',
+    'walk elliptical cross trainer', 'walking on stepmill', 'cycle cross trainer',
+    'jump rope', 'wheel run', 'push to run', 'treadmill running', 'cycling',
+    'elliptical', 'rowing', 'swimming'
+  ];
+  
+  return timeBasedCardioExercises.some(timeBasedName => 
+    exerciseName.toLowerCase().includes(timeBasedName.toLowerCase())
+  );
+};
+
+// Helper function to check if an exercise is cardio-based
+const isCardioExercise = (exercise: ExerciseType): boolean => {
+  return exercise.bodyPart?.toLowerCase() === 'cardio' ||
+         exercise.target?.toLowerCase().includes('cardiovascular') ||
+         isTimeBasedExercise(exercise.name);
+};
+
 // Exercise item component with set tracking
 const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails }: { 
   exercise: ExerciseType,
   index: number,
-  onSetUpdate: (exerciseId: string, setIndex: number, reps: string, weight: string) => void,
+  onSetUpdate: (exerciseId: string, setIndex: number, reps: string, weight: string, time?: string, distance?: string) => void,
   onShowExerciseDetails: (exerciseName: string) => void
 }) => {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
-  const [completedSets, setCompletedSets] = useState<Array<{reps: string, weight: string}>>([]);
+  const [completedSets, setCompletedSets] = useState<Array<{
+    reps: string, 
+    weight: string, 
+    time: string, 
+    distance: string
+  }>>([]);
   const [customSets, setCustomSets] = useState<WorkoutSetType[]>([]);
   const rotationValue = useSharedValue(0);
   
+  // Determine if this is a cardio exercise
+  const isCardio = isCardioExercise(exercise);
+  const isTimeBased = isTimeBasedExercise(exercise.name);
+  
   // Initialize the completed sets and custom sets
   useEffect(() => {
-    setCompletedSets(Array(exercise.sets.length).fill({reps: '', weight: ''}));
+    setCompletedSets(Array(exercise.sets.length).fill({
+      reps: '', 
+      weight: '', 
+      time: '', 
+      distance: ''
+    }));
     setCustomSets([...exercise.sets]);
   }, [exercise.sets.length]);
   
@@ -188,9 +227,9 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
     };
   });
   
-  const updateSet = (index: number, field: 'reps' | 'weight', value: string) => {
-    // Ensure only numeric input
-    if (value && !/^[0-9]*\.?[0-9]*$/.test(value)) {
+  const updateSet = (index: number, field: 'reps' | 'weight' | 'time' | 'distance', value: string) => {
+    // Ensure only numeric input (allow time format MM:SS for time field)
+    if (value && field !== 'time' && !/^[0-9]*\.?[0-9]*$/.test(value)) {
       return; // Reject non-numeric input
     }
     
@@ -198,7 +237,7 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
     
     // Initialize the set if it doesn't exist
     if (!newSets[index]) {
-      newSets[index] = { reps: '', weight: '' };
+      newSets[index] = { reps: '', weight: '', time: '', distance: '' };
     }
     
     newSets[index] = { ...newSets[index], [field]: value };
@@ -207,12 +246,16 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
     // Always notify parent to ensure state is updated
     const repsValue = field === 'reps' ? value : newSets[index].reps || '';
     const weightValue = field === 'weight' ? value : newSets[index].weight || '';
+    const timeValue = field === 'time' ? value : newSets[index].time || '';
+    const distanceValue = field === 'distance' ? value : newSets[index].distance || '';
     
     onSetUpdate(
       exercise.id,
       index,
       repsValue,
-      weightValue
+      weightValue,
+      timeValue,
+      distanceValue
     );
   };
   
@@ -227,14 +270,16 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
         // Update the state to reflect we're using the planned value
         const newSets = [...completedSets];
         if (!newSets[setIndex]) {
-          newSets[setIndex] = { reps: '', weight: '' };
+          newSets[setIndex] = { reps: '', weight: '', time: '', distance: '' };
         }
         // Don't update the visual input, but notify parent that we should use the planned value
         onSetUpdate(
           exercise.id,
           setIndex,
           plannedReps, // Use the planned value
-          completedSets[setIndex]?.weight || ''
+          completedSets[setIndex]?.weight || '',
+          completedSets[setIndex]?.time || '',
+          completedSets[setIndex]?.distance || ''
         );
       }
     }
@@ -256,7 +301,7 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
     setCustomSets(updatedCustomSets);
     
     // Update completed sets state with a new empty entry
-    const newCompletedSets = [...completedSets, { reps: '', weight: '' }];
+    const newCompletedSets = [...completedSets, { reps: '', weight: '', time: '', distance: '' }];
     setCompletedSets(newCompletedSets);
     
     // Notify parent about the empty set
@@ -276,8 +321,13 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
     const updatedCustomSets = customSets.slice(0, -1);
     setCustomSets(updatedCustomSets);
     
-    // Update completed sets
-    const newCompletedSets = completedSets.slice(0, -1);
+    // Update completed sets - ensure all objects have the required properties
+    const newCompletedSets = completedSets.slice(0, -1).map(set => ({
+      reps: set.reps || '',
+      weight: set.weight || '',
+      time: set.time || '',
+      distance: set.distance || ''
+    }));
     setCompletedSets(newCompletedSets);
   };
   
@@ -612,7 +662,7 @@ const WorkoutSessionScreen = () => {
   }, [loading, workout, exercises.length]); // Removed state dependencies to prevent loops
   
   // Handle set data updates
-  const handleSetUpdate = (exerciseId: string, setIndex: number, reps: string, weight: string) => {
+  const handleSetUpdate = (exerciseId: string, setIndex: number, reps: string, weight: string, time?: string, distance?: string) => {
     setSessionSets(prev => {
       const newMap = new Map(prev);
       
@@ -628,6 +678,8 @@ const WorkoutSessionScreen = () => {
           exercise_id: exerciseId,
           actual_reps: null,
           actual_weight: null, 
+          actual_time: null,
+          actual_distance: null,
           set_order: updatedSets.length
         });
       }
@@ -635,12 +687,23 @@ const WorkoutSessionScreen = () => {
       // Parse the numeric values from the input strings
       const parsedReps = reps ? parseInt(reps) : null;
       const parsedWeight = weight ? parseFloat(weight) : null;
+      const parsedTime = time && time !== '' ? parseInt(time) : null;
+      const parsedDistance = distance && distance !== '' ? parseFloat(distance) : null;
+      
+      // Debug logging for cardio exercises
+      if (time !== undefined || distance !== undefined) {
+        console.log(`Cardio update - Exercise: ${exerciseId}, Set: ${setIndex}`);
+        console.log(`Time input: "${time}" -> parsed: ${parsedTime}`);
+        console.log(`Distance input: "${distance}" -> parsed: ${parsedDistance}`);
+      }
       
       // Update the specific set with the parsed values
       updatedSets[setIndex] = {
         exercise_id: exerciseId,
         actual_reps: parsedReps,
         actual_weight: parsedWeight,
+        actual_time: parsedTime,
+        actual_distance: parsedDistance,
         set_order: setIndex
       };
       
@@ -931,6 +994,8 @@ const WorkoutSessionScreen = () => {
               exercise_id: exerciseId,
               actual_reps: workoutSet.planned_reps,
               actual_weight: 0,
+              actual_time: null,
+              actual_distance: null,
               set_order: i
             };
           } else {
@@ -944,16 +1009,27 @@ const WorkoutSessionScreen = () => {
           totalSetsCompleted++;
           
           // Add to insertion batch
-          setsToInsert.push({
+          const setToInsert = {
             id: nextSetId++,
             session_id: sessionId,
             exercise_name: exercise.name,
             actual_reps: sessionSet.actual_reps !== null ? sessionSet.actual_reps : workoutSet.planned_reps || 0,
             actual_weight: sessionSet.actual_weight !== null ? sessionSet.actual_weight : 0,
+            actual_time: sessionSet.actual_time,
+            actual_distance: sessionSet.actual_distance,
             set_order: i,
             timestamp: new Date().toISOString(),
             exercise_target: exercise.target || ""
-          });
+          };
+          
+          // Debug logging for cardio data
+          if (sessionSet.actual_time !== null || sessionSet.actual_distance !== null) {
+            console.log(`Saving cardio set - Exercise: ${exercise.name}, Set: ${i}`);
+            console.log(`Time: ${sessionSet.actual_time}, Distance: ${sessionSet.actual_distance}`);
+            console.log('Full set data:', setToInsert);
+          }
+          
+          setsToInsert.push(setToInsert);
         }
       }
       
@@ -1236,15 +1312,33 @@ const WorkoutSessionScreen = () => {
             </Text>
           </View>
         ) : (
-          exercises.map((exercise, index) => (
-            <ExerciseItem 
-              key={exercise.id} 
-              exercise={exercise} 
-              index={index} 
-              onSetUpdate={handleSetUpdate}
-              onShowExerciseDetails={handleShowExerciseDetails}
-            />
-          ))
+          exercises.map((exercise, index) => {
+            const isCardio = isCardioExercise(exercise);
+            const isTimeBased = isTimeBasedExercise(exercise.name);
+            
+            if (isCardio) {
+              return (
+                <CardioExerciseItem
+                  key={exercise.id}
+                  exercise={exercise}
+                  index={index}
+                  onSetUpdate={handleSetUpdate}
+                  onShowExerciseDetails={handleShowExerciseDetails}
+                  isTimeBased={isTimeBased}
+                />
+              );
+            }
+            
+            return (
+              <ExerciseItem 
+                key={exercise.id} 
+                exercise={exercise} 
+                index={index} 
+                onSetUpdate={handleSetUpdate}
+                onShowExerciseDetails={handleShowExerciseDetails}
+              />
+            );
+          })
         )}
         
         <View style={styles.completeButtonContainer}>

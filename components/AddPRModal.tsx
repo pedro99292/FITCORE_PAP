@@ -423,7 +423,7 @@ const AddPRModal: React.FC<AddPRModalProps> = ({ visible, onClose, onSave, initi
               ) : (
                 <>
                   {/* Time Input */}
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Time (Optional)</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Time</Text>
                   <View style={styles.valueContainer}>
                     <TextInput
                       style={[styles.valueInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -447,7 +447,7 @@ const AddPRModal: React.FC<AddPRModalProps> = ({ visible, onClose, onSave, initi
                   </View>
 
                   {/* Distance Input */}
-                  <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 16 }]}>Distance (Optional)</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 16 }]}>Distance</Text>
                   <View style={styles.valueContainer}>
                     <TextInput
                       style={[styles.valueInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}

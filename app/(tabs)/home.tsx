@@ -10,11 +10,13 @@ import { Image as ExpoImage } from 'expo-image';
 import { Asset } from 'expo-asset';
 import { router } from 'expo-router';
 import { useWorkoutStats } from '@/contexts/WorkoutContext';
+import { useAuth } from '@/contexts/AuthContext';
+import InteractiveMuscleSilhouette, { MuscleState } from '../../components/InteractiveMuscleSilhouette';
+import { generateMuscleStatesWithWeeklyActivity } from '@/utils/muscleColorService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Pre-loaded images for faster loading
-const FRONT_SILHOUETTE = require('../../assets/images/muscle-silhouette-front.png');
+// Pre-loaded images for faster loading (keeping back silhouette until you create back SVG)
 const BACK_SILHOUETTE = require('../../assets/images/muscle-silhouette-back.png');
 
 // Removed local useWorkoutStats hook - now using context
@@ -159,6 +161,7 @@ const OptimizedImage = ({
 const HomeScreen = () => {
   // Use theme from context
   const { colors, isDarkMode } = useTheme();
+  const { user } = useAuth();
   
   // Animation values
   const rotation = useSharedValue(0);
@@ -167,13 +170,38 @@ const HomeScreen = () => {
   
   // Add state for button cooldown and loading overlay
   const [isFlipCooldown, setIsFlipCooldown] = useState(false);
+  
+  // State for muscle states
+  const [muscleStates, setMuscleStates] = useState<Record<string, MuscleState>>({});
+  const [muscleStatesLoading, setMuscleStatesLoading] = useState(true);
 
-  // Preload silhouette images
+  // Load muscle states with weekly activity
+  useEffect(() => {
+    const loadMuscleStates = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setMuscleStatesLoading(true);
+        const states = await generateMuscleStatesWithWeeklyActivity(user.id);
+        setMuscleStates(states);
+      } catch (error) {
+        console.error('Error loading muscle states:', error);
+        // Set default states if error occurs
+        setMuscleStates({});
+      } finally {
+        setMuscleStatesLoading(false);
+      }
+    };
+
+    loadMuscleStates();
+  }, [user?.id]);
+
+  // Preload silhouette images (only back for now)
   useEffect(() => {
     const preloadImages = async () => {
       try {
-        await Asset.loadAsync([FRONT_SILHOUETTE, BACK_SILHOUETTE]);
-        console.log('Silhouette images preloaded successfully');
+        await Asset.loadAsync([BACK_SILHOUETTE]);
+        console.log('Back silhouette image preloaded successfully');
       } catch (error) {
         console.error('Error preloading images:', error);
       }
@@ -233,6 +261,24 @@ const HomeScreen = () => {
     transform: [{ scale: silhouetteScale.value }]
   }));
 
+  const handleMusclePress = (muscleId: string) => {
+    const muscle = muscleStates[muscleId];
+    if (muscle) {
+      const frequency = Math.round(muscle.intensity * 3); // Convert back to frequency
+      let message = `${muscle.name}: `;
+      
+      if (frequency === 0) {
+        message += 'Not trained this week';
+      } else if (frequency === 1) {
+        message += 'Trained 1 day this week';
+      } else {
+        message += `Trained ${frequency} days this week`;
+      }
+      
+      Alert.alert('Muscle Activity', message);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
@@ -244,10 +290,12 @@ const HomeScreen = () => {
       <Animated.View style={[styles.silhouetteContainer, silhouetteAnimatedStyle]}>
         {/* Container for front view */}
         <Animated.View style={[rotateStyle, styles.silhouetteWrapper]}>
-          <OptimizedImage
-            source={FRONT_SILHOUETTE}
-            contentFit="contain"
-            style={styles.silhouette}
+          <InteractiveMuscleSilhouette
+            view="front"
+            interactive={true}
+            showIntensityColors={true}
+            muscleStates={muscleStates}
+            onMusclePress={handleMusclePress}
           />
         </Animated.View>
         
@@ -275,6 +323,38 @@ const HomeScreen = () => {
           />
         </Animated.View>
       </Animated.View>
+      
+      {/* Loading indicator for muscle states */}
+      {muscleStatesLoading && (
+        <View style={styles.loadingOverlay}>
+          <Text style={styles.loadingText}>Loading muscle activity...</Text>
+        </View>
+      )}
+      
+      {/* Color Legend */}
+      {!muscleStatesLoading && (
+        <View style={styles.legendContainer}>
+          <Text style={styles.legendTitle}>Weekly Training Frequency</Text>
+          <View style={styles.legendItems}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#ffffff' }]} />
+              <Text style={styles.legendText}>Not trained</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#ffcccb' }]} />
+              <Text style={styles.legendText}>1 day</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#ff6b6b' }]} />
+              <Text style={styles.legendText}>2 days</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#dc143c' }]} />
+              <Text style={styles.legendText}>3+ days</Text>
+            </View>
+          </View>
+        </View>
+      )}
       
       {/* Bottom Button - Only main button now */}
       <View style={styles.buttonsContainer}>
@@ -451,6 +531,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -75 }, { translateY: -10 }],
+    zIndex: 10,
+  },
+  loadingText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  legendContainer: {
+    position: 'absolute',
+    top: screenWidth * 0.25,
+    left: screenWidth * 0.06,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 12,
+    padding: 12,
+    zIndex: 5,
+  },
+  legendTitle: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  legendItems: {
+    gap: 6,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  legendText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 11,
   },
 });
 

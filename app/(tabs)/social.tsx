@@ -1834,6 +1834,13 @@ export default function SocialScreen() {
                 onChangeText={(text) => setCommentText(prev => ({ ...prev, [post.id]: text }))}
                 multiline
                 maxLength={500}
+                returnKeyType="done"
+                blurOnSubmit={true}
+                onSubmitEditing={() => {
+                  if (commentText[post.id]?.trim()) {
+                    handleAddComment(post.id);
+                  }
+                }}
               />
               <TouchableOpacity
                 style={[styles.commentsSendButton, {
@@ -2087,6 +2094,13 @@ export default function SocialScreen() {
                     placeholderTextColor={isDarkMode ? '#8e8e93' : '#666'}
                     value={commentText[post.id] || ''}
                     onChangeText={(text) => setCommentText(prev => ({ ...prev, [post.id]: text }))}
+                    returnKeyType="done"
+                    blurOnSubmit={true}
+                    onSubmitEditing={() => {
+                      if (commentText[post.id]?.trim()) {
+                        handleAddComment(post.id);
+                      }
+                    }}
                   />
                   <TouchableOpacity
                     style={[styles.sendButton, {
@@ -2225,6 +2239,8 @@ export default function SocialScreen() {
                 onChangeText={setNewPost}
                 multiline
                 autoFocus
+                returnKeyType="done"
+                blurOnSubmit={true}
               />
 
               {/* Image Preview and Controls */}
@@ -2443,6 +2459,8 @@ export default function SocialScreen() {
                     multiline
                     value={editContent}
                     onChangeText={setEditContent}
+                    returnKeyType="done"
+                    blurOnSubmit={true}
                   />
                   
                   {/* Image Preview and Controls */}
