@@ -204,22 +204,40 @@ types/                       # Definições TypeScript
 
 ## Schema da Base de Dados
 
-A aplicação utiliza Supabase como backend com as seguintes tabelas principais:
+A aplicação utiliza Supabase como backend com PostgreSQL e as seguintes tabelas principais:
 
-- `users`: Perfis de utilizador e autenticação
-- `users_data`: Dados detalhados do inquérito personalizado
-- `workouts`: Templates de treinos e histórico
-- `exercises`: Base de dados de exercícios
-- `sessions`: Sessões individuais de treino
-- `session_sets`: Séries individuais executadas
-- `workout_sets`: Configuração de séries nos templates
-- `user_followers`: Conexões sociais entre utilizadores
-- `achievements`: Conquistas e marcos dos utilizadores
-- `personal_records`: Recordes pessoais por exercício
-- `pr_goals`: Objetivos de recordes pessoais
-- `subscriptions`: Gestão de subscrições premium
-- `conversations`: Sistema de mensagens
-- `messages`: Mensagens individuais
+### **Autenticação e Utilizadores**
+- `auth.users`: Sistema de autenticação do Supabase
+- `users`: Perfis básicos dos utilizadores
+- `users_data`: Dados detalhados do inquérito personalizado (idade, altura, peso, objetivos, experiência, etc.)
+
+### **Sistema de Treinos**
+- `workouts`: Templates e planos de treino (incluindo workout_type para distinguir auto_generated)
+- `workout_sets`: Configuração de séries e repetições nos templates de treino
+- `sessions`: Sessões individuais de treino executadas pelos utilizadores
+- `session_sets`: Registo detalhado de cada série executada (peso real, repetições, tempo de descanso)
+
+### **Exercícios e Performance**
+- `exercises`: Base de dados completa de exercícios (1300+ exercícios)
+- `personal_records`: Recordes pessoais por exercício e utilizador
+- `pr_goals`: Objetivos de recordes pessoais definidos pelos utilizadores
+
+### **Sistema Social**
+- `user_followers`: Relações de seguidor/seguindo entre utilizadores
+- `conversations`: Conversas entre utilizadores
+- `messages`: Mensagens individuais do sistema de chat
+- `post_comments`: Comentários em publicações sociais
+- `post_reactions`: Reações (likes, etc.) em publicações
+
+### **Conquistas e Subscrições**
+- `user_achievements`: Conquistas desbloqueadas pelos utilizadores
+- `subscriptions`: Gestão de subscrições premium e períodos de teste
+
+### **Relações e Constraints**
+- Todas as tabelas utilizam foreign keys para manter integridade referencial
+- Políticas RLS (Row Level Security) implementadas para segurança de dados
+- Índices otimizados para queries de performance crítica
+- Triggers automáticos para limpeza de dados ao expirar subscrições
 
 ## Funcionalidades Únicas
 
