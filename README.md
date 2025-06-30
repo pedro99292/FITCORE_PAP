@@ -1,131 +1,273 @@
-# FitCore - Fitness Tracking & Social Workout App
+# FitCore - Aplicação Completa de Fitness e Social
 
 <img src="./assets/images/logo2.png" alt="FitCore Logo" width="200" />
 
-FitCore is a comprehensive fitness tracking application built with React Native and Expo. It allows users to track workouts, build custom workout routines, connect with other fitness enthusiasts, and track achievements.
+FitCore é uma aplicação abrangente de tracking de fitness construída com React Native e Expo. Permite aos utilizadores rastrear treinos, construir rotinas de treino personalizadas, conectar-se com outros entusiastas do fitness, e acompanhar conquistas com funcionalidades premium avançadas.
 
-## Features
+## Funcionalidades Principais
 
-- **Workout Tracking**: Create, save, and track your workout routines
-- **Exercise Library**: Access a comprehensive database of exercises
-- **Custom Workout Builder**: Create personalized workout routines
-- **Progress Tracking**: Monitor your fitness journey with detailed statistics
-- **Social Connectivity**: Follow other users, share achievements, and get inspired
-- **Achievement System**: Unlock achievements as you reach fitness milestones
-- **Dark/Light Mode**: Choose your preferred theme for the app
-- **Profile Customization**: Edit your profile and customize your fitness goals
+### 🏋️ Sistema de Treinos Avançado
+- **Geração Automática de Treinos com IA**: Sistema inteligente que cria planos de treino personalizados baseados na idade, género, objetivos, experiência e preferências
+- **Construtor de Treinos Personalizado**: Interface intuitiva para criar treinos completamente personalizados
+- **Sessões de Treino Detalhadas**: Tracking em tempo real de séries, repetições, pesos e tempos de descanso
+- **Histórico Completo de Treinos**: Acompanhe todo o progresso ao longo do tempo
+- **Previsualização de Treinos**: Veja detalhes completos antes de iniciar
 
-## Technology Stack
+### 📊 Tracking de Performance
+- **Recordes Pessoais (PRs)**: Sistema completo de tracking de máximos pessoais
+- **Objetivos de PRs**: Defina e acompanhe metas específicas para cada exercício
+- **Detalhes de Exercícios e PRs**: Análise detalhada do progresso por exercício
+- **Estatísticas Avançadas**: Gráficos e métricas de performance
 
-- **Frontend**: React Native with Expo
-- **State Management**: React Context API
-- **Animations**: React Native Reanimated
-- **Navigation**: Expo Router
-- **Backend**: Supabase (Authentication, Database, Storage)
-- **Styling**: StyleSheet and Linear Gradients
-- **Exercise Data**: ExerciseDB (RapidAPI) and Wger API
+### 💪 Base de Dados de Exercícios
+- **Biblioteca Abrangente**: Acesso a milhares de exercícios de múltiplas APIs
+- **Filtros Inteligentes**: Pesquise por grupo muscular, equipamento, tipo de exercício
+- **Anatomia Interativa**: Silhueta muscular interativa para seleção visual
+- **Instruções Detalhadas**: Descrições completas e técnicas de execução
 
-## Getting Started
+### 🤝 Funcionalidades Sociais
+- **Sistema de Chat**: Mensagens diretas entre utilizadores
+- **Descoberta de Utilizadores**: Encontre outros entusiastas do fitness
+- **Seguir Utilizadores**: Crie conexões e acompanhe o progresso de outros
+- **Partilha de Conquistas**: Celebre marcos e progressos com a comunidade
 
-### Prerequisites
+### 🏆 Sistema de Conquistas
+- **Conquistas Automáticas**: Desbloqueie marcos baseados no seu progresso
+- **Notificações de Conquistas**: Celebração imediata dos seus sucessos
+- **Sistema de Moedas**: Ganhe recompensas por atingir objetivos
 
-- Node.js (v16 or higher)
-- npm or yarn
+### 💎 Funcionalidades Premium
+- **Subscrições e Período de Teste**: Acesso a funcionalidades avançadas
+- **Geração Automática de Treinos**: Planos personalizados criados por IA
+- **Inquérito Personalizado**: Questionário detalhado para otimizar recomendações
+- **Preferências Avançadas**: Configurações detalhadas de treino
+
+### 📅 Organização e Planeamento
+- **Calendário de Treinos**: Visualize e planeie os seus treinos
+- **Preferências de Treino**: Configure splits, dias por semana, objetivos específicos
+- **Gestão de Subscrições**: Controlo total sobre planos premium
+
+### 🛍️ Loja Integrada
+- **Produtos de Fitness**: Acesso a equipamentos e suplementos
+- **Sistema de Compras**: Interface integrada para aquisições
+
+### ⚙️ Personalização Completa
+- **Modo Escuro/Claro**: Escolha o tema preferido
+- **Perfil Detalhado**: Edição completa de informações pessoais
+- **Configurações Avançadas**: Personalização de preferências e notificações
+- **Informações de Contacto**: Suporte direto integrado
+
+## Stack Tecnológica
+
+- **Frontend**: React Native 0.79.2 com Expo 53
+- **Linguagem**: TypeScript para type safety
+- **Gestão de Estado**: React Context API
+- **Animações**: React Native Reanimated 3.17
+- **Navegação**: Expo Router 5.0
+- **Backend**: Supabase (Autenticação, Base de Dados, Storage)
+- **Base de Dados**: PostgreSQL (via Supabase)
+- **Estilização**: StyleSheet, Linear Gradients, SVG
+- **Dados de Exercícios**: ExerciseDB (RapidAPI) e Wger API
+- **Gráficos**: React Native SVG Charts com D3-Shape
+- **Calendários**: React Native Calendars
+- **Imagens**: Expo Image com manipulação avançada
+- **Comunicação**: Expo Mail Composer
+- **Localização**: Expo Location
+- **Feedback Háptico**: Expo Haptics
+- **Áudio/Vídeo**: Expo AV
+
+## Primeiros Passos
+
+### Pré-requisitos
+
+- Node.js (v16 ou superior)
+- npm ou yarn
 - Expo CLI
-- ExerciseDB API key (optional but recommended)
+- Chave API do ExerciseDB (opcional mas recomendada)
+- Conta Supabase configurada
 
-### Installation
+### Instalação
 
-1. Clone the repository:
+1. Clone o repositório:
    ```bash
-   git clone [https://github.com/yourusername/fitcore.git](https://github.com/pedro99292/FITCORE_PAP.git)
+   git clone https://github.com/yourusername/fitcore.git
    cd fitcore
    ```
 
-2. Install dependencies:
+2. Instale as dependências:
    ```bash
    npm install
-   # or
+   # ou
    yarn install
    ```
 
-3. Start the development server:
+3. Configure as variáveis de ambiente:
+   - Copie `utils/apiConfig.example.ts` para `utils/apiConfig.ts`
+   - Configure as suas chaves API e configurações do Supabase
+
+4. Inicie o servidor de desenvolvimento:
    ```bash
    npm start
-   # or
+   # ou
    yarn start
-   # or
+   # ou
    npx expo start
    ```
 
-4. Open the app in:
-   - Expo Go on your physical device
-   - iOS Simulator
-   - Android Emulator
+5. Abra a aplicação em:
+   - Expo Go no seu dispositivo móvel
+   - Simulador iOS
+   - Emulador Android
 
-## Development
+## Desenvolvimento
 
-### Project Structure
+### Estrutura do Projeto
 
-- `app/`: Contains the main application screens and navigation setup
-  - `(tabs)/`: Contains tab-based screens (home, profile, social, achievements)
-  - `(auth)/`: Authentication-related screens
-- `components/`: Reusable UI components
-- `contexts/`: React Context providers (Auth, Theme)
-- `hooks/`: Custom React hooks
-- `supabase/`: Supabase configuration and migrations
-- `utils/`: Utility functions
-- `types/`: TypeScript type definitions
-- `constants/`: Application constants including colors and theme settings
-- `assets/`: Images, fonts, and other static assets
+```
+app/                          # Aplicação principal e navegação
+  ├── (tabs)/                 # Ecrãs com navegação por tabs
+  │   ├── home.tsx           # Ecrã principal
+  │   ├── profile.tsx        # Perfil do utilizador
+  │   ├── social.tsx         # Funcionalidades sociais
+  │   └── achievements.tsx   # Sistema de conquistas
+  ├── (auth)/                # Autenticação
+  │   ├── login.tsx          # Login
+  │   └── register.tsx       # Registo
+  ├── chat/                  # Sistema de mensagens
+  ├── workout-history/       # Histórico detalhado
+  ├── workout-preview/       # Previsualização de treinos
+  └── [outros ecrãs...]      # Funcionalidades adicionais
 
-### Key Features Implementation
+components/                   # Componentes reutilizáveis
+  ├── SubscriptionModal.tsx  # Modal de subscrições
+  ├── SurveyModal.tsx       # Inquérito personalizado
+  ├── WorkoutGenerationModal.tsx # Geração de treinos
+  ├── InteractiveMuscleSilhouette.tsx # Anatomia interativa
+  └── [outros componentes...]
 
-#### Authentication
+contexts/                    # Gestão de estado global
+  ├── AuthContext.tsx        # Autenticação
+  ├── SubscriptionContext.tsx # Gestão de subscrições
+  ├── WorkoutContext.tsx     # Estado de treinos
+  ├── ExerciseContext.tsx    # Base de dados de exercícios
+  └── AchievementContext.tsx # Sistema de conquistas
 
-The app uses Supabase for authentication, supporting:
-- Email/password login
-- Social login options
-- Profile management
+utils/                       # Serviços e utilitários
+  ├── workoutGenerationService.ts # IA de geração de treinos
+  ├── subscriptionService.ts      # Gestão de subscrições
+  ├── personalRecordsService.ts   # Tracking de PRs
+  ├── achievementService.ts       # Sistema de conquistas
+  ├── exerciseMatching.ts         # Matching inteligente de exercícios
+  └── [outros serviços...]
 
-#### Workout System - Still in progress
+constants/                   # Configurações e dados estáticos
+  ├── workoutSplits.ts      # Templates de divisões de treino
+  ├── workoutRules.ts       # Regras de geração de treinos
+  ├── workoutTemplates.ts   # Templates pré-definidos
+  └── safetyWarnings.ts     # Avisos de segurança
 
-- Create and save custom workouts
-- Track workout history and progress
-- Filter exercises by muscle groups
-- Record sets, reps, and weights
+types/                       # Definições TypeScript
+  ├── exercise.d.ts         # Tipos de exercícios
+  ├── workoutGeneration.ts  # Tipos de geração de treinos
+  ├── personalRecords.ts    # Tipos de recordes pessoais
+  └── [outros tipos...]
+```
 
+### Funcionalidades Principais Implementadas
 
-#### Social Features
+#### Sistema de Autenticação e Subscrições
+- Autenticação completa via Supabase
+- Sistema de subscrições com períodos de teste
+- Gestão automática de funcionalidades premium
+- Inquérito personalizado para otimização de recomendações
 
-- Follow other fitness enthusiasts
-- Share workouts and achievements
-- Engage with the fitness community
+#### Geração Inteligente de Treinos
+- Algoritmo avançado baseado em:
+  - Objetivos do utilizador (hipertrofia, força, resistência, etc.)
+  - Experiência (iniciante, intermédio, avançado)
+  - Dados demográficos (idade, género)
+  - Preferências de treino (dias por semana, divisões)
+- Templates adaptativos para diferentes níveis
+- Matching inteligente de exercícios da base de dados
 
-## Database Schema
+#### Sistema Social Completo
+- Chat em tempo real entre utilizadores
+- Sistema de seguidores/seguindo
+- Descoberta de utilizadores por interesses
+- Partilha de conquistas e progresso
 
-The application uses Supabase as its backend with the following key tables:
+#### Tracking Avançado de Performance
+- Recordes pessoais automáticos e manuais
+- Objetivos personalizáveis por exercício
+- Histórico completo preservado mesmo após alterações
+- Análise detalhada de progressão
 
-- `users`: User profiles and authentication
-- `workouts`: Workout templates and history
-- `exercises`: Exercise database
-- `user_followers`: Social connections between users
-- `achievements`: User achievements and milestones
+## Schema da Base de Dados
 
-## Contributing
+A aplicação utiliza Supabase como backend com as seguintes tabelas principais:
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- `users`: Perfis de utilizador e autenticação
+- `users_data`: Dados detalhados do inquérito personalizado
+- `workouts`: Templates de treinos e histórico
+- `exercises`: Base de dados de exercícios
+- `sessions`: Sessões individuais de treino
+- `session_sets`: Séries individuais executadas
+- `workout_sets`: Configuração de séries nos templates
+- `user_followers`: Conexões sociais entre utilizadores
+- `achievements`: Conquistas e marcos dos utilizadores
+- `personal_records`: Recordes pessoais por exercício
+- `pr_goals`: Objetivos de recordes pessoais
+- `subscriptions`: Gestão de subscrições premium
+- `conversations`: Sistema de mensagens
+- `messages`: Mensagens individuais
 
-## License
+## Funcionalidades Únicas
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Geração de Treinos com IA
+O sistema utiliza algoritmos avançados que consideram:
+- Adaptações por idade (diferentes recomendações para seniores)
+- Adaptações por género (diferentes volumes e intensidades)
+- Progressão baseada na experiência
+- Splits otimizados por objetivo
+- Balanceamento automático de volume de treino
 
-## Acknowledgments
+### Sistema de Matching de Exercícios
+Algoritmo inteligente que encontra correspondências entre:
+- Nomes de exercícios em diferentes formatos
+- Variações e sinónimos
+- Equipamentos equivalentes
+- Grupos musculares similares
 
-- [Expo](https://expo.dev)
-- [React Native](https://reactnative.dev)
-- [Supabase](https://supabase.io)
+### Gestão Inteligente de Dados
+- Preservação de histórico mesmo após exclusões
+- Limpeza automática de dados premium expirados
+- Otimização de performance com caching
+- Sincronização offline/online
+
+## Contribuir
+
+1. Faça fork do repositório
+2. Crie o seu branch de funcionalidade (`git checkout -b feature/funcionalidade-incrivel`)
+3. Commit as suas alterações (`git commit -m 'Adiciona funcionalidade incrível'`)
+4. Push para o branch (`git push origin feature/funcionalidade-incrivel`)
+5. Abra um Pull Request
+
+## Licença
+
+Este projeto está licenciado sob a Licença MIT - consulte o ficheiro LICENSE para detalhes.
+
+## Agradecimentos
+
+- [Expo](https://expo.dev) - Plataforma de desenvolvimento
+- [React Native](https://reactnative.dev) - Framework móvel
+- [Supabase](https://supabase.io) - Backend como serviço
+- [ExerciseDB](https://rapidapi.com/justin-WFnsXH_t6/api/exercisedb) - Base de dados de exercícios
+- [Wger API](https://wger.de/api/v2/) - Dados adicionais de exercícios
+
+## Suporte
+
+Para suporte, utilize a funcionalidade "Contactar-nos" integrada na aplicação ou abra uma issue no repositório.
+
+---
+
+**Desenvolvido com ❤️ para a comunidade fitness portuguesa**
