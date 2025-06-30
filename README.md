@@ -38,7 +38,7 @@ FitCore is a comprehensive fitness tracking application built with React Native 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/fitcore.git
+   git clone [https://github.com/yourusername/fitcore.git](https://github.com/pedro99292/FITCORE_PAP.git)
    cd fitcore
    ```
 
