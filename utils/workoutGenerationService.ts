@@ -19,6 +19,7 @@ import {
   workoutRules,
   repRanges,
   setsPerExercise,
+  setsPerExercisePPL,
   restTimeByGoal,
   cardioRecommendations,
   ageAdaptations,
@@ -37,6 +38,135 @@ function shuffleArray<T>(arr: T[]): T[] {
   return copy;
 }
 
+// Helper functions to infer exercise properties for placeholders
+function inferBodyPartFromExerciseName(exerciseName: string): string {
+  const name = exerciseName.toLowerCase();
+  
+  if (name.includes('chest') || name.includes('bench') || name.includes('pec') || name.includes('fly')) return 'chest';
+  if (name.includes('back') || name.includes('row') || name.includes('pulldown') || name.includes('pull-up')) return 'back';
+  if (name.includes('shoulder') || name.includes('military') || name.includes('lateral') || name.includes('front raise')) return 'shoulders';
+  if (name.includes('bicep') || name.includes('curl')) return 'upper arms';
+  if (name.includes('tricep') || name.includes('pushdown') || name.includes('french press') || name.includes('dip')) return 'upper arms';
+  if (name.includes('squat') || name.includes('leg') || name.includes('quad') || name.includes('glute') || name.includes('lunge')) return 'upper legs';
+  if (name.includes('calf')) return 'lower legs';
+  if (name.includes('abs') || name.includes('crunch') || name.includes('plank') || name.includes('core')) return 'waist';
+  
+  return 'cardio'; // Default fallback
+}
+
+function inferTargetMuscleFromExerciseName(exerciseName: string): string {
+  const name = exerciseName.toLowerCase();
+  
+  if (name.includes('glute')) return 'glutes';
+  if (name.includes('abductor')) return 'abductors';
+  if (name.includes('chest') || name.includes('pec')) return 'pectorals';
+  if (name.includes('back') || name.includes('lat')) return 'lats';
+  if (name.includes('shoulder') || name.includes('delt')) return 'delts';
+  if (name.includes('bicep')) return 'biceps';
+  if (name.includes('tricep')) return 'triceps';
+  if (name.includes('quad')) return 'quads';
+  if (name.includes('hamstring')) return 'hamstrings';
+  if (name.includes('calf')) return 'calves';
+  if (name.includes('abs') || name.includes('core')) return 'abs';
+  
+  return 'general'; // Default fallback
+}
+
+function inferEquipmentFromExerciseName(exerciseName: string): string {
+  const name = exerciseName.toLowerCase();
+  
+  if (name.includes('barbell')) return 'barbell';
+  if (name.includes('dumbbell')) return 'dumbbell';
+  if (name.includes('machine')) return 'leverage machine';
+  if (name.includes('cable')) return 'cable';
+  if (name.includes('rope')) return 'cable';
+  if (name.includes('assisted')) return 'assisted';
+  if (name.includes('bench')) return 'barbell';
+  if (name.includes('free') || name.includes('bodyweight') || name.includes('plank')) return 'body weight';
+  
+  return 'body weight'; // Default fallback
+}
+
+// Get alternative exercise names to try if the main name doesn't match
+function getAlternativeExerciseNames(exerciseName: string): string[] {
+  const alternatives: string[] = [];
+  const name = exerciseName.toLowerCase();
+  
+  // Common exercise name variations
+  const exerciseAlternatives: Record<string, string[]> = {
+    'machine glute': [
+      'barbell glute bridge',
+      'lever reverse hyperextension',
+      'cable standing hip extension',
+      'band hip lift',
+      'bench hip extension'
+    ],
+    'abductor': [
+      'lever seated hip abduction',
+      'side hip abduction',
+      'cable hip adduction',
+      'cable standing hip extension'
+    ],
+    'machine chest press': [
+      'lever chest press',
+      'lever incline chest press',
+      'lever decline chest press',
+      'machine inner chest press'
+    ],
+    'machine row': [
+      'lever seated row',
+      'cable seated row',
+      'cable rope seated row',
+      'lever narrow grip seated row'
+    ],
+    'front pulldown': [
+      'lever front pulldown',
+      'cable pulldown',
+      'cable lat pulldown'
+    ],
+    'assisted pull-up': [
+      'assisted pull-up',
+      'pull up (neutral grip)',
+      'assisted standing pull-up',
+      'lever front pulldown'
+    ],
+    'free squat': [
+      'barbell squat',
+      'barbell full squat',
+      'bodyweight squat',
+      'squat'
+    ],
+    'box squat': [
+      'barbell box squat',
+      'barbell squat',
+      'barbell full squat'
+    ],
+    'light leg press': [
+      'sled 45° leg press',
+      'sled 45 degrees one leg press',
+      'lever seated squat calf raise on leg press machine'
+    ]
+  };
+  
+  // Check if we have specific alternatives for this exercise
+  const exactMatch = exerciseAlternatives[name];
+  if (exactMatch) {
+    alternatives.push(...exactMatch);
+  }
+  
+  // Generate equipment variations
+  const baseExercise = name.replace(/^(machine|barbell|dumbbell|cable|free|light|assisted)\s+/, '');
+  if (baseExercise !== name) {
+    const equipmentVariants = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
+    for (const equipment of equipmentVariants) {
+      alternatives.push(`${equipment} ${baseExercise}`);
+      alternatives.push(baseExercise); // Also try without equipment
+    }
+  }
+  
+  return alternatives;
+}
+
 // Helper function to find matching exercises
 function findMatchingExercises(allExercises: Exercise[], targetNames: string[]): Exercise[] {
   const normalizedTargetNames = targetNames.map(name => name.toLowerCase());
@@ -53,17 +183,32 @@ function findMatchingExercises(allExercises: Exercise[], targetNames: string[]):
   });
 }
 
-// Helper function to adjust template sets based on goal requirements
-function adjustTemplateSets(template: any, goal: string, isFullBodyOrUpperLower: boolean): any {
-  const targetSets = setsPerExercise[goal as keyof typeof setsPerExercise] || 2;
+// Helper function to adjust template sets based on goal requirements and split type
+function adjustTemplateSets(template: any, goal: string, splitType: string): any {
+  let targetSets: number;
   
-  // For Upper/Lower/Full Body workouts, we cap at 2 sets regardless of goal
-  const effectiveSets = isFullBodyOrUpperLower ? 
-    Math.min(targetSets, workoutRules.maxSetsForFullBodyUpperLower) : 
-    Math.min(targetSets, workoutRules.maxSetsPerExercise);
+  // Determine sets based on split type and goal
+  const isPPL = splitType.includes('Push') || splitType.includes('Pull') || splitType.includes('Legs');
+  const isFullBodyOrUpperLower = splitType.includes('Upper') || 
+                                splitType.includes('Lower') || 
+                                splitType.includes('Full Body');
+  
+  if (isFullBodyOrUpperLower) {
+    // Upper/Lower/Full Body workouts: Always 2 sets per exercise regardless of goal
+    targetSets = 2;
+  } else if (isPPL) {
+    // PPL splits: Use goal-specific sets (2-3 sets)
+    targetSets = setsPerExercisePPL[goal as keyof typeof setsPerExercisePPL] || 2;
+  } else {
+    // Default to 2 sets for any other split type
+    targetSets = 2;
+  }
+  
+  // Cap at maximum allowed sets
+  const effectiveSets = Math.min(targetSets, workoutRules.maxSetsPerExercise);
   
   // If template already has the right number of sets, return as is
-  if (template.exercises.male[0].sets === effectiveSets) {
+  if (template.exercises.male[0]?.sets === effectiveSets) {
     return template;
   }
   
@@ -118,11 +263,8 @@ export function generateWorkoutPlan(userProfile: UserProfile, allExercises: Exer
       continue;
     }
     
-    // Adjust template sets based on goal and type of workout
-    const isFullBodyOrUpperLower = templateName.includes('Upper') || 
-                                templateName.includes('Lower') || 
-                                templateName.includes('Full Body');
-    template = adjustTemplateSets(template, goal, isFullBodyOrUpperLower);
+    // Adjust template sets based on goal and split type
+    template = adjustTemplateSets(template, goal, templateName);
     
     // Get exercises for this template based on gender
     const templateExercises = template.exercises[genderKey];
@@ -133,19 +275,36 @@ export function generateWorkoutPlan(userProfile: UserProfile, allExercises: Exer
     // Process each exercise in the template
     for (const templateExercise of templateExercises) {
       // Find matching exercise using our specialized matching utility
-      const matchingExercise = findBestExerciseMatch(templateExercise.name, allExercises);
+      let matchingExercise = findBestExerciseMatch(templateExercise.name, allExercises);
+      
+      // If no match found, try alternative exercise names for common exercises
+      if (!matchingExercise) {
+        const alternatives = getAlternativeExerciseNames(templateExercise.name);
+        for (const altName of alternatives) {
+          matchingExercise = findBestExerciseMatch(altName, allExercises);
+          if (matchingExercise) {
+            console.log(`[ALTERNATIVE MATCH] "${templateExercise.name}" → "${matchingExercise.name}" (via "${altName}")`);
+            break;
+          }
+        }
+      }
       
       if (!matchingExercise) {
-        console.warn(`No matching exercise found for ${templateExercise.name}`);
-        // Create placeholder with template data
+        console.warn(`No matching exercise found for ${templateExercise.name} (tried ${getAlternativeExerciseNames(templateExercise.name).length + 1} variations)`);
+        
+        // Create a more realistic placeholder with better data based on exercise name
+        const placeholderBodyPart = inferBodyPartFromExerciseName(templateExercise.name);
+        const placeholderTarget = inferTargetMuscleFromExerciseName(templateExercise.name);
+        const placeholderEquipment = inferEquipmentFromExerciseName(templateExercise.name);
+        
         exercises.push({
           name: templateExercise.name,
-          bodyPart: 'unknown',
-          target: 'unknown',
-          equipment: 'unknown',
+          bodyPart: placeholderBodyPart,
+          target: placeholderTarget,
+          equipment: placeholderEquipment,
           sets: templateExercise.sets,
-          reps: templateExercise.reps,
-          rest: templateExercise.rest || restTime,
+          reps: repRange, // Use goal and experience-specific rep range
+          rest: restTime,
           exerciseId: `placeholder-${templateExercise.name.toLowerCase().replace(/\s+/g, '-')}`
         });
         continue;
@@ -159,6 +318,19 @@ export function generateWorkoutPlan(userProfile: UserProfile, allExercises: Exer
         sets -= 1;
       }
       
+      // Determine rep range based on exercise type and goal/experience
+      let exerciseRepRange = repRange;
+      
+      // For certain exercises, use template-specific reps if they're different
+      // (e.g., calf raises typically have higher reps, planks are in seconds)
+      if (templateExercise.name.toLowerCase().includes('calf')) {
+        exerciseRepRange = { min: 12, max: 15 };
+      } else if (templateExercise.name.toLowerCase().includes('plank')) {
+        exerciseRepRange = templateExercise.reps; // Keep template reps for planks (seconds)
+      } else if (templateExercise.name.toLowerCase().includes('crunch')) {
+        exerciseRepRange = { min: 12, max: 15 };
+      }
+      
       // Add the exercise to our plan
       exercises.push({
         name: matchingExercise.name,
@@ -166,8 +338,8 @@ export function generateWorkoutPlan(userProfile: UserProfile, allExercises: Exer
         target: matchingExercise.target,
         equipment: matchingExercise.equipment,
         sets: sets,
-        reps: templateExercise.reps,
-        rest: templateExercise.rest || restTime,
+        reps: exerciseRepRange,
+        rest: restTime,
         exerciseId: matchingExercise.id
       });
     }

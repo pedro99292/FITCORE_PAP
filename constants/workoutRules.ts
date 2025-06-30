@@ -35,6 +35,14 @@ export const repRanges = {
 // Sets per exercise by goal
 export const setsPerExercise = {
   'Lose weight': 2,
+  'Gain muscle': 2,
+  'Gain strength': 2,
+  'Maintain muscle': 2
+};
+
+// Sets per exercise for PPL splits (3 sets for muscle gain and strength)
+export const setsPerExercisePPL = {
+  'Lose weight': 2,
   'Gain muscle': 3,
   'Gain strength': 3,
   'Maintain muscle': 2
@@ -42,10 +50,10 @@ export const setsPerExercise = {
 
 // Rest time (in seconds) by goal
 export const restTimeByGoal = {
-  'Lose weight': 120, // 2-3 minutes
-  'Gain muscle': 120, // 2-3 minutes 
+  'Lose weight': 150, // 2-3 minutes (using 2.5 minutes)
+  'Gain muscle': 150, // 2-3 minutes (using 2.5 minutes)
   'Gain strength': 180, // 3 minutes
-  'Maintain muscle': 90  // 1-2 minutes
+  'Maintain muscle': 90  // 1-2 minutes (using 1.5 minutes)
 };
 
 // Cardio recommendations by goal
@@ -53,22 +61,22 @@ export const cardioRecommendations = {
   'Lose weight': {
     recommended: true,
     frequency: '3-5 times per week',
-    note: 'Prioritize diet and cardio sessions for weight loss. Cardio outside of strength training.'
+    note: 'Focus: Maintain muscle mass + cardiovascular training. Cardio outside of strength training.'
   },
   'Gain muscle': {
     recommended: false,
-    frequency: '1-2 times per week',
-    note: 'Limited cardio to avoid interference with muscle growth.'
+    frequency: 'Optional',
+    note: 'Focus: Hypertrophy with progression. Train muscles 2× per week.'
   },
   'Gain strength': {
     recommended: false,
-    frequency: '1-2 times per week',
-    note: 'Limited cardio to maintain cardiovascular health without impacting strength gains.'
+    frequency: 'Optional',
+    note: 'Focus: Compound movements, heavy loads, good technique. Prioritize barbell and heavy exercises.'
   },
   'Maintain muscle': {
-    recommended: true,
-    frequency: '2-3 times per week',
-    note: 'Moderate cardio for overall health benefits.'
+    recommended: false,
+    frequency: 'Optional',
+    note: 'Focus: Minimum effective stimulus. Short, efficient sessions.'
   }
 };
 
@@ -107,7 +115,7 @@ export const genderAdaptations = {
 // Experience-based adaptations
 export const experienceAdaptations = {
   'Novice': {
-    note: 'Focus on technique, machines, and basic movements',
+    note: '8–12 reps (except strength training), focus on technique, machines, and basic movements',
     preferredEquipment: ['body weight', 'machine', 'cable', 'dumbbell', 'assisted'],
     repRangeAdjustment: { add: 2 } // Add to min/max reps for novices
   },

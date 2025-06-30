@@ -15,7 +15,7 @@ export default function SettingsScreen() {
   const { colors } = useTheme();
   const { signOut, loading } = useAuth();
   const { isSubscribed } = useSubscription();
-  const [notifications, setNotifications] = useState(true);
+
   const [safetyWarningsEnabled, setSafetyWarningsEnabled] = useState(true);
 
   // Load safety warnings preference on mount
@@ -176,13 +176,6 @@ export default function SettingsScreen() {
               title="Subscription"
               subtitle="Manage your subscription"
               onPress={() => router.push('/subscription-management')}
-            />
-            <SettingItem
-              icon="bell"
-              title="Notifications"
-              hasSwitch
-              switchValue={notifications}
-              onSwitchChange={setNotifications}
             />
           </View>
         </View>
