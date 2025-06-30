@@ -96,9 +96,9 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 
 2. Instale as dependências:
    ```bash
-   npm install
+   npm install --legacy-peer-deps
    # ou
-   yarn install
+   yarn install -legacy-peer-deps
    ```
 
 3. Configure as variáveis de ambiente:
