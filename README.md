@@ -7,7 +7,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 ## Funcionalidades Principais
 
 ### 🏋️ Sistema de Treinos Avançado
-- **Geração Automática de Treinos com **: Sistema inteligente que cria planos de treino personalizados baseados na idade, género, objetivos, experiência e preferências
+- **Geração Automática de Treinos Inteligente**: Sistema inteligente que cria planos de treino personalizados baseados na idade, género, objetivos, experiência e preferências
 - **Construtor de Treinos Personalizado**: Interface intuitiva onde o utilizador pode criar treinos completamente personalizados
 - **Sessões de Treino Detalhadas**: Tracking em tempo real de séries, repetições, pesos e tempos de descanso
 - **Histórico Completo de Treinos**: Acompanhe todo o progresso ao longo do tempo
@@ -20,7 +20,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 - **Estatísticas Avançadas**: Gráficos e métricas de performance
 
 ### 💪 Base de Dados de Exercícios
-- **Biblioteca Abrangente**: Acesso a 1300+ de exercícios de múltiplas APIs
+- **Biblioteca Abrangente**: Acesso a 1000+ exercícios de múltiplas APIs
 - **Filtros Inteligentes**: Pesquise por grupo muscular, equipamento, tipo de exercício
 - **Anatomia Interativa**: Silhueta muscular interativa para seleção visual
 - **Instruções Detalhadas**: Descrições completas e técnicas de execução
@@ -62,7 +62,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 - **Frontend**: React Native 0.79.2 com Expo 53
 - **Linguagem**: TypeScript para type safety
 - **Gestão de Estado**: React Context API
-- **Animações**: React Native Reanimated 3.17
+- **Animações**: React Native Reanimated 3.17.4
 - **Navegação**: Expo Router 5.0
 - **Backend**: Supabase (Autenticação, Base de Dados, Storage)
 - **Base de Dados**: PostgreSQL (via Supabase)
@@ -90,7 +90,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 
 1. Clone o repositório:
    ```bash
-   git clone [https://github.com/yourusername/fitcore.git](https://github.com/pedro99292/FITCORE_PAP.git)
+   git clone https://github.com/pedro99292/FITCORE_PAP.git
    cd fitcore
    ```
 
@@ -218,7 +218,7 @@ A aplicação utiliza Supabase como backend com PostgreSQL e as seguintes tabela
 - `session_sets`: Registo detalhado de cada série executada (peso real, repetições, tempo de descanso)
 
 ### **Exercícios e Performance**
-- `exercises`: Base de dados completa de exercícios (1300+ exercícios)
+- `exercises`: Base de dados completa de exercícios (1000+ exercícios)
 - `personal_records`: Recordes pessoais por exercício e utilizador
 - `pr_goals`: Objetivos de recordes pessoais definidos pelos utilizadores
 
