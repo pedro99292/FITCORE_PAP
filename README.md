@@ -7,8 +7,8 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 ## Funcionalidades Principais
 
 ### 🏋️ Sistema de Treinos Avançado
-- **Geração Automática de Treinos com IA**: Sistema inteligente que cria planos de treino personalizados baseados na idade, género, objetivos, experiência e preferências
-- **Construtor de Treinos Personalizado**: Interface intuitiva para criar treinos completamente personalizados
+- **Geração Automática de Treinos com **: Sistema inteligente que cria planos de treino personalizados baseados na idade, género, objetivos, experiência e preferências
+- **Construtor de Treinos Personalizado**: Interface intuitiva onde o utilizador pode criar treinos completamente personalizados
 - **Sessões de Treino Detalhadas**: Tracking em tempo real de séries, repetições, pesos e tempos de descanso
 - **Histórico Completo de Treinos**: Acompanhe todo o progresso ao longo do tempo
 - **Previsualização de Treinos**: Veja detalhes completos antes de iniciar
@@ -20,7 +20,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 - **Estatísticas Avançadas**: Gráficos e métricas de performance
 
 ### 💪 Base de Dados de Exercícios
-- **Biblioteca Abrangente**: Acesso a milhares de exercícios de múltiplas APIs
+- **Biblioteca Abrangente**: Acesso a 1300+ de exercícios de múltiplas APIs
 - **Filtros Inteligentes**: Pesquise por grupo muscular, equipamento, tipo de exercício
 - **Anatomia Interativa**: Silhueta muscular interativa para seleção visual
 - **Instruções Detalhadas**: Descrições completas e técnicas de execução
@@ -38,7 +38,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 
 ### 💎 Funcionalidades Premium
 - **Subscrições e Período de Teste**: Acesso a funcionalidades avançadas
-- **Geração Automática de Treinos**: Planos personalizados criados por IA
+- **Geração Automática de Treinos**: Planos de treino personalizados
 - **Inquérito Personalizado**: Questionário detalhado para otimizar recomendações
 - **Preferências Avançadas**: Configurações detalhadas de treino
 
@@ -54,7 +54,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 ### ⚙️ Personalização Completa
 - **Modo Escuro/Claro**: Escolha o tema preferido
 - **Perfil Detalhado**: Edição completa de informações pessoais
-- **Configurações Avançadas**: Personalização de preferências e notificações
+- **Configurações Avançadas**: Personalização de preferências
 - **Informações de Contacto**: Suporte direto integrado
 
 ## Stack Tecnológica
@@ -67,7 +67,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 - **Backend**: Supabase (Autenticação, Base de Dados, Storage)
 - **Base de Dados**: PostgreSQL (via Supabase)
 - **Estilização**: StyleSheet, Linear Gradients, SVG
-- **Dados de Exercícios**: ExerciseDB (RapidAPI) e Wger API
+- **Dados de Exercícios**: ExerciseDB (RapidAPI)
 - **Gráficos**: React Native SVG Charts com D3-Shape
 - **Calendários**: React Native Calendars
 - **Imagens**: Expo Image com manipulação avançada
@@ -90,7 +90,7 @@ FitCore é uma aplicação abrangente de tracking de fitness construída com Rea
 
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/yourusername/fitcore.git
+   git clone [https://github.com/yourusername/fitcore.git](https://github.com/pedro99292/FITCORE_PAP.git)
    cd fitcore
    ```
 
@@ -262,7 +262,6 @@ Este projeto está licenciado sob a Licença MIT - consulte o ficheiro LICENSE p
 - [React Native](https://reactnative.dev) - Framework móvel
 - [Supabase](https://supabase.io) - Backend como serviço
 - [ExerciseDB](https://rapidapi.com/justin-WFnsXH_t6/api/exercisedb) - Base de dados de exercícios
-- [Wger API](https://wger.de/api/v2/) - Dados adicionais de exercícios
 
 ## Suporte
 
@@ -270,4 +269,4 @@ Para suporte, utilize a funcionalidade "Contactar-nos" integrada na aplicação 
 
 ---
 
-**Desenvolvido com ❤️ para a comunidade fitness portuguesa**
+**Desenvolvido com esforço para a comunidade fitness**
