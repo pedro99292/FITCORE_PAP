@@ -219,8 +219,23 @@ export default function RegisterScreen() {
       }
 
       if (data?.user) {
-        // The database trigger will handle creating the user profile
-        // No need to manually insert into the users table
+        // Create the user profile in the users table
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            username: username.trim(),
+            full_name: username.trim(), // Use username as default full name
+            bio: null,
+            avatar_url: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+
+        if (profileError) {
+          console.error('Database error saving new user:', profileError);
+          throw new Error('Database error saving new user');
+        }
 
         // Now the user is registered, they need to confirm their email
         Alert.alert(
@@ -232,8 +247,23 @@ export default function RegisterScreen() {
         router.replace('/login');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Registration failed');
       console.error('Registration error:', error.message);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Registration failed';
+      if (error.message) {
+        if (error.message.includes('User already registered')) {
+          errorMessage = 'An account with this email already exists';
+        } else if (error.message.includes('Database error saving new user')) {
+          errorMessage = 'Failed to create user profile. Please try again or contact support if the issue persists.';
+        } else if (error.message.includes('Invalid email')) {
+          errorMessage = 'Please enter a valid email address';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert('Registration Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -252,7 +282,6 @@ export default function RegisterScreen() {
             style={styles.logo} 
             resizeMode="contain"
           />
-          <Text style={[styles.title, { color: colors.text }]}>FITCORE</Text>
           <Text style={[styles.subtitle, { color: 'rgba(255,255,255,0.7)' }]}>Start Your Journey</Text>
         </Animated.View>
 
