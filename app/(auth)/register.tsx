@@ -202,7 +202,7 @@ export default function RegisterScreen() {
     try {
       setIsLoading(true);
 
-      // Register the user with Supabase with email confirmation required
+      // Register the user with Supabase
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -210,32 +210,34 @@ export default function RegisterScreen() {
           data: {
             username: username,
           },
-          emailRedirectTo: 'https://vhvoiekejcawjgwqimxy.supabase.co/auth/v1/callback',
         },
       });
-
+      
       if (error) {
         throw error;
       }
 
       if (data?.user) {
-        // Create the user profile in the users table
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            username: username.trim(),
-            full_name: username.trim(), // Use username as default full name
-            bio: null,
-            avatar_url: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+        // Now create the user profile in users table
+        
+        try {
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              email: email.trim(),
+              username: username.trim(),
+              created_at: new Date().toISOString(),
+            });
 
-        if (profileError) {
-          console.error('Database error saving new user:', profileError);
-          throw new Error('Database error saving new user');
-        }
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            Alert.alert('Profile Error', `Could not create profile: ${profileError.message}`);
+            // Continue anyway since auth user was created
+          }
+                  } catch (profileErr) {
+            // Profile creation failed, but auth user was created successfully
+          }
 
         // Now the user is registered, they need to confirm their email
         Alert.alert(
@@ -254,8 +256,6 @@ export default function RegisterScreen() {
       if (error.message) {
         if (error.message.includes('User already registered')) {
           errorMessage = 'An account with this email already exists';
-        } else if (error.message.includes('Database error saving new user')) {
-          errorMessage = 'Failed to create user profile. Please try again or contact support if the issue persists.';
         } else if (error.message.includes('Invalid email')) {
           errorMessage = 'Please enter a valid email address';
         } else {
