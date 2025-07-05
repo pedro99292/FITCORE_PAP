@@ -39,3 +39,64 @@ utils/apiConfig.ts
 *.tsbuildinfo
 
 app-example
+
+# Build directories
+build/
+dist/
+
+# Visual Studio files
+.vs/
+*.sln
+*.suo
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sdf
+*.opensdf
+*.ipch
+*.aps
+*.pch
+*.pdb
+*.ilk
+*.meta
+*.obj
+*.idb
+*.tlog
+*.log
+*.lastbuildstate
+*.res
+*.rc
+*.rct
+*.cache
+*.exp
+*.lib
+*.dll
+*.exe
+*.manifest
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
