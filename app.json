@@ -6,16 +6,15 @@
     "orientation": "portrait",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true,
-      "statusBarStyle": "auto"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "statusBarStyle": "auto"
+      "package": "com.pedro.fitcore"
     },
     "web": {
       "bundler": "metro",
@@ -33,10 +32,17 @@
       ],
       "expo-asset",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-mail-composer"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6bd7ff6f-8888-46bd-9544-7d6bb2c3019a"
+      }
     }
   }
 }

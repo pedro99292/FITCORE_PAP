@@ -10,6 +10,44 @@ import Animated, {
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Calculate responsive sizing for better display on different devices
+const getResponsiveDimensions = () => {
+  // Base aspect ratio for the muscle silhouette (from viewBox)
+  const aspectRatio = 1024 / 1536; // width / height from viewBox
+  
+  // More conservative thresholds - iPhone 12 Pro is ~844px, Galaxy S20 Ultra is ~915px
+  const isVeryTallPhone = screenHeight > 900; // Only very tall phones like Galaxy S20 Ultra
+  const isTallPhone = screenHeight > 860; // Phones taller than iPhone 12 Pro Max
+  
+  let width, height;
+  
+  if (isVeryTallPhone) {
+    // Very tall phones (Galaxy S20 Ultra, etc.) - moderate increase
+    width = screenWidth * 0.80;
+    height = screenHeight * 0.55;
+  } else if (isTallPhone) {
+    // Tall phones (slightly taller than iPhone 12 Pro Max) - small increase
+    width = screenWidth * 0.78;
+    height = screenHeight * 0.52;
+  } else {
+    // Standard phones (iPhone 12, iPhone 12 Pro, etc.) - keep original sizing
+    width = screenWidth * 0.76;
+    height = screenHeight * 0.49;
+  }
+  
+  // Ensure the silhouette doesn't get distorted by respecting aspect ratio
+  const calculatedWidth = height * aspectRatio;
+  if (calculatedWidth > width) {
+    // If calculated width is too large, scale down proportionally
+    height = width / aspectRatio;
+  } else {
+    // Use calculated width for better proportions
+    width = calculatedWidth;
+  }
+  
+  return { width, height };
+};
+
 // Define muscle groups and their default states
 export interface MuscleState {
   id: string;
@@ -432,13 +470,14 @@ const InteractiveMuscleSilhouette: React.FC<InteractiveMuscleSilhouetteProps> = 
     onMuscleHover?.(muscleId);
   }, [interactive, onMuscleHover]);
 
-
+  // Get responsive dimensions
+  const { width: svgWidth, height: svgHeight } = getResponsiveDimensions();
 
   return (
     <View style={styles.container}>
       <Svg
-        width={screenWidth * 0.76}
-        height={screenHeight * 0.49}
+        width={svgWidth}
+        height={svgHeight}
         viewBox="0 0 1024 1536"
         style={styles.svg}
       >

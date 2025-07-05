@@ -118,6 +118,15 @@ const achievementCalculators: Record<number, (metrics: UserMetrics) => number> =
   54: (metrics) => metrics.completedAchievements >= 40 ? 100 : Math.round(Math.min((metrics.completedAchievements / 40) * 100, 100)), // Fitness Icon - unlock all achievements
   55: (metrics) => metrics.muscleGroupsThisWeek >= 13 ? 100 : Math.round(Math.min((metrics.muscleGroupsThisWeek / 13) * 100, 100)), // Muscle Master - Target all major muscle groups in a single week
   56: (metrics) => Math.round(Math.min((metrics.totalVolume / 1000000) * 100, 100)), // Weight Lifting Legend - 1,000,000 kg total volume
+  57: (metrics) => Math.round(Math.min((metrics.achievedGoals / 40) * 100, 100)), // Goal Crusher - Achieve 40 personal goals
+  58: (metrics) => Math.round(Math.min((metrics.achievedGoals / 60) * 100, 100)), // Goal Master - Achieve 60 personal goals
+  59: (metrics) => Math.round(Math.min((metrics.personalBests / 20) * 100, 100)), // Record Collector - Set 20 personal records
+  60: (metrics) => Math.round(Math.min((metrics.personalBests / 40) * 100, 100)), // Record Enthusiast - Set 40 personal records
+  61: (metrics) => Math.round(Math.min((metrics.socialPosts / 50) * 100, 100)), // Social Superstar - Post 50 times in the social feed
+  62: (metrics) => metrics.maxPRIncrease >= 100 ? 100 : 0, // Strength Doubler - Achieve a 100% increase on any personal record
+  63: (metrics) => metrics.maxPRIncrease >= 200 ? 100 : 0, // Triple Threat - Achieve a 200% increase on any personal record
+  64: (metrics) => metrics.currentStreak >= 200 ? 100 : 0, // Unstoppable Force - Achieve a 200-day workout streak
+  65: (metrics) => metrics.totalWorkouts >= 500 ? 100 : 0, // Workout Legend - Complete 500 total workouts
 };
 
 // Calculate user metrics from database

@@ -1594,7 +1594,7 @@ export default function WorkoutBuilderScreen() {
   // Add new state near other state declarations
   const [selectedExerciseDetails, setSelectedExerciseDetails] = useState<Exercise | null>(null);
 
-  // Add the modal component before the return statement
+  // Add the w component before the return statement
   const renderExerciseDetailsModal = () => {
     if (!selectedExerciseDetails) return null;
 

@@ -70,7 +70,7 @@ export default function ConversationScreen() {
   const inputRef = useRef<TextInput>(null);
   const realtimeSubscription = useRef<RealtimeChannel | null>(null);
   const windowWidth = Dimensions.get('window').width;
-  const typingTimeout = useRef<number | null>(null);
+  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Add state to track keyboard visibility and height
   const [keyboardHeight, setKeyboardHeight] = useState(0);

@@ -323,17 +323,6 @@ export default function WorkoutsScreen() {
                   {item.exercise_count} exercise{item.exercise_count !== 1 ? 's' : ''}
                 </Text>
               </View>
-              
-              <TouchableOpacity 
-                style={[styles.startButton, { backgroundColor: primaryColor }]} 
-                onPress={() => {
-                  triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push(`/start-workout/${item.workout_id}`);
-                }}
-              >
-                <Text style={styles.startButtonText}>Start Workout</Text>
-                <Ionicons name="play-circle" size={16} color="#fff" />
-              </TouchableOpacity>
             </View>
           </View>
         </TouchableOpacity>
@@ -576,7 +565,6 @@ const styles = StyleSheet.create({
   },
   workoutStats: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   statItem: {
@@ -596,19 +584,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 30,
-  },
-  startButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-    marginRight: 6,
-  },
+
   backFab: {
     position: 'absolute',
     bottom: 24,

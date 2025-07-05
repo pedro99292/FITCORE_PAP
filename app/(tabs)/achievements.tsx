@@ -212,6 +212,28 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     coins: 125
   },
   {
+    id: 59,
+    title: "Record Collector",
+    description: "Set 20 personal records.",
+    icon: "library-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#4CAF50",
+    category: "Progress",
+    coins: 200
+  },
+  {
+    id: 60,
+    title: "Record Enthusiast",
+    description: "Set 40 personal records.",
+    icon: "trophy-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF9800",
+    category: "Progress",
+    coins: 400
+  },
+  {
     id: 14,
     title: "Endurance Ace",
     description: "Record a total of 100 workout hours.",
@@ -380,6 +402,17 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     coins: 200
   },
   {
+    id: 62,
+    title: "Strength Doubler",
+    description: "Achieve a 100% increase on any personal record.",
+    icon: "trending-up-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF5722",
+    category: "Goals & Milestones",
+    coins: 400
+  },
+  {
     id: 32,
     title: "Endurance Elite",
     description: "Run or perform cardio for 100 cumulative hours.",
@@ -389,6 +422,28 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     color: "#2196F3",
     category: "Goals & Milestones",
     coins: 300
+  },
+  {
+    id: 57,
+    title: "Goal Crusher",
+    description: "Achieve 40 personal goals.",
+    icon: "diamond-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#9C27B0",
+    category: "Goals & Milestones",
+    coins: 500
+  },
+  {
+    id: 58,
+    title: "Goal Master",
+    description: "Achieve 60 personal goals.",
+    icon: "star-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#FF5722",
+    category: "Goals & Milestones",
+    coins: 750
   },
   
 
@@ -414,6 +469,17 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     color: "#2196F3",
     category: "Social",
     coins: 100
+  },
+  {
+    id: 61,
+    title: "Social Superstar",
+    description: "Post 50 times in the social feed.",
+    icon: "megaphone-outline",
+    iconType: "ionicons",
+    progress: 0,
+    color: "#E91E63",
+    category: "Social",
+    coins: 250
   },
   {
     id: 38,
@@ -470,7 +536,7 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     progress: 0,
     color: "#795548",
     category: "Social",
-    coins: 250
+    coins: 400
   },
 
   // 🥇 Special Trophies
@@ -541,6 +607,39 @@ export const ACHIEVEMENTS_DATA: Achievement[] = [
     color: "#FF6B35",
     category: "Special Trophies",
     coins: 2500
+  },
+  {
+    id: 63,
+    title: "Triple Threat",
+    description: "Achieve a 200% increase on any personal record.",
+    icon: "rocket",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#9C27B0",
+    category: "Special Trophies",
+    coins: 1000
+  },
+  {
+    id: 64,
+    title: "Unstoppable Force",
+    description: "Achieve a 200-day workout streak.",
+    icon: "fire",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#FF4500",
+    category: "Special Trophies",
+    coins: 1500
+  },
+  {
+    id: 65,
+    title: "Workout Legend",
+    description: "Complete 500 total workouts.",
+    icon: "trophy",
+    iconType: "fontawesome",
+    progress: 0,
+    color: "#FFD700",
+    category: "Special Trophies",
+    coins: 2000
   }
 ];
 

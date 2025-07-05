@@ -42,7 +42,7 @@ const SHOP_ITEMS: ShopItem[] = [
     id: 'premium_monthly',
     name: '1 Month Premium Access',
     description: 'Unlock all premium features for 1 month.',
-    price: 5000, // coins
+    price: 8000, // coins
     category: 'features',
     icon: 'star',
     owned: false
@@ -51,7 +51,7 @@ const SHOP_ITEMS: ShopItem[] = [
     id: 'premium_lifetime',
     name: 'Lifetime Premium Access',
     description: 'Get lifetime access to all premium features FOREVER. Never pay again and enjoy unlimited premium benefits.',
-    price: 15000, // coins
+    price: 30000, // coins
     category: 'features',
     icon: 'diamond',
     owned: false
@@ -116,6 +116,18 @@ export default function ShopScreen() {
   const [streakSaverCount, setStreakSaverCount] = useState(0);
   const [isStreakProtectionActive, setIsStreakProtectionActive] = useState(false);
   const [streakProtectionTimeRemaining, setStreakProtectionTimeRemaining] = useState(0);
+
+  // Format large numbers with K suffix
+  const formatPrice = (price: number): string => {
+    if (price >= 1000) {
+      if (price < 10000) {
+        return (price / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      } else {
+        return Math.floor(price / 1000) + 'K';
+      }
+    }
+    return price.toString();
+  };
 
   const headerScale = useSharedValue(1);
   const headerOpacity = useSharedValue(0);
@@ -338,7 +350,7 @@ export default function ShopScreen() {
 
     Alert.alert(
       'Confirm Purchase',
-      `Purchase ${item.name} for ${item.price} coins?`,
+      `Purchase ${item.name} for ${formatPrice(item.price)} coins?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -507,7 +519,7 @@ export default function ShopScreen() {
             </View>
             <View style={styles.shopItemPrice}>
               <Ionicons name="wallet" size={16} color={colors.primary} />
-              <Text style={[styles.shopItemPriceText, { color: colors.primary }]}>{item.price}</Text>
+              <Text style={[styles.shopItemPriceText, { color: colors.primary }]}>{formatPrice(item.price)}</Text>
             </View>
           </View>
           
