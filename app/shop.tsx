@@ -459,14 +459,11 @@ export default function ShopScreen() {
     let buttonText = 'Purchase';
     
     if (item.id === 'premium_monthly') {
-      // Monthly subscription is never "owned" - can be purchased multiple times
       isOwned = false;
     } else if (item.id === 'premium_lifetime') {
-      // Lifetime subscription is "owned" only if user has active lifetime subscription
       isOwned = isSubscribed && subscriptionType === 'lifetime';
       buttonText = isOwned ? 'Owned' : 'Purchase';
     } else if (item.id === 'double_coin_booster') {
-      // Double coin booster is "active" but can be purchased again
       isOwned = false;
       if (isBoostActive) {
         const hours = Math.floor(boostTimeRemaining / (1000 * 60 * 60));
@@ -476,7 +473,6 @@ export default function ShopScreen() {
         buttonText = 'Purchase';
       }
     } else if (item.id === 'streak_saver') {
-      // Streak saver shows count and can always be purchased
       isOwned = false;
       if (streakSaverCount > 0) {
         if (isStreakProtectionActive) {
@@ -490,18 +486,16 @@ export default function ShopScreen() {
         buttonText = 'Purchase';
       }
     } else if (item.id === 'nutrients_guide') {
-      // Nutrients guide shows "Open PDF" when owned
       isOwned = purchasedItems.includes(item.id);
       buttonText = isOwned ? 'Open PDF' : 'Purchase';
     } else {
-      // Other items use the purchase history
       isOwned = purchasedItems.includes(item.id);
       buttonText = isOwned ? 'Owned' : 'Purchase';
     }
     
     const canAfford = userCoins >= item.price;
     const canPurchase = (item.id === 'double_coin_booster' || item.id === 'streak_saver') ? canAfford : 
-                       (item.id === 'nutrients_guide' && isOwned) ? true : // Always clickable if owned (to open PDF)
+                       (item.id === 'nutrients_guide' && isOwned) ? true : 
                        (!isOwned && canAfford);
 
     return (
@@ -536,21 +530,20 @@ export default function ShopScreen() {
                                  (isStreakProtectionActive && item.id === 'streak_saver') ? '#9C27B0' :
                                  (streakSaverCount > 0 && item.id === 'streak_saver') ? '#4CAF50' :
                                  (isOwned && item.id === 'nutrients_guide') ? '#2196F3' : colors.primary,
-                opacity: canPurchase ? 1 : 0.5
+                opacity: canPurchase ? 1 : 0.5,
               }
             ]}
             onPress={() => {
               if (canPurchase) {
                 if (item.id === 'nutrients_guide' && purchasedItems.includes(item.id)) {
-                  // If already owned, just open the PDF
                   handleNutrientsGuideAccess();
                 } else {
-                  // Otherwise, proceed with purchase
                   handlePurchase(item);
                 }
               }
             }}
             disabled={!canPurchase}
+            activeOpacity={0.7}
           >
             <Text style={styles.purchaseButtonText}>
               {buttonText}
@@ -650,6 +643,7 @@ export default function ShopScreen() {
       </View>
 
       {/* Shop Items */}
+      {/* Shop Items */}
       {filteredItems.length > 0 ? (
         <FlatList
           data={filteredItems}
@@ -685,11 +679,19 @@ const styles = StyleSheet.create({
   headerGradient: {
     borderRadius: 20,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+      },
+      android: {
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   headerTop: {
     flexDirection: 'row',
@@ -754,11 +756,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selectedCategory: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   categoryEmoji: {
     fontSize: 16,
@@ -800,11 +810,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+      },
+      android: {
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   emptyTextContainer: {
     alignItems: 'center',
@@ -829,11 +847,19 @@ const styles = StyleSheet.create({
   emptyActionButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   emptyActionButtonInner: {
     flexDirection: 'row',
@@ -856,7 +882,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 16,
     borderWidth: 2,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0, 0, 0, 0.01)',
   },
   emptySecondaryButtonText: {
     fontSize: 16,
@@ -871,11 +897,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   shopItemHeader: {
     flexDirection: 'row',

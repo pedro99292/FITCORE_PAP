@@ -14,12 +14,11 @@ import {
   Platform,
   StatusBar,
   Dimensions,
-  SafeAreaView,
   Image,
   Animated,
   Modal
 } from 'react-native';
-import { SafeAreaView as SafeAreaViewRN } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import { useExerciseDB, useTargets, useEquipment } from '@/hooks/useExerciseDB';
 import { Ionicons } from '@expo/vector-icons';
@@ -901,7 +900,7 @@ export default function WorkoutBuilderScreen() {
         ]}
       >
         {/* Fixed Header with SafeAreaView */}
-        <SafeAreaViewRN style={styles.libraryHeaderSafeArea} edges={['top']}>
+        <SafeAreaView style={styles.libraryHeaderSafeArea} edges={['top']}>
           <LinearGradient
             colors={['#2e2e40', '#262635']}
             style={styles.libraryHeader}
@@ -921,7 +920,7 @@ export default function WorkoutBuilderScreen() {
               </Text>
             </View>
           </LinearGradient>
-        </SafeAreaViewRN>
+        </SafeAreaView>
         
         {/* Fixed Search and Filters */}
         <View style={styles.fixedTopContent}>
@@ -1202,7 +1201,7 @@ export default function WorkoutBuilderScreen() {
 
   const renderWorkoutBuilder = () => {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}

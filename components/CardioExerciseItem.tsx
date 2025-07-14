@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '@/hooks/useTheme';
@@ -71,8 +71,9 @@ const CardioExerciseItem = memo(({
 }: CardioExerciseItemProps) => {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
-  const [completedSets, setCompletedSets] = useState<CardioSetData[]>([]);
-  const [customSets, setCustomSets] = useState<WorkoutSetType[]>([]);
+const [showSetsModal, setShowSetsModal] = useState(false);
+const [completedSets, setCompletedSets] = useState<CardioSetData[]>([]);
+const [customSets, setCustomSets] = useState<WorkoutSetType[]>([]);
   const rotationValue = useSharedValue(0);
 
   // Initialize the completed sets and custom sets
@@ -82,8 +83,8 @@ const CardioExerciseItem = memo(({
   }, [exercise.sets.length]);
 
   const toggleExpand = () => {
-    setExpanded(!expanded);
-    rotationValue.value = withTiming(expanded ? 0 : 1, { duration: 300 });
+    console.log('Opening cardio sets modal for:', exercise.name);
+    setShowSetsModal(true);
   };
 
   const arrowStyle = useAnimatedStyle(() => {
@@ -173,7 +174,12 @@ const CardioExerciseItem = memo(({
       entering={FadeIn.delay(index * 100).springify()}
       style={[styles.exerciseCard, { backgroundColor: colors.surface }]}
     >
-      <TouchableOpacity onPress={toggleExpand} style={styles.exerciseHeader}>
+      <TouchableOpacity 
+        onPress={toggleExpand} 
+        style={styles.exerciseHeader}
+        activeOpacity={0.7}
+        hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+      >
         <View style={styles.exerciseInfo}>
           <Text style={[styles.exerciseName, { color: colors.text }]}>{exercise.name}</Text>
           <Text style={[styles.exerciseDetails, { color: colors.textSecondary }]}>
@@ -183,108 +189,159 @@ const CardioExerciseItem = memo(({
         
         <View style={styles.headerRight}>
           <TouchableOpacity 
-            onPress={() => onShowExerciseDetails(exercise.name)}
+            onPress={(event) => {
+              event.stopPropagation();
+              onShowExerciseDetails(exercise.name);
+            }}
             style={styles.infoButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
           </TouchableOpacity>
           
-          <Animated.View style={arrowStyle}>
-            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
-          </Animated.View>
+          <TouchableOpacity 
+            style={styles.arrowContainer}
+            onPress={() => {
+              console.log('Cardio arrow pressed for:', exercise.name);
+              toggleExpand();
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <Animated.View style={arrowStyle}>
+              <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+            </Animated.View>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
 
-      {expanded && (
-        <View style={styles.setsContainer}>
-          <View style={styles.setsHeader}>
-            <Text style={[styles.setsHeaderText, { flex: 0.2, color: colors.textSecondary }]}>Set</Text>
-            {isTimeBased ? (
-              <>
-                <Text style={[styles.setsHeaderText, { flex: 0.4, color: colors.textSecondary }]}>Time (MM:SS)</Text>
-                <Text style={[styles.setsHeaderText, { flex: 0.4, color: colors.textSecondary }]}>Distance (km)</Text>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.setsHeaderText, { flex: 0.4, color: colors.textSecondary }]}>Distance (km)</Text>
-                <Text style={[styles.setsHeaderText, { flex: 0.4, color: colors.textSecondary }]}>Time (MM:SS)</Text>
-              </>
-            )}
-          </View>
-          
-          {customSets.map((set, setIndex) => (
-            <View key={`${set.id}_${setIndex}`} style={styles.setRow}>
-              <View style={[styles.setNumber, { flex: 0.2 }]}>
-                <Text style={[styles.setNumberText, { color: colors.text }]}>{setIndex + 1}</Text>
-              </View>
-              
+      {/* Cardio Sets Modal */}
+      <Modal
+        visible={showSetsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSetsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.modalHeaderContainer}>
+              <Text style={styles.modalExerciseTitle}>
+                {exercise.name}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowSetsModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Column Headers */}
+            <View style={styles.modalSetsHeader}>
+              <Text style={styles.modalHeaderText}>Set</Text>
               {isTimeBased ? (
                 <>
-                  <View style={[styles.inputContainer, { flex: 0.4 }]}>
-                    <TextInput
-                      style={[styles.input, { color: colors.text }]}
-                      placeholder="05:00"
-                      placeholderTextColor={colors.textSecondary}
-                      value={completedSets[setIndex]?.time || ''}
-                      onChangeText={(text) => updateSet(setIndex, 'time', text)}
-                      keyboardType="default"
-                    />
-                  </View>
-                  
-                  <View style={[styles.inputContainer, { flex: 0.4 }]}>
-                    <TextInput
-                      style={[styles.input, { color: colors.text }]}
-                      placeholder="5.0"
-                      placeholderTextColor={colors.textSecondary}
-                      value={completedSets[setIndex]?.distance || ''}
-                      onChangeText={(text) => updateSet(setIndex, 'distance', text)}
-                      keyboardType="numeric"
-                    />
-                  </View>
+                  <Text style={styles.modalHeaderText}>Time (MM:SS)</Text>
+                  <Text style={styles.modalHeaderText}>Distance (km)</Text>
                 </>
               ) : (
                 <>
-                  <View style={[styles.inputContainer, { flex: 0.4 }]}>
-                    <TextInput
-                      style={[styles.input, { color: colors.text }]}
-                      placeholder="5.0"
-                      placeholderTextColor={colors.textSecondary}
-                      value={completedSets[setIndex]?.distance || ''}
-                      onChangeText={(text) => updateSet(setIndex, 'distance', text)}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                  
-                  <View style={[styles.inputContainer, { flex: 0.4 }]}>
-                    <TextInput
-                      style={[styles.input, { color: colors.text }]}
-                      placeholder="05:00"
-                      placeholderTextColor={colors.textSecondary}
-                      value={completedSets[setIndex]?.time || ''}
-                      onChangeText={(text) => updateSet(setIndex, 'time', text)}
-                      keyboardType="default"
-                    />
-                  </View>
+                  <Text style={styles.modalHeaderText}>Distance (km)</Text>
+                  <Text style={styles.modalHeaderText}>Time (MM:SS)</Text>
                 </>
               )}
             </View>
-          ))}
-
-          <View style={styles.setControls}>
-            <TouchableOpacity onPress={addSet} style={styles.addSetButton}>
-              <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={[styles.addSetText, { color: colors.primary }]}>Add Set</Text>
-            </TouchableOpacity>
             
-            {customSets.length > 1 && (
-              <TouchableOpacity onPress={removeSet} style={styles.removeSetButton}>
-                <Ionicons name="remove" size={16} color="#ff4757" />
-                <Text style={styles.removeSetText}>Remove Set</Text>
+            {/* Sets List */}
+            <ScrollView style={styles.modalSetsContainer}>
+              {customSets.map((set, setIndex) => (
+                <View key={`${set.id}_${setIndex}`} style={styles.modalSetRow}>
+                  {/* Set Number */}
+                  <View style={styles.modalSetNumber}>
+                    <Text style={styles.modalSetNumberText}>{setIndex + 1}</Text>
+                  </View>
+                  
+                  {isTimeBased ? (
+                    <>
+                      {/* Time Input */}
+                      <View style={styles.modalInputWrapper}>
+                        <TextInput
+                          style={styles.modalInput}
+                          placeholder="05:00"
+                          placeholderTextColor="#666"
+                          value={completedSets[setIndex]?.time || ''}
+                          onChangeText={(text) => updateSet(setIndex, 'time', text)}
+                          keyboardType="default"
+                        />
+                      </View>
+                      
+                      {/* Distance Input */}
+                      <View style={styles.modalInputWrapper}>
+                        <TextInput
+                          style={styles.modalInput}
+                          placeholder="5.0"
+                          placeholderTextColor="#666"
+                          value={completedSets[setIndex]?.distance || ''}
+                          onChangeText={(text) => updateSet(setIndex, 'distance', text)}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      {/* Distance Input */}
+                      <View style={styles.modalInputWrapper}>
+                        <TextInput
+                          style={styles.modalInput}
+                          placeholder="5.0"
+                          placeholderTextColor="#666"
+                          value={completedSets[setIndex]?.distance || ''}
+                          onChangeText={(text) => updateSet(setIndex, 'distance', text)}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                      
+                      {/* Time Input */}
+                      <View style={styles.modalInputWrapper}>
+                        <TextInput
+                          style={styles.modalInput}
+                          placeholder="05:00"
+                          placeholderTextColor="#666"
+                          value={completedSets[setIndex]?.time || ''}
+                          onChangeText={(text) => updateSet(setIndex, 'time', text)}
+                          keyboardType="default"
+                        />
+                      </View>
+                    </>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+            
+            {/* Action Buttons */}
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.modalAddButton]}
+                onPress={addSet}
+              >
+                <Ionicons name="add" size={18} color="#fff" />
+                <Text style={styles.modalButtonText}>Add Set</Text>
               </TouchableOpacity>
-            )}
+              
+              {customSets.length > 1 && (
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.modalRemoveButton]}
+                  onPress={removeSet}
+                >
+                  <Ionicons name="remove" size={18} color="#fff" />
+                  <Text style={styles.modalButtonText}>Remove Set</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
-      )}
+      </Modal>
     </Animated.View>
   );
 });
@@ -326,6 +383,11 @@ const styles = StyleSheet.create({
   },
   infoButton: {
     padding: 4,
+  },
+  arrowContainer: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   setsContainer: {
     padding: 16,
@@ -409,6 +471,153 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#ff4757',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: '#2c2c3e',
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+    flex: 1,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  modalContainer: {
+    backgroundColor: '#2c2c3e',
+    borderRadius: 20,
+    padding: 0,
+    width: '85%',
+    maxHeight: '70%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalExerciseTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
+  },
+  modalCloseButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+  },
+  modalSetsHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalHeaderText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+  },
+  modalSetsContainer: {
+    maxHeight: 250,
+    paddingHorizontal: 20,
+  },
+  modalSetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  modalSetNumber: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  modalSetNumberText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4a90e2',
+  },
+  modalInputWrapper: {
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  modalInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#1a1a1a',
+    fontWeight: '600',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    padding: 20,
+    paddingTop: 15,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  modalAddButton: {
+    backgroundColor: '#4a90e2',
+  },
+  modalRemoveButton: {
+    backgroundColor: '#ff4757',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

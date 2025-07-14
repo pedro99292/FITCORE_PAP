@@ -1,4 +1,5 @@
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, Dimensions, SafeAreaView, StatusBar, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, Dimensions, StatusBar, ActivityIndicator, Alert, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState, useEffect, memo, useMemo, useCallback } from 'react';
@@ -235,7 +236,7 @@ const WorkoutSelectScreen = () => {
   }, []);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
       <Header onBack={handleBack} />
@@ -334,11 +335,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+        marginBottom: 18,
+      },
+    }),
   },
   workoutItem: {
     borderRadius: 16,
@@ -346,9 +356,19 @@ const styles = StyleSheet.create({
   },
   workoutGradient: {
     borderRadius: 16,
+    ...Platform.select({
+      android: {
+        minHeight: 120,
+      },
+    }),
   },
   workoutContent: {
     padding: 16,
+    ...Platform.select({
+      android: {
+        paddingBottom: 20,
+      },
+    }),
   },
   workoutName: {
     fontSize: 18,
@@ -359,6 +379,11 @@ const styles = StyleSheet.create({
   workoutDetails: {
     flexDirection: 'row',
     marginBottom: 12,
+    ...Platform.select({
+      android: {
+        marginBottom: 8,
+      },
+    }),
   },
   workoutDetail: {
     flexDirection: 'row',
@@ -378,6 +403,12 @@ const styles = StyleSheet.create({
   muscleGroupsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginTop: 4,
+    ...Platform.select({
+      android: {
+        marginBottom: 4,
+      },
+    }),
   },
   muscleTag: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -385,11 +416,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginRight: 8,
-    marginBottom: 4,
+    marginBottom: 6,
+    ...Platform.select({
+      android: {
+        marginBottom: 8,
+        paddingVertical: 5,
+      },
+    }),
   },
   muscleTagText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: '500',
+    ...Platform.select({
+      android: {
+        fontSize: 11,
+        fontWeight: '600',
+      },
+    }),
   },
   loadingContainer: {
     flex: 1,

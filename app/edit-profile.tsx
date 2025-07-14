@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, SafeAreaView, ScrollView, Image, StatusBar, Alert, ActivityIndicator, Dimensions, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Image, StatusBar, Alert, ActivityIndicator, Dimensions, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -95,6 +96,7 @@ export default function EditProfileScreen() {
   };
 
   const pickImage = async () => {
+    console.log('🔧 Edit Profile: pickImage function called');
     try {
       // Request permission
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -183,6 +185,7 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = async () => {
+    console.log('🔧 Edit Profile: handleSave function called');
     // Validate numeric fields if provided
     if (age && isNaN(Number(age))) {
       Alert.alert('Error', 'Age must be a number');
@@ -294,7 +297,7 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" />
       
       <Stack.Screen 
@@ -330,19 +333,25 @@ export default function EditProfileScreen() {
           <View style={styles.mainContainer}>
           {/* Profile Image */}
           <View style={styles.avatarContainer}>
-            <View style={styles.avatarWrapper}>
+            <TouchableOpacity 
+              style={styles.avatarWrapper}
+              onPress={() => {
+                console.log('🔧 Edit Profile: Avatar button pressed');
+                pickImage();
+              }}
+              disabled={uploading}
+              activeOpacity={0.8}
+              accessibilityLabel="Change profile picture"
+              accessibilityRole="button"
+            >
               <Image 
                 source={avatarUrl ? { uri: avatarUrl } : require('@/assets/images/default-avatar.png')} 
                 style={styles.profileImage} 
               />
-              <TouchableOpacity 
-                style={styles.cameraButton}
-                onPress={pickImage}
-                disabled={uploading}
-              >
+              <View style={styles.cameraButton}>
                 <Ionicons name="camera" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
             <Text style={styles.avatarText}>
               {uploading ? 'Loading...' : 'Tap to change photo'}
             </Text>
@@ -445,8 +454,13 @@ export default function EditProfileScreen() {
                       styles.genderOption,
                       gender === option && styles.genderOptionSelected
                     ]}
-                    onPress={() => setGender(option)}
+                    onPress={() => {
+                      console.log('🔧 Edit Profile: Gender option selected:', option);
+                      setGender(option);
+                    }}
                     activeOpacity={0.8}
+                    accessibilityLabel={`Select gender: ${option}`}
+                    accessibilityRole="button"
                   >
                     <View style={styles.genderOptionContent}>
                       <View style={[
@@ -494,15 +508,21 @@ export default function EditProfileScreen() {
       </KeyboardAvoidingView>
       
       <View style={styles.footerContainer}>
-        <TouchableOpacity 
-          style={styles.saveButton} 
-          onPress={handleSave}
-          disabled={isLoading}
+        <LinearGradient
+          colors={['#4a90e2', '#357ad6']}
+          style={styles.saveButton}
         >
-          <LinearGradient
-            colors={['#4a90e2', '#357ad6']}
-            style={styles.saveButtonGradient}
-          >
+                      <TouchableOpacity 
+              style={styles.saveButtonGradient}
+              onPress={() => {
+                console.log('🔧 Edit Profile: Save button pressed');
+                handleSave();
+              }}
+              disabled={isLoading}
+              activeOpacity={0.8}
+              accessibilityLabel="Save profile changes"
+              accessibilityRole="button"
+            >
             {isLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
@@ -511,13 +531,16 @@ export default function EditProfileScreen() {
                 <Text style={styles.saveButtonText}>SAVE</Text>
               </>
             )}
-          </LinearGradient>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </LinearGradient>
         
         <TouchableOpacity
           style={styles.cancelButton}
           onPress={handleBackNavigation}
           disabled={isLoading}
+          activeOpacity={0.7}
+          accessibilityLabel="Cancel profile editing"
+          accessibilityRole="button"
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
@@ -578,6 +601,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#4a90e2',
     overflow: 'hidden',
+    backgroundColor: Platform.select({
+      ios: 'transparent',
+      android: 'rgba(0, 0, 0, 0.01)', // Minimal background for Android touch
+    }),
   },
   profileImage: {
     width: '100%',
@@ -588,10 +615,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(74, 144, 226, 0.8)',
+    backgroundColor: Platform.select({
+      ios: 'rgba(74, 144, 226, 0.8)',
+      android: 'rgba(74, 144, 226, 0.95)', // Less transparent for Android
+    }),
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+    pointerEvents: 'none', // Allow touch events to pass through to parent
   },
   avatarText: {
     marginTop: 12,
@@ -666,6 +697,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 14,
+    backgroundColor: Platform.select({
+      ios: 'transparent',
+      android: 'rgba(0, 0, 0, 0.01)', // Minimal background for Android touch
+    }),
   },
   saveButtonText: {
     color: '#fff',
@@ -675,6 +710,11 @@ const styles = StyleSheet.create({
   cancelButton: {
     alignItems: 'center',
     paddingVertical: 10,
+    backgroundColor: Platform.select({
+      ios: 'transparent',
+      android: 'rgba(0, 0, 0, 0.01)', // Minimal background for Android touch
+    }),
+    borderRadius: 8,
   },
   cancelButtonText: {
     color: '#9da3b4',

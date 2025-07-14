@@ -14,6 +14,7 @@ import {
   Animated,
   Pressable
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { router, useRouter, Stack, useFocusEffect } from 'expo-router';
 import { supabase } from '@/utils/supabase';
@@ -461,7 +462,7 @@ export default function ChatScreen() {
   });
   
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }]} edges={['top']}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
       {/* Adding Stack.Screen with back button */}
@@ -557,7 +558,7 @@ export default function ChatScreen() {
           <Feather name="message-square" size={24} color="#fff" />
         </LinearGradient>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 

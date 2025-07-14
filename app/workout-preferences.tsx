@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
@@ -306,7 +307,7 @@ export default function WorkoutPreferencesScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <Stack.Screen 
         options={{
           headerShown: true,
@@ -455,7 +456,7 @@ export default function WorkoutPreferencesScreen() {
           <View style={{ height: 20 }} />
         </ScrollView>
       </LinearGradient>
-    </View>
+    </SafeAreaView>
   );
 }
 

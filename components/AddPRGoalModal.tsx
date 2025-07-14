@@ -599,7 +599,7 @@ const AddPRGoalModal: React.FC<AddPRGoalModalProps> = ({ visible, onClose, onSav
 
             {/* Target Date */}
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Target Date (Optional)</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Target Date</Text>
               <SimpleDatePicker
                 date={targetDate}
                 onDateChange={setTargetDate}

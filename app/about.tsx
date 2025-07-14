@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
@@ -36,7 +37,7 @@ export default function AboutScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <Stack.Screen 
         options={{
           headerShown: true,
@@ -101,8 +102,8 @@ export default function AboutScreen() {
           
           <FeatureCard
             icon="calendar"
-            title="Workout Scheduling"
-            description="Plan your training sessions with our integrated calendar system and never miss a workout."
+            title="Workout Tracking"
+            description="Review your past workouts, analyze your progress, and identify areas for improvement."
           />
           
           <FeatureCard
@@ -127,14 +128,7 @@ export default function AboutScreen() {
             icon="star"
             title="Achievement System"
             description="Unlock achievements and badges as you reach new milestones in your fitness journey."
-          />
-          
-          <FeatureCard
-            icon="history"
-            title="Workout History"
-            description="Review your past workouts, analyze your progress, and identify areas for improvement."
-          />
-          
+          />          
           <FeatureCard
             icon="user"
             title="Profile Management"
@@ -166,7 +160,7 @@ export default function AboutScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, SafeAreaView, StatusBar, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -489,11 +489,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginTop: screenWidth * 0.04,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        // Remove elevation completely to eliminate the square effect
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   statsGradient: {
     borderRadius: 16,

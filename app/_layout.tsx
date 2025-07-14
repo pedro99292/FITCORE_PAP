@@ -4,7 +4,7 @@ import { Platform, StyleSheet, Text, TextProps, View, LogBox, ActivityIndicator,
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Font from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
+import * as SplashScreen from 'expo-';
 // Only import specific icons instead of entire libraries
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -259,8 +259,8 @@ const MainLayout = () => {
     <>
       <StatusBar 
         style={isDarkMode ? 'light' : 'dark'} 
-        translucent={Platform.OS === 'android'}
-        backgroundColor={Platform.OS === 'android' ? 'transparent' : undefined}
+        translucent={false}
+        backgroundColor={Platform.OS === 'android' ? colors.background : undefined}
       />
       <Stack
         screenOptions={{

@@ -1,4 +1,5 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Alert, Dimensions, SafeAreaView, StatusBar, Platform, ActivityIndicator, Modal, Image } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Alert, Dimensions, StatusBar, Platform, ActivityIndicator, Modal, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
@@ -192,6 +193,7 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
 }) => {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
+  const [showSetsModal, setShowSetsModal] = useState(false);
   const [completedSets, setCompletedSets] = useState<Array<{
     reps: string, 
     weight: string, 
@@ -217,13 +219,22 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
   }, [exercise.sets.length]);
   
   const toggleExpand = () => {
-    setExpanded(!expanded);
-    rotationValue.value = withTiming(expanded ? 0 : 1, { duration: 300 });
+    console.log('Opening sets modal for:', exercise.name);
+    setShowSetsModal(true);
   };
   
   const arrowStyle = useAnimatedStyle(() => {
     return {
       transform: [{ rotate: `${rotationValue.value * 180}deg` }]
+    };
+  });
+
+  const containerStyle = useAnimatedStyle(() => {
+    return {
+      height: expanded ? 'auto' : 0,
+      minHeight: expanded ? 200 : 0,
+      maxHeight: expanded ? 2000 : 0,
+      opacity: expanded ? 1 : 0,
     };
   });
   
@@ -358,6 +369,7 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
         onPress={toggleExpand} 
         style={styles.exerciseHeader}
         activeOpacity={0.7}
+        hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
       >
         <View style={styles.exerciseInfo}>
           <View style={styles.exerciseNameRow}>
@@ -366,7 +378,11 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
             </Text>
             <TouchableOpacity
               style={styles.infoButton}
-              onPress={() => onShowExerciseDetails(exercise.name)}
+              onPress={(event) => {
+                event.stopPropagation();
+                onShowExerciseDetails(exercise.name);
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="information-circle-outline" size={24} color="#4a90e2" />
             </TouchableOpacity>
@@ -378,107 +394,138 @@ const ExerciseItem = memo(({ exercise, index, onSetUpdate, onShowExerciseDetails
           </Text>
         </View>
         
-        <Animated.View style={arrowStyle}>
-          <Ionicons 
-            name="chevron-down" 
-            size={24} 
-            color={colors.text} 
-          />
-        </Animated.View>
+        <TouchableOpacity 
+          style={styles.arrowContainer}
+          onPress={() => {
+            console.log('Arrow pressed for:', exercise.name);
+            toggleExpand();
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
+        >
+          <Animated.View style={arrowStyle}>
+            <Ionicons 
+              name="chevron-down" 
+              size={24} 
+              color={colors.text} 
+            />
+          </Animated.View>
+        </TouchableOpacity>
       </TouchableOpacity>
       
-      {expanded && (
-        <View style={styles.setsContainer}>
-          <View style={styles.setsHeader}>
-            <Text style={[styles.setsHeaderText, { flex: 0.2 }]}>Set</Text>
-            <Text style={[styles.setsHeaderText, { flex: 0.4 }]}>Reps</Text>
-            <Text style={[styles.setsHeaderText, { flex: 0.4 }]}>Weight (kg)</Text>
-          </View>
-          
-          {customSets.map((set, setIndex) => (
-            <View key={`${set.id}_${setIndex}`} style={styles.setRow}>
-              <View style={[styles.setNumber, { flex: 0.2 }]}>
-                <Text style={styles.setNumberText}>{setIndex + 1}</Text>
-              </View>
-              
-              <View style={[styles.inputContainer, { flex: 0.4 }]}>
-                <TextInput
-                  style={styles.input}
-                  placeholder={set.planned_reps?.toString() || "0"}
-                  keyboardType="number-pad"
-                  value={completedSets[setIndex]?.reps || ''}
-                  onChangeText={(text) => updateSet(setIndex, 'reps', text)}
-                  maxLength={3}
-                  onEndEditing={() => {
-                    // Handle the case where user didn't enter anything
-                    handleBlankInput(setIndex, 'reps');
-                    
-                    // Also do the regular update
-                    const currentValue = completedSets[setIndex]?.reps || '';
-                    onSetUpdate(
-                      exercise.id,
-                      setIndex,
-                      currentValue,
-                      completedSets[setIndex]?.weight || ''
-                    );
-                  }}
-                />
-              </View>
-              
-              <View style={[styles.inputContainer, { flex: 0.4 }]}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  keyboardType="decimal-pad"
-                  value={completedSets[setIndex]?.weight || ''}
-                  onChangeText={(text) => updateSet(setIndex, 'weight', text)}
-                  maxLength={5}
-                  onEndEditing={() => {
-                    // Handle the case where user didn't enter anything
-                    handleBlankInput(setIndex, 'weight');
-                    
-                    // Make sure the update is triggered on blur/end editing
-                    const currentValue = completedSets[setIndex]?.weight || '';
-                    onSetUpdate(
-                      exercise.id,
-                      setIndex,
-                      completedSets[setIndex]?.reps || '',
-                      currentValue
-                    );
-                  }}
-                />
-              </View>
+      {/* Sets Modal */}
+      <Modal
+        visible={showSetsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSetsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.modalHeaderContainer}>
+              <Text style={styles.modalExerciseTitle}>
+                {exercise.name}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowSetsModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
             </View>
-          ))}
-          
-          {/* Set management buttons */}
-          <View style={styles.setManagementContainer}>
-            <TouchableOpacity 
-              style={[
-                styles.setButton, 
-                customSets.length <= 1 ? styles.disabledButton : styles.removeButton
-              ]}
-              onPress={removeSet}
-              disabled={customSets.length <= 1}
-            >
-              <Ionicons 
-                name="remove" 
-                size={16} 
-                color={customSets.length <= 1 ? "rgba(255,255,255,0.3)" : "#fff"} 
-              />
-              <Text style={styles.setButtonText}>Remove</Text>
-            </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={[styles.setButton, styles.addButton]}
-              onPress={addSet}
-            >
-              <Ionicons name="add" size={16} color="#fff" />
-              <Text style={styles.setButtonText}>Add</Text>
-            </TouchableOpacity>
+            {/* Column Headers */}
+            <View style={styles.modalSetsHeader}>
+              <Text style={styles.modalHeaderText}>Set</Text>
+              <Text style={styles.modalHeaderText}>Reps</Text>
+              <Text style={styles.modalHeaderText}>Weight (kg)</Text>
+            </View>
+            
+            {/* Sets List */}
+            <ScrollView style={styles.modalSetsContainer}>
+              {customSets.map((set, setIndex) => (
+                <View key={`${set.id}_${setIndex}`} style={styles.modalSetRow}>
+                  {/* Set Number */}
+                  <View style={styles.modalSetNumber}>
+                    <Text style={styles.modalSetNumberText}>{setIndex + 1}</Text>
+                  </View>
+                  
+                  {/* Reps Input */}
+                  <View style={styles.modalInputWrapper}>
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder={set.planned_reps?.toString() || "0"}
+                      placeholderTextColor="#666"
+                      keyboardType="number-pad"
+                      value={completedSets[setIndex]?.reps || ''}
+                      onChangeText={(text) => updateSet(setIndex, 'reps', text)}
+                      maxLength={3}
+                      onEndEditing={() => {
+                        handleBlankInput(setIndex, 'reps');
+                        const currentValue = completedSets[setIndex]?.reps || '';
+                        onSetUpdate(
+                          exercise.id,
+                          setIndex,
+                          currentValue,
+                          completedSets[setIndex]?.weight || ''
+                        );
+                      }}
+                    />
+                  </View>
+                  
+                  {/* Weight Input */}
+                  <View style={styles.modalInputWrapper}>
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="0"
+                      placeholderTextColor="#666"
+                      keyboardType="decimal-pad"
+                      value={completedSets[setIndex]?.weight || ''}
+                      onChangeText={(text) => updateSet(setIndex, 'weight', text)}
+                      maxLength={5}
+                      onEndEditing={() => {
+                        handleBlankInput(setIndex, 'weight');
+                        const currentValue = completedSets[setIndex]?.weight || '';
+                        onSetUpdate(
+                          exercise.id,
+                          setIndex,
+                          completedSets[setIndex]?.reps || '',
+                          currentValue
+                        );
+                      }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            
+            {/* Action Buttons */}
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.modalButton,
+                  styles.modalRemoveButton,
+                  customSets.length <= 1 && styles.modalDisabledButton
+                ]}
+                onPress={removeSet}
+                disabled={customSets.length <= 1}
+              >
+                <Ionicons name="remove" size={18} color="#fff" />
+                <Text style={styles.modalButtonText}>Remove</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.modalAddButton]}
+                onPress={addSet}
+              >
+                <Ionicons name="add" size={18} color="#fff" />
+                <Text style={styles.modalButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      )}
+      </Modal>
     </Animated.View>
   );
 });
@@ -632,10 +679,14 @@ const WorkoutSessionScreen = () => {
   useEffect(() => {
     const initializeSafetyLogic = async () => {
       try {
+        console.log('🔧 Safety Logic: Initializing...');
+        
         // First load the safety preferences
         const shouldNeverShow = await SafetyPreferences.areWarningsDisabled();
+        console.log('🔧 Safety Logic: shouldNeverShow =', shouldNeverShow);
         
         if (shouldNeverShow) {
+          console.log('🔧 Safety Logic: User disabled warnings, skipping modal');
           unstable_batchedUpdates(() => {
             if (isMountedRef.current) {
               setNeverShowSafetyAgain(true);
@@ -645,13 +696,29 @@ const WorkoutSessionScreen = () => {
           return; // Exit early if user never wants to see warnings
         }
         
+        console.log('🔧 Safety Logic: Checking conditions...', {
+          loading,
+          hasWorkout: !!workout,
+          exercisesCount: exercises.length,
+          isMounted: isMountedRef.current
+        });
+        
         // Only show modal if workout is loaded and user hasn't disabled warnings
         if (!loading && workout && exercises.length > 0 && !shouldNeverShow) {
-          setTimeout(() => {
+          console.log('🔧 Safety Logic: All conditions met, showing modal in 500ms');
+          const timeoutId = setTimeout(() => {
             if (isMountedRef.current) {
+              console.log('🔧 Safety Logic: Setting showSafetyModal to true');
               setShowSafetyModal(true);
+            } else {
+              console.log('🔧 Safety Logic: Component unmounted, not showing modal');
             }
-          }, 500);
+          }, Platform.OS === 'android' ? 1000 : 500); // Longer delay for Android
+          
+          // Cleanup timeout on unmount
+          return () => clearTimeout(timeoutId);
+        } else {
+          console.log('🔧 Safety Logic: Conditions not met, not showing modal');
         }
       } catch (error) {
         console.log('Error loading safety preferences:', error);
@@ -828,23 +895,178 @@ const WorkoutSessionScreen = () => {
   
   // Add the modal component for exercise details
   const renderExerciseDetailsModal = () => {
-    console.log('renderExerciseDetailsModal called, selectedExerciseDetails:', !!selectedExerciseDetails);
     if (!selectedExerciseDetails) return null;
 
+    const exercise = selectedExerciseDetails;
+
+    // Use absolute positioned View for Android, Modal for iOS
+    if (Platform.OS === 'android') {
+      return (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#2c2c3e',
+          zIndex: 9999,
+          elevation: 1000,
+        }}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#2c2c3e' }} edges={['top']}>
+            <View style={styles.exerciseModalContent}>
+              <ScrollView style={styles.modalScrollView}>
+                {/* Header with close button */}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{exercise.name}</Text>
+                  <TouchableOpacity 
+                    onPress={() => setSelectedExerciseDetails(null)}
+                    style={styles.closeButtonModal}
+                  >
+                    <Ionicons name="close" size={24} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Exercise Image/Video */}
+                {exercise.videoUrl ? (
+                  <View style={styles.modalImageContainer}>
+                    <Video
+                      source={{ uri: exercise.videoUrl }}
+                      style={styles.modalVideo}
+                      resizeMode={ResizeMode.CONTAIN}
+                      useNativeControls
+                      shouldPlay={false}
+                      isLooping={false}
+                    />
+                  </View>
+                ) : exercise.imageUrl ? (
+                  <View style={styles.modalImageContainer}>
+                    <Image
+                      source={{ uri: exercise.imageUrl }}
+                      style={styles.modalImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : exercise.gifUrl ? (
+                  <View style={styles.modalImageContainer}>
+                    <Image
+                      source={{ uri: exercise.gifUrl }}
+                      style={styles.modalImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.modalNoImageContainer}>
+                    <Ionicons name="image-outline" size={48} color="rgba(255,255,255,0.3)" />
+                    <Text style={styles.modalNoImageText}>No media available</Text>
+                  </View>
+                )}
+
+                {/* Exercise Details */}
+                <View style={styles.modalDetailsContainer}>
+                  {/* Overview */}
+                  {exercise.overview && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.sectionTitleModal}>Overview</Text>
+                      <Text style={styles.overviewText}>{exercise.overview}</Text>
+                    </View>
+                  )}
+
+                  {/* Category and Equipment */}
+                  <View style={styles.detailSection}>
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailItem}>
+                        <Ionicons name="body-outline" size={20} color="#4a90e2" />
+                        <Text style={styles.detailLabel}>Body Part:</Text>
+                        <Text style={styles.detailValue}>{exercise.bodyPart}</Text>
+                      </View>
+                      <View style={styles.detailItem}>
+                        <Ionicons name="barbell-outline" size={20} color="#4a90e2" />
+                        <Text style={styles.detailLabel}>Equipment:</Text>
+                        <Text style={styles.detailValue}>{exercise.equipment}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Target Muscles */}
+                  <View style={styles.detailSection}>
+                    <Text style={styles.sectionTitleModal}>Target Muscles</Text>
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailItem}>
+                        <Ionicons name="fitness-outline" size={20} color="#4a90e2" />
+                        <Text style={styles.detailLabel}>Primary:</Text>
+                        <Text style={styles.detailValue}>{exercise.target}</Text>
+                      </View>
+                    </View>
+                    {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+                      <View style={styles.secondaryMusclesContainer}>
+                        <Text style={styles.detailLabel}>Secondary Muscles:</Text>
+                        {exercise.secondaryMuscles.map((muscle, index) => (
+                          <Text key={index} style={styles.secondaryMuscleText}>• {muscle}</Text>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Instructions */}
+                  {exercise.instructions && exercise.instructions.length > 0 && (
+                    <View style={styles.instructionsSection}>
+                      <Text style={styles.sectionTitleModal}>Instructions</Text>
+                      {exercise.instructions.map((instruction, index) => (
+                        <View key={index} style={styles.instructionItem}>
+                          <Text style={styles.instructionNumber}>{index + 1}.</Text>
+                          <Text style={styles.instructionText}>{instruction}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Exercise Tips */}
+                  {exercise.exerciseTips && exercise.exerciseTips.length > 0 && (
+                    <View style={styles.tipsSection}>
+                      <Text style={styles.sectionTitleModal}>Tips</Text>
+                      {exercise.exerciseTips.map((tip, index) => (
+                        <View key={index} style={styles.tipItem}>
+                          <Ionicons name="bulb-outline" size={20} color="#4a90e2" />
+                          <Text style={styles.tipText}>{tip}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Variations */}
+                  {exercise.variations && exercise.variations.length > 0 && (
+                    <View style={styles.variationsSection}>
+                      <Text style={styles.sectionTitleModal}>Variations</Text>
+                      {exercise.variations.map((variation, index) => (
+                        <View key={index} style={styles.variationItem}>
+                          <Text style={styles.variationText}>• {variation}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+          </SafeAreaView>
+        </View>
+      );
+    }
+
+    // iOS version - use original Modal
     return (
       <Modal
         visible={!!selectedExerciseDetails}
         animationType="slide"
         transparent={false}
-        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'}
+        presentationStyle="pageSheet"
         onRequestClose={() => setSelectedExerciseDetails(null)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#2c2c3e' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#2c2c3e' }} edges={['top']}>
           <View style={styles.exerciseModalContent}>
             <ScrollView style={styles.modalScrollView}>
               {/* Header with close button */}
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{selectedExerciseDetails.name}</Text>
+                <Text style={styles.modalTitle}>{exercise.name}</Text>
                 <TouchableOpacity 
                   onPress={() => setSelectedExerciseDetails(null)}
                   style={styles.closeButtonModal}
@@ -854,10 +1076,10 @@ const WorkoutSessionScreen = () => {
               </View>
 
               {/* Exercise Image/Video */}
-              {selectedExerciseDetails.videoUrl ? (
+              {exercise.videoUrl ? (
                 <View style={styles.modalImageContainer}>
                   <Video
-                    source={{ uri: selectedExerciseDetails.videoUrl }}
+                    source={{ uri: exercise.videoUrl }}
                     style={styles.modalVideo}
                     resizeMode={ResizeMode.CONTAIN}
                     useNativeControls
@@ -865,18 +1087,18 @@ const WorkoutSessionScreen = () => {
                     isLooping={false}
                   />
                 </View>
-              ) : selectedExerciseDetails.imageUrl ? (
+              ) : exercise.imageUrl ? (
                 <View style={styles.modalImageContainer}>
                   <Image
-                    source={{ uri: selectedExerciseDetails.imageUrl }}
+                    source={{ uri: exercise.imageUrl }}
                     style={styles.modalImage}
                     resizeMode="contain"
                   />
                 </View>
-              ) : selectedExerciseDetails.gifUrl ? (
+              ) : exercise.gifUrl ? (
                 <View style={styles.modalImageContainer}>
                   <Image
-                    source={{ uri: selectedExerciseDetails.gifUrl }}
+                    source={{ uri: exercise.gifUrl }}
                     style={styles.modalImage}
                     resizeMode="contain"
                   />
@@ -891,10 +1113,10 @@ const WorkoutSessionScreen = () => {
               {/* Exercise Details */}
               <View style={styles.modalDetailsContainer}>
                 {/* Overview */}
-                {selectedExerciseDetails.overview && (
+                {exercise.overview && (
                   <View style={styles.detailSection}>
                     <Text style={styles.sectionTitleModal}>Overview</Text>
-                    <Text style={styles.overviewText}>{selectedExerciseDetails.overview}</Text>
+                    <Text style={styles.overviewText}>{exercise.overview}</Text>
                   </View>
                 )}
 
@@ -904,12 +1126,12 @@ const WorkoutSessionScreen = () => {
                     <View style={styles.detailItem}>
                       <Ionicons name="body-outline" size={20} color="#4a90e2" />
                       <Text style={styles.detailLabel}>Body Part:</Text>
-                      <Text style={styles.detailValue}>{selectedExerciseDetails.bodyPart}</Text>
+                      <Text style={styles.detailValue}>{exercise.bodyPart}</Text>
                     </View>
                     <View style={styles.detailItem}>
                       <Ionicons name="barbell-outline" size={20} color="#4a90e2" />
                       <Text style={styles.detailLabel}>Equipment:</Text>
-                      <Text style={styles.detailValue}>{selectedExerciseDetails.equipment}</Text>
+                      <Text style={styles.detailValue}>{exercise.equipment}</Text>
                     </View>
                   </View>
                 </View>
@@ -921,13 +1143,13 @@ const WorkoutSessionScreen = () => {
                     <View style={styles.detailItem}>
                       <Ionicons name="fitness-outline" size={20} color="#4a90e2" />
                       <Text style={styles.detailLabel}>Primary:</Text>
-                      <Text style={styles.detailValue}>{selectedExerciseDetails.target}</Text>
+                      <Text style={styles.detailValue}>{exercise.target}</Text>
                     </View>
                   </View>
-                  {selectedExerciseDetails.secondaryMuscles && selectedExerciseDetails.secondaryMuscles.length > 0 && (
+                  {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
                     <View style={styles.secondaryMusclesContainer}>
                       <Text style={styles.detailLabel}>Secondary Muscles:</Text>
-                      {selectedExerciseDetails.secondaryMuscles.map((muscle, index) => (
+                      {exercise.secondaryMuscles.map((muscle, index) => (
                         <Text key={index} style={styles.secondaryMuscleText}>• {muscle}</Text>
                       ))}
                     </View>
@@ -935,10 +1157,10 @@ const WorkoutSessionScreen = () => {
                 </View>
 
                 {/* Instructions */}
-                {selectedExerciseDetails.instructions && selectedExerciseDetails.instructions.length > 0 && (
+                {exercise.instructions && exercise.instructions.length > 0 && (
                   <View style={styles.instructionsSection}>
                     <Text style={styles.sectionTitleModal}>Instructions</Text>
-                    {selectedExerciseDetails.instructions.map((instruction, index) => (
+                    {exercise.instructions.map((instruction, index) => (
                       <View key={index} style={styles.instructionItem}>
                         <Text style={styles.instructionNumber}>{index + 1}.</Text>
                         <Text style={styles.instructionText}>{instruction}</Text>
@@ -948,10 +1170,10 @@ const WorkoutSessionScreen = () => {
                 )}
 
                 {/* Exercise Tips */}
-                {selectedExerciseDetails.exerciseTips && selectedExerciseDetails.exerciseTips.length > 0 && (
+                {exercise.exerciseTips && exercise.exerciseTips.length > 0 && (
                   <View style={styles.tipsSection}>
                     <Text style={styles.sectionTitleModal}>Tips</Text>
-                    {selectedExerciseDetails.exerciseTips.map((tip, index) => (
+                    {exercise.exerciseTips.map((tip, index) => (
                       <View key={index} style={styles.tipItem}>
                         <Ionicons name="bulb-outline" size={20} color="#4a90e2" />
                         <Text style={styles.tipText}>{tip}</Text>
@@ -961,10 +1183,10 @@ const WorkoutSessionScreen = () => {
                 )}
 
                 {/* Variations */}
-                {selectedExerciseDetails.variations && selectedExerciseDetails.variations.length > 0 && (
+                {exercise.variations && exercise.variations.length > 0 && (
                   <View style={styles.variationsSection}>
                     <Text style={styles.sectionTitleModal}>Variations</Text>
-                    {selectedExerciseDetails.variations.map((variation, index) => (
+                    {exercise.variations.map((variation, index) => (
                       <View key={index} style={styles.variationItem}>
                         <Text style={styles.variationText}>• {variation}</Text>
                       </View>
@@ -1248,12 +1470,14 @@ const WorkoutSessionScreen = () => {
         {
           text: 'Finish',
           onPress: async () => {
-            // Show loading
+            // Show loading alert
             Alert.alert('Saving workout...', 'Please wait...');
             
             // Save session data
             const success = await saveWorkoutSession();
             
+            // Add delay for Android to ensure first alert is dismissed
+            const showResultAlert = () => {
             if (success) {
               Alert.alert(
                 'Workout Finished',
@@ -1281,6 +1505,14 @@ const WorkoutSessionScreen = () => {
                   }
                 ]
               );
+              }
+            };
+            
+            // Add delay for Android to prevent alert conflicts
+            if (Platform.OS === 'android') {
+              setTimeout(showResultAlert, 500);
+            } else {
+              showResultAlert();
             }
           }
         }
@@ -1318,7 +1550,7 @@ const WorkoutSessionScreen = () => {
   
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
         <Header title="Loading workout..." onClose={() => router.back()} />
         <View style={styles.centerContent}>
@@ -1333,7 +1565,7 @@ const WorkoutSessionScreen = () => {
   
   if (!workout) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
         <Header title="Workout not found" onClose={() => router.back()} />
         <View style={styles.centerContent}>
@@ -1344,7 +1576,7 @@ const WorkoutSessionScreen = () => {
   }
   
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
       <Header title={workout.title} onClose={handleClose} />
@@ -1428,6 +1660,8 @@ const WorkoutSessionScreen = () => {
         isFirstTime={!hasAcknowledgedSafety}
         workoutType="beginner"
       />
+      
+
     </SafeAreaView>
   );
 };
@@ -1522,6 +1756,11 @@ const styles = StyleSheet.create({
   },
   infoButton: {
     padding: 8,
+  },
+  arrowContainer: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   exerciseDetails: {
     fontSize: 14,
@@ -1832,6 +2071,120 @@ const styles = StyleSheet.create({
   },
   modalScrollContent: {
     flexGrow: 1,
+  },
+  modalContainer: {
+    backgroundColor: '#2c2c3e',
+    borderRadius: 20,
+    padding: 0,
+    width: '85%',
+    maxHeight: '70%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalExerciseTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
+  },
+  modalCloseButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+  },
+  modalSetsHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalHeaderText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+  },
+  modalSetsContainer: {
+    maxHeight: 250,
+    paddingHorizontal: 20,
+  },
+  modalSetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  modalSetNumber: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  modalSetNumberText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4a90e2',
+  },
+  modalInputWrapper: {
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  modalInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#1a1a1a',
+    fontWeight: '600',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    padding: 20,
+    paddingTop: 15,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  modalAddButton: {
+    backgroundColor: '#4a90e2',
+  },
+  modalRemoveButton: {
+    backgroundColor: '#ff4757',
+  },
+  modalDisabledButton: {
+    backgroundColor: 'rgba(120, 120, 120, 0.3)',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

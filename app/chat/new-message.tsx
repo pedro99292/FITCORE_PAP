@@ -13,6 +13,7 @@ import {
   Animated,
   Pressable
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { supabase } from '@/utils/supabase';
@@ -325,7 +326,7 @@ export default function NewMessageScreen() {
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }]} edges={['top']}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
       <Stack.Screen
@@ -420,7 +421,7 @@ export default function NewMessageScreen() {
           />
         </>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -18,6 +18,7 @@ import {
   TouchableWithoutFeedback,
   Modal
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams, Stack, useFocusEffect } from 'expo-router';
 import { supabase } from '@/utils/supabase';
@@ -885,7 +886,7 @@ export default function ConversationScreen() {
     if (!showAttachmentOptions) return null;
 
     // Calculate bottom position based on keyboard
-    const bottomPosition = isKeyboardVisible ? keyboardHeight : 0;
+    const bottomPosition = 80;
 
     return (
       <Animated.View
@@ -995,6 +996,10 @@ export default function ConversationScreen() {
       (e) => {
         setKeyboardVisible(true);
         setKeyboardHeight(e.endCoordinates.height);
+        // Scroll to bottom when keyboard appears
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, Platform.OS === 'android' ? 300 : 100);
       }
     );
     const keyboardWillHideListener = Keyboard.addListener(
@@ -1012,15 +1017,16 @@ export default function ConversationScreen() {
   }, []);
   
   return (
-    <TouchableWithoutFeedback onPress={() => {
-      Keyboard.dismiss();
-      setShowAttachmentOptions(false);
-    }}>
-      <KeyboardAvoidingView 
-        style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }} edges={['top']}>
+      <TouchableWithoutFeedback onPress={() => {
+        Keyboard.dismiss();
+        setShowAttachmentOptions(false);
+      }}>
+        <KeyboardAvoidingView 
+          style={[styles.container, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f5f5f5' }]}
+          behavior='padding'
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 70}
+        >
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
         
         <Stack.Screen
@@ -1127,7 +1133,9 @@ export default function ConversationScreen() {
             styles.inputContainer, 
             { 
               backgroundColor: isDarkMode ? '#2c2c3e' : '#fff',
-              transform: [{ translateY: slideAnim }]
+              transform: [
+                { translateY: slideAnim }
+              ]
             }
           ]}
         >
@@ -1161,7 +1169,13 @@ export default function ConversationScreen() {
             <TouchableOpacity 
               activeOpacity={1} 
               style={{flex: 1}}
-              onPress={() => inputRef.current?.focus()}
+              onPress={() => {
+                inputRef.current?.focus();
+                // Scroll to bottom when input is focused
+                setTimeout(() => {
+                  flatListRef.current?.scrollToEnd({ animated: true });
+                }, Platform.OS === 'android' ? 400 : 200);
+              }}
             >
               <TextInput
                 style={[styles.input, { 
@@ -1180,6 +1194,12 @@ export default function ConversationScreen() {
                 returnKeyType="default"
                 blurOnSubmit={false}
                 ref={inputRef}
+                onFocus={() => {
+                  // Scroll to bottom when input is focused
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                  }, Platform.OS === 'android' ? 400 : 300);
+                }}
               />
             </TouchableOpacity>
             
@@ -1238,6 +1258,7 @@ export default function ConversationScreen() {
         </Modal>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
+    </SafeAreaView>
   );
 }
 
@@ -1365,6 +1386,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     padding: 10,
+    paddingBottom: Platform.OS === 'android' ? 25 : 10,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.1)',
   },

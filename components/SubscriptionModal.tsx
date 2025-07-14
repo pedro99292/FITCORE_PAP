@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,7 +66,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClos
       visible={isVisible}
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
+      <SafeAreaView style={styles.modalContainer}>
         <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
           {/* Header */}
           <View style={styles.header}>
@@ -181,7 +182,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isVisible, onClos
             </Text>
           </View>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -192,6 +193,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   modalContent: {
     borderRadius: 24,

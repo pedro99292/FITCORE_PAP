@@ -87,6 +87,7 @@ const TabLayout = () => {
         tabBarStyle,
         tabBarItemStyle,
         tabBarShowLabel: false, // Hide default labels since we have custom ones
+        tabBarHideOnKeyboard: true, // Hide tab bar when keyboard is visible
       }}>
       <Tabs.Screen
         name="home"

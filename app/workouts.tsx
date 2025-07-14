@@ -8,12 +8,12 @@ import {
   FlatList,
   Alert,
   Dimensions,
-  SafeAreaView,
   StatusBar,
   Image,
   Animated,
   Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack } from 'expo-router';
@@ -384,7 +384,7 @@ export default function WorkoutsScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: extendedColors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: extendedColors.background }]} edges={['top']}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       
       <Stack.Screen
@@ -501,12 +501,19 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     overflow: 'hidden',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
     borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   cardContent: {
     padding: 16,
@@ -590,22 +597,38 @@ const styles = StyleSheet.create({
     bottom: 24,
     left: 24,
     borderRadius: 30,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   fab: {
     position: 'absolute',
     bottom: 24,
     right: 24,
     borderRadius: 30,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.01)',
+      },
+    }),
   },
   fabGradient: {
     width: 60,

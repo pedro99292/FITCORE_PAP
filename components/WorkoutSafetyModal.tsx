@@ -6,7 +6,8 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  Dimensions
+  Dimensions,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -158,11 +159,153 @@ const WorkoutSafetyModal: React.FC<WorkoutSafetyModalProps> = ({
     }
   };
 
+
+
+  // Use absolute positioned View instead of Modal for Android
+  if (Platform.OS === 'android' && visible) {
+    return (
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 9999,
+        elevation: 1000,
+      }}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+          <LinearGradient
+            colors={[
+              currentTip.priority === 'high' ? 'rgba(231, 76, 60, 0.1)' : 'rgba(74, 144, 226, 0.1)',
+              'transparent'
+            ]}
+            style={styles.headerGradient}
+          >
+            <View style={styles.modalHeader}>
+              <View style={styles.headerContent}>
+                <View style={[styles.priorityIndicator, { backgroundColor: getPriorityColor(currentTip.priority) }]} />
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {isFirstTime ? 'Welcome! Safety First' : 'Safety Reminders'}
+                </Text>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </LinearGradient>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.tipContainer}>
+              <View style={[styles.iconContainer, { backgroundColor: getPriorityColor(currentTip.priority) + '20' }]}>
+                <Ionicons 
+                  name={currentTip.icon as any} 
+                  size={32} 
+                  color={getPriorityColor(currentTip.priority)} 
+                />
+              </View>
+              
+              <Text style={[styles.tipTitle, { color: colors.text }]}>
+                {currentTip.title}
+              </Text>
+              
+              <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
+                {currentTip.description}
+              </Text>
+
+              {currentTip.priority === 'high' && (
+                <View style={styles.urgentBadge}>
+                  <Ionicons name="alert-circle" size={16} color="#fff" />
+                  <Text style={styles.urgentText}>Critical Safety Tip</Text>
+                </View>
+              )}
+            </View>
+
+            {isFirstTime && (
+              <View style={[styles.disclaimerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Ionicons name="information-circle" size={20} color={colors.textSecondary} />
+                <Text style={[styles.disclaimerText, { color: colors.textSecondary }]}>
+                  By using this app, you acknowledge that you exercise at your own risk. 
+                  Consult a healthcare provider before starting any exercise program.
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <View style={styles.progressIndicator}>
+              {tips.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.progressDot,
+                    {
+                      backgroundColor: index === currentTipIndex 
+                        ? getPriorityColor(currentTip.priority)
+                        : colors.border
+                    }
+                  ]}
+                />
+              ))}
+            </View>
+
+            <View style={styles.buttonContainer}>
+              {currentTipIndex > 0 && (
+                <TouchableOpacity
+                  style={[styles.navigationButton, styles.secondaryButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={handlePrevious}
+                >
+                  <Text style={[styles.buttonText, { color: colors.text }]}>Previous</Text>
+                </TouchableOpacity>
+              )}
+              
+              <TouchableOpacity
+                style={[
+                  styles.navigationButton,
+                  styles.primaryButton,
+                  { backgroundColor: getPriorityColor(currentTip.priority) }
+                ]}
+                onPress={handleNext}
+              >
+                <Text style={[styles.buttonText, { color: '#fff' }]}>
+                  {currentTipIndex === tips.length - 1 ? 'Start Workout Safely' : 'Next Tip'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Never show again option - only on last tip */}
+            {currentTipIndex === tips.length - 1 && onNeverShowAgain && (
+              <View style={styles.neverShowContainer}>
+                <TouchableOpacity
+                  style={[styles.neverShowButton, { borderColor: colors.border }]}
+                  onPress={onNeverShowAgain}
+                >
+                  <Ionicons name="eye-off-outline" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.neverShowText, { color: colors.textSecondary }]}>
+                    Never show safety warnings again
+                  </Text>
+                </TouchableOpacity>
+                
+                <Text style={[styles.neverShowSubtext, { color: colors.textSecondary }]}>
+                  Warning: You'll no longer receive important safety reminders
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Original iOS implementation
   return (
     <Modal
       visible={visible}
       animationType="slide"
       transparent={true}
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
@@ -296,17 +439,25 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
   },
   modalContainer: {
     width: screenWidth * 0.92,
-    maxHeight: screenHeight * 0.8,
+    maxHeight: Platform.OS === 'android' ? screenHeight * 0.75 : screenHeight * 0.8,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 5,
+        backgroundColor: '#ffffff', // Ensure solid background for Android
+      },
+    }),
   },
   headerGradient: {
     paddingTop: 20,
