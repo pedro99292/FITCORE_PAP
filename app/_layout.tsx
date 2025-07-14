@@ -4,7 +4,7 @@ import { Platform, StyleSheet, Text, TextProps, View, LogBox, ActivityIndicator,
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Font from 'expo-font';
-import * as SplashScreen from 'expo-';
+import * as SplashScreen from 'expo-splash-screen';
 // Only import specific icons instead of entire libraries
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Ionicons from '@expo/vector-icons/Ionicons';
